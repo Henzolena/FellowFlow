@@ -11,9 +11,9 @@ export function Header() {
           <Image
             src="/FellowFlow-logo.png"
             alt="FellowFlow"
-            width={140}
-            height={36}
-            className="h-8 sm:h-9 w-auto"
+            width={200}
+            height={52}
+            className="h-10 sm:h-12 w-auto"
             priority
           />
         </Link>

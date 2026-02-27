@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
@@ -28,7 +26,6 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
 
       {/* Hero */}
       <section className="relative overflow-hidden">
@@ -163,7 +160,6 @@ export default async function Home() {
       </section>
 
       <div className="flex-1" />
-      <Footer />
     </div>
   );
 }

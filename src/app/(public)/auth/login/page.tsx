@@ -56,8 +56,8 @@ function LoginContent() {
           <Image
             src="/FellowFlow-logo.png"
             alt="FellowFlow"
-            width={180}
-            height={46}
+            width={315}
+            height={100}
             className="mx-auto h-10 w-auto"
           />
           <CardDescription>Sign in to access the admin portal</CardDescription>
