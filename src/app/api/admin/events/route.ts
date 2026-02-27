@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/admin-guard";
 
 export async function GET() {
   try {
+    const auth = await requireAdmin();
+    if (!auth.authorized) return auth.response;
+
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("events")
@@ -19,6 +23,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAdmin();
+    if (!auth.authorized) return auth.response;
+
     const supabase = await createClient();
     const body = await request.json();
 
@@ -62,6 +69,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await requireAdmin();
+    if (!auth.authorized) return auth.response;
+
     const supabase = await createClient();
     const body = await request.json();
 
