@@ -67,7 +67,7 @@ export default async function Home() {
               />
               
               {/* Hero figure with animations */}
-              <div className="relative mx-auto max-w-md lg:max-w-lg animate-in fade-in slide-in-from-bottom-4 duration-1000">
+              <div className="relative mx-auto max-w-lg lg:max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-1000">
                 <div className="relative aspect-square animate-float">
                   <Image
                     src="/FellowFlow-hero.png"
