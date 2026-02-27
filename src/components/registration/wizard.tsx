@@ -60,53 +60,6 @@ function genId() {
   return `reg-${nextId++}`;
 }
 
-// ─── localStorage persistence ───
-const STORAGE_VERSION = 1;
-function storageKey(eventId: string) {
-  return `ff_reg_draft_${eventId}`;
-}
-
-type WizardDraft = {
-  v: number;
-  registrants: Registrant[];
-  contact: ContactInfo;
-  step: number;
-  expandedIdx: number;
-  savedAt: number;
-};
-
-function saveDraft(eventId: string, draft: Omit<WizardDraft, "v" | "savedAt">) {
-  try {
-    const payload: WizardDraft = { ...draft, v: STORAGE_VERSION, savedAt: Date.now() };
-    localStorage.setItem(storageKey(eventId), JSON.stringify(payload));
-  } catch { /* quota exceeded or private browsing — ignore */ }
-}
-
-function loadDraft(eventId: string): WizardDraft | null {
-  try {
-    const raw = localStorage.getItem(storageKey(eventId));
-    if (!raw) return null;
-    const draft = JSON.parse(raw) as WizardDraft;
-    // Version check
-    if (draft.v !== STORAGE_VERSION) return null;
-    // Expire after 24 hours
-    if (Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) {
-      localStorage.removeItem(storageKey(eventId));
-      return null;
-    }
-    // Basic shape validation
-    if (!Array.isArray(draft.registrants) || draft.registrants.length === 0) return null;
-    if (typeof draft.contact?.email !== "string") return null;
-    return draft;
-  } catch {
-    return null;
-  }
-}
-
-function clearDraft(eventId: string) {
-  try { localStorage.removeItem(storageKey(eventId)); } catch { /* ignore */ }
-}
-
 function createEmptyRegistrant(): Registrant {
   return {
     id: genId(),
@@ -139,42 +92,15 @@ function syntheticDob(representativeAge: number, eventStartDate: string): string
 
 export function RegistrationWizard({ event, pricing }: WizardProps) {
   const router = useRouter();
+  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [groupQuote, setGroupQuote] = useState<GroupQuote | null>(null);
-  const [draftRestored, setDraftRestored] = useState(false);
 
-  // ─── State initialised from draft or defaults ───
-  const [step, setStep] = useState(0);
   const [registrants, setRegistrants] = useState<Registrant[]>([createEmptyRegistrant()]);
   const [expandedIdx, setExpandedIdx] = useState(0);
   const [contact, setContact] = useState<ContactInfo>({ email: "", phone: "" });
-
-  // Restore draft on mount (runs once)
-  useEffect(() => {
-    const draft = loadDraft(event.id);
-    if (draft) {
-      // Sync nextId counter so new registrants don't collide
-      const maxId = draft.registrants.reduce((max, r) => {
-        const num = parseInt(r.id.replace("reg-", ""), 10);
-        return isNaN(num) ? max : Math.max(max, num);
-      }, 0);
-      nextId = maxId + 1;
-
-      setRegistrants(draft.registrants);
-      setContact(draft.contact);
-      setStep(draft.step);
-      setExpandedIdx(draft.expandedIdx);
-    }
-    setDraftRestored(true);
-  }, [event.id]);
-
-  // Auto-save draft whenever persisted state changes
-  useEffect(() => {
-    if (!draftRestored) return; // Don't save before restore completes
-    saveDraft(event.id, { registrants, contact, step, expandedIdx });
-  }, [event.id, registrants, contact, step, expandedIdx, draftRestored]);
 
   // Duplicate check state
   const [dupChecking, setDupChecking] = useState(false);
@@ -307,9 +233,6 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
       const { groupId, registrations, grandTotal } = data;
       const primaryReg = registrations[0];
       const ln = encodeURIComponent(primaryReg.last_name);
-
-      // Clear draft on successful submission
-      clearDraft(event.id);
 
       if (grandTotal === 0) {
         router.push(`/register/success?registration_id=${primaryReg.id}&free=true&ln=${ln}${groupId ? `&group_id=${groupId}` : ""}`);
