@@ -4,6 +4,7 @@
  *
  * Limitation: per-instance only — resets on deploy/restart.
  * For multi-instance deployments, swap with Redis-backed limiter.
+ * See /RATE_LIMIT_UPGRADE.md for Upstash/Redis migration guide.
  */
 
 type WindowEntry = { count: number; resetAt: number };
