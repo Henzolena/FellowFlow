@@ -1,7 +1,9 @@
 import SuccessClient from "./success-client";
 
-// Force dynamic rendering so this page is never prerendered/cached
+// Force dynamic rendering and disable all caching
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 export default function SuccessPage() {
   return <SuccessClient />;

@@ -5,6 +5,19 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+# Force no-cache on dynamic registration pages to prevent stale edge cache
+[[headers]]
+  for = "/register/review"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+    Netlify-CDN-Cache-Control = "no-store"
+
+[[headers]]
+  for = "/register/success"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+    Netlify-CDN-Cache-Control = "no-store"
+
 [[headers]]
   for = "/*"
   [headers.values]
