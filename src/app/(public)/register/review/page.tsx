@@ -30,7 +30,8 @@ function ReviewContent() {
   const [error, setError] = useState<string | null>(null);
   const [groupPricing, setGroupPricing] = useState<{ subtotal: number; surcharge: number; surchargeLabel: string | null; grandTotal: number } | null>(null);
 
-  const isGroup = !!groupId;
+  // Derived from state (not just URL) so auto-detected groups render correctly
+  const isGroup = !!groupPricing || !!groupId;
 
   useEffect(() => {
     if (!registrationId) {
@@ -38,24 +39,38 @@ function ReviewContent() {
       return;
     }
 
+    async function fetchGroup(gid: string) {
+      const res = await fetch(`/api/registration/group/${gid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRegistrations(data.registrations);
+        setGroupPricing(data.pricing);
+        return true;
+      }
+      return false;
+    }
+
     async function fetchData() {
       try {
+        // If group_id is in the URL, fetch group directly
         if (groupId) {
-          // Fetch all group registrations
-          const res = await fetch(`/api/registration/group/${groupId}`);
-          if (res.ok) {
-            const data = await res.json();
-            setRegistrations(data.registrations);
-            setGroupPricing(data.pricing);
-          } else {
-            setError("Group registrations not found");
-          }
+          const ok = await fetchGroup(groupId);
+          if (!ok) setError("Group registrations not found");
         } else {
-          // Solo registration
+          // Fetch solo first, but check if it belongs to a group
           const res = await fetch(`/api/registration/${registrationId}`);
           if (res.ok) {
             const data = await res.json();
-            setRegistrations([data]);
+            if (data.group_id) {
+              // Auto-detect: this registration belongs to a group
+              const ok = await fetchGroup(data.group_id);
+              if (!ok) {
+                // Fallback to solo if group fetch fails
+                setRegistrations([data]);
+              }
+            } else {
+              setRegistrations([data]);
+            }
           } else {
             setError("Registration not found");
           }
@@ -75,12 +90,14 @@ function ReviewContent() {
     setError(null);
 
     try {
+      // Use group_id from URL or from the fetched registration data
+      const effectiveGroupId = groupId || (registrations.length > 0 ? registrations[0].group_id : null);
       const res = await fetch("/api/payment/create-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          groupId
-            ? { groupId }
+          effectiveGroupId
+            ? { groupId: effectiveGroupId }
             : { registrationId }
         ),
       });
