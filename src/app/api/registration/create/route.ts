@@ -2,10 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { computePricing } from "@/lib/pricing/engine";
 import { registrationSchema } from "@/lib/validations/registration";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import type { Event, PricingConfig } from "@/types/database";
+
+// 10 registrations per 60 seconds per IP (stricter than quote)
+const RATE_LIMIT = 10;
+const RATE_WINDOW_MS = 60_000;
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    const rl = rateLimit(`reg-create:${ip}`, RATE_LIMIT, RATE_WINDOW_MS);
+    if (!rl.success) {
+      console.warn(`Rate limit hit: registration-create from ${ip}`);
+      return NextResponse.json(
+        { error: "Too many requests. Please try again shortly." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+        }
+      );
+    }
+
     const body = await request.json();
     const parsed = registrationSchema.safeParse(body);
 
