@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
@@ -13,6 +12,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { EventWithPricing } from "@/types/database";
+import { HeroSection } from "@/components/landing/hero-section";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -29,63 +29,7 @@ export default async function Home() {
     <div className="min-h-screen flex flex-col">
 
       {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="hero-glow absolute inset-0" aria-hidden="true" />
-        
-        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:py-24 lg:py-32">
-          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
-            {/* Left: Content */}
-            <div className="space-y-6 text-center lg:text-left order-2 lg:order-1">
-              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-                Conference Registration{" "}
-                <span className="brand-gradient-text">Made Simple</span>
-              </h1>
-              <p className="text-lg leading-8 text-muted-foreground max-w-xl mx-auto lg:mx-0">
-                Register for upcoming conferences with our streamlined process.
-                Answer a few questions, see your pricing instantly, and pay
-                securely online.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center lg:items-start gap-4 pt-2">
-                <Link href="/register">
-                  <Button size="lg" className="text-base px-8 shadow-brand-md hover:shadow-brand-lg transition-shadow">
-                    Register Now
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            {/* Right: Hero Figure */}
-            <div className="relative order-1 lg:order-2">
-              {/* Radial glow behind figure */}
-              <div 
-                className="absolute inset-0 -z-10 opacity-30"
-                style={{
-                  background: 'radial-gradient(ellipse 70% 60% at 50% 50%, oklch(0.72 0.13 195), oklch(0.64 0.11 175), transparent 70%)',
-                }}
-                aria-hidden="true"
-              />
-              
-              {/* Hero figure with animations */}
-              <div className="relative mx-auto max-w-lg lg:max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-1000">
-                <div className="relative aspect-square animate-float">
-                  <Image
-                    src="/FellowFlow-hero.png"
-                    alt="Conference registration scheduling illustration showing calendar, clock, and planning elements"
-                    fill
-                    priority
-                    className="object-contain drop-shadow-2xl"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Gradient divider */}
-        <div className="h-px brand-gradient opacity-20" />
-      </section>
+      <HeroSection />
 
       {/* Active Event */}
       {event && (
@@ -122,7 +66,7 @@ export default async function Home() {
       )}
 
       {/* Features */}
-      <section className="py-16">
+      <section id="how-it-works" className="py-16 scroll-mt-20">
         <div className="mx-auto max-w-7xl px-4">
           <div className="text-center mb-12">
             <h2 className="text-2xl font-bold">How It Works</h2>

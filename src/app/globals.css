@@ -173,16 +173,139 @@
     box-shadow: 0 8px 24px oklch(0.28 0.07 248 / 0.08), 0 4px 8px oklch(0.28 0.07 248 / 0.04);
   }
 
+  /* === Hero floating animations === */
+
   @keyframes float {
-    0%, 100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-12px);
-    }
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-12px); }
+  }
+
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+
+  @keyframes float-slow-reverse {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(8px); }
+  }
+
+  @keyframes orb-drift-1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -20px) scale(1.05); }
+    66% { transform: translate(-20px, 15px) scale(0.95); }
+  }
+
+  @keyframes orb-drift-2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(-25px, 20px) scale(0.95); }
+    66% { transform: translate(15px, -30px) scale(1.05); }
+  }
+
+  @keyframes orb-drift-3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(20px, 25px) scale(1.03); }
+  }
+
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
 
   .animate-float {
     animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-float-slow {
+    animation: float-slow 8s ease-in-out infinite;
+  }
+
+  .animate-float-slow-reverse {
+    animation: float-slow-reverse 9s ease-in-out infinite;
+  }
+
+  /* === Hero gradient orbs === */
+
+  .hero-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    will-change: transform;
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .hero-orb-1 {
+    top: -10%;
+    right: -5%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, oklch(0.72 0.13 195 / 0.12), transparent 70%);
+    animation: orb-drift-1 20s ease-in-out infinite;
+  }
+
+  .hero-orb-2 {
+    bottom: -15%;
+    left: -10%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, oklch(0.64 0.11 175 / 0.08), transparent 70%);
+    animation: orb-drift-2 25s ease-in-out infinite;
+  }
+
+  .hero-orb-3 {
+    top: 40%;
+    left: 30%;
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, oklch(0.68 0.17 152 / 0.06), transparent 70%);
+    animation: orb-drift-3 18s ease-in-out infinite;
+  }
+
+  /* === Hero dot grid === */
+
+  .hero-dot-grid {
+    background-image: radial-gradient(circle, oklch(0.28 0.07 248 / 0.15) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* === Hero noise texture === */
+
+  .hero-noise {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 128px 128px;
+  }
+
+  /* === Hero figure glow === */
+
+  .hero-figure-glow {
+    background: conic-gradient(
+      from 0deg,
+      oklch(0.72 0.13 195 / 0.08),
+      oklch(0.64 0.11 175 / 0.12),
+      oklch(0.68 0.17 152 / 0.08),
+      oklch(0.80 0.16 75 / 0.04),
+      oklch(0.72 0.13 195 / 0.08)
+    );
+    filter: blur(60px);
+    animation: orb-drift-1 30s ease-in-out infinite;
+  }
+
+  /* === Animated gradient text for hero === */
+
+  .hero-gradient-text {
+    background: linear-gradient(
+      135deg,
+      var(--brand-cyan),
+      var(--brand-teal),
+      var(--brand-green),
+      var(--brand-cyan)
+    );
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradient-shift 6s ease-in-out infinite;
   }
 }
