@@ -20,6 +20,7 @@ import {
   Clock,
   Search,
   CalendarDays,
+  FileText,
 } from "lucide-react";
 import type { EventWithPricing, PricingConfig } from "@/types/database";
 
@@ -206,21 +207,29 @@ export function EventSearch({ events }: Props) {
                         )}
                       </p>
                     )}
-                    {!isPastEvent ? (
-                      <Link href={`/register/${event.id}`}>
-                        <Button
-                          size="sm"
-                          className="gap-1.5 shadow-brand-sm hover:shadow-brand-md transition-shadow"
-                        >
-                          Register
-                          <ArrowRight className="h-3.5 w-3.5" />
+                    <div className="flex items-center gap-2">
+                      <Link href="/register/receipt">
+                        <Button size="sm" variant="ghost" className="gap-1.5 text-muted-foreground hover:text-foreground">
+                          <FileText className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">My Receipt</span>
                         </Button>
                       </Link>
-                    ) : (
-                      <Button size="sm" variant="outline" disabled>
-                        Registration Closed
-                      </Button>
-                    )}
+                      {!isPastEvent ? (
+                        <Link href={`/register/${event.id}`}>
+                          <Button
+                            size="sm"
+                            className="gap-1.5 shadow-brand-sm hover:shadow-brand-md transition-shadow"
+                          >
+                            Register
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button size="sm" variant="outline" disabled>
+                          Registration Closed
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
