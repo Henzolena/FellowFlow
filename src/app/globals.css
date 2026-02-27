@@ -308,4 +308,45 @@
     background-clip: text;
     animation: gradient-shift 6s ease-in-out infinite;
   }
+
+  .hero-gradient-text-enhanced {
+    position: relative;
+    background: linear-gradient(
+      135deg,
+      var(--brand-cyan),
+      var(--brand-teal),
+      var(--brand-green),
+      var(--brand-amber),
+      var(--brand-cyan)
+    );
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradient-shift 8s ease-in-out infinite;
+    filter: drop-shadow(0 0 24px oklch(0.72 0.13 195 / 0.3));
+  }
+
+  .hero-gradient-text-enhanced::before {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    background: linear-gradient(
+      135deg,
+      var(--brand-cyan),
+      var(--brand-teal),
+      var(--brand-green),
+      var(--brand-amber),
+      var(--brand-cyan)
+    );
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: blur(20px);
+    opacity: 0.4;
+    animation: gradient-shift 8s ease-in-out infinite;
+  }
 }

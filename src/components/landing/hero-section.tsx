@@ -114,18 +114,33 @@ export function HeroSection() {
 
             {/* Headline */}
             <div className="animate-in fade-in slide-in-from-bottom-3 duration-700" style={{ animationDelay: "100ms", animationFillMode: "both" }}>
-              <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-[3.5rem] xl:text-6xl leading-[1.1]">
-                <span className="block">Conference</span>
-                <span className="block">Registration</span>
-                <span className="block mt-1 hero-gradient-text">Made Effortless</span>
+              <h1 className="relative">
+                <span className="block text-[2.75rem] sm:text-6xl lg:text-7xl xl:text-[5rem] font-black tracking-[-0.02em] leading-[0.95] mb-3">
+                  <span className="relative inline-block">
+                    Conference
+                    <svg className="absolute -bottom-2 left-0 w-full h-3 text-brand-cyan/20" viewBox="0 0 200 12" preserveAspectRatio="none">
+                      <path d="M0,7 Q50,0 100,7 T200,7" fill="none" stroke="currentColor" strokeWidth="3" />
+                    </svg>
+                  </span>
+                </span>
+                <span className="block text-[2.75rem] sm:text-6xl lg:text-7xl xl:text-[5rem] font-black tracking-[-0.02em] leading-[0.95]">
+                  Registration
+                </span>
+                <span className="block text-[3rem] sm:text-[4rem] lg:text-[5rem] xl:text-[5.5rem] font-black tracking-[-0.03em] leading-[0.9] mt-4 hero-gradient-text-enhanced">
+                  Made Effortless
+                </span>
               </h1>
             </div>
 
             {/* Subheadline */}
             <div className="animate-in fade-in slide-in-from-bottom-3 duration-700" style={{ animationDelay: "250ms", animationFillMode: "both" }}>
-              <p className="text-base sm:text-lg leading-relaxed text-muted-foreground max-w-lg mx-auto lg:mx-0">
-                From sign-up to confirmation in under 2 minutes. Smart pricing, secure
-                payments, and instant receipts — all in one seamless flow.
+              <p className="text-lg sm:text-xl leading-relaxed text-foreground/70 max-w-xl mx-auto lg:mx-0 font-medium">
+                From sign-up to confirmation in{" "}
+                <span className="relative inline-block">
+                  <span className="relative z-10 text-foreground font-semibold">under 2 minutes</span>
+                  <span className="absolute bottom-0 left-0 w-full h-2 bg-brand-amber/20 -rotate-1" />
+                </span>
+                . Smart pricing, secure payments, and instant receipts — all in one seamless flow.
               </p>
             </div>
 
