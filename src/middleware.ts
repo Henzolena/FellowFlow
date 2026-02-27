@@ -29,6 +29,14 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // Skip auth for login and callback routes
+  if (
+    request.nextUrl.pathname.startsWith("/auth/login") ||
+    request.nextUrl.pathname.startsWith("/auth/callback")
+  ) {
+    return supabaseResponse;
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
