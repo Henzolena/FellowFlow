@@ -16,6 +16,25 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FellowFlow — Conference Registration",
   description: "Register and pay for conference attendance with FellowFlow.",
+  applicationName: "FellowFlow",
+  authors: [{ name: "FellowFlow" }],
+  keywords: ["conference", "registration", "event", "payment", "fellowflow"],
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon.png", sizes: "any" },
+      { url: "/icon.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "FellowFlow",
+  },
 };
 
 export default function RootLayout({
