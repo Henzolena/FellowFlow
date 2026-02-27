@@ -84,8 +84,8 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     const adminClient = createAdminClient();
 
-    // Generate group_id
-    const groupId = data.registrants.length > 1 ? randomUUID() : null;
+    // Always generate group_id for the group flow (ensures review page shows all registrants)
+    const groupId = randomUUID();
     const isFreeGroup = groupPricing.grandTotal === 0;
 
     // Create all registrations
