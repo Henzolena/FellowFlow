@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendConfirmationEmail } from "@/lib/email/resend";
+import { sendConfirmationEmail, sendGroupReceiptEmail } from "@/lib/email/resend";
+import { computeGroupPricing } from "@/lib/pricing/engine";
 import Stripe from "stripe";
+import type { Registration, Event, PricingConfig } from "@/types/database";
 
 /* ------------------------------------------------------------------ */
 /*  Environment helpers                                               */
@@ -146,26 +148,78 @@ export async function POST(request: NextRequest) {
             console.error("Group registration update failed:", groupRegError.message);
           }
 
-          // Send confirmation emails to all group members
+          // Send ONE consolidated group receipt email
           const { data: groupRegs } = await supabase
             .from("registrations")
-            .select("id, first_name, last_name, email, computed_amount, explanation_detail, events(name)")
-            .eq("group_id", groupId);
+            .select(
+              "id, first_name, last_name, email, computed_amount, explanation_detail, " +
+              "category, age_at_event, is_full_duration, is_staying_in_motel, num_days, " +
+              "date_of_birth, event_id, " +
+              "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold)"
+            )
+            .eq("group_id", groupId)
+            .order("created_at", { ascending: true });
 
-          if (groupRegs) {
-            for (const reg of groupRegs) {
-              const evtData = reg.events as unknown as { name: string } | null;
-              sendConfirmationEmail({
-                to: reg.email,
-                firstName: reg.first_name,
-                lastName: reg.last_name,
-                eventName: evtData?.name || "Event",
-                amount: Number(reg.computed_amount),
-                isFree: false,
-                registrationId: reg.id,
-                explanationDetail: reg.explanation_detail,
-              }).catch(() => {});
+          const rows = groupRegs as unknown as Record<string, unknown>[];
+          if (rows && rows.length > 0) {
+            const primaryReg = rows[0];
+            const evtData = primaryReg.events as unknown as { name: string } | null;
+            const eventId = primaryReg.event_id as string;
+
+            // Compute group pricing for the email
+            const { data: pricing } = await supabase
+              .from("pricing_config")
+              .select("*")
+              .eq("event_id", eventId)
+              .single<PricingConfig>();
+
+            let subtotal = rows.reduce((sum, r) => sum + Number(r.computed_amount), 0);
+            let surcharge = 0;
+            let surchargeLabel: string | null = null;
+            let grandTotal = subtotal;
+
+            if (pricing) {
+              const eventObj = primaryReg.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold">;
+              const result = computeGroupPricing(
+                (rows as unknown as Registration[]).map((r) => ({
+                  dateOfBirth: r.date_of_birth,
+                  isFullDuration: r.is_full_duration,
+                  isStayingInMotel: r.is_staying_in_motel ?? undefined,
+                  numDays: r.num_days ?? undefined,
+                })),
+                { ...eventObj, id: eventId, is_active: true, created_at: "", updated_at: "", description: null } as Event,
+                pricing
+              );
+              subtotal = result.subtotal;
+              surcharge = result.surcharge;
+              surchargeLabel = result.surchargeLabel;
+              grandTotal = result.grandTotal;
             }
+
+            function attendanceLabel(r: Record<string, unknown>): string {
+              if (r.is_full_duration) return "Full Conference";
+              if (r.is_staying_in_motel) return "Partial — Motel";
+              return `${r.num_days} Day(s)`;
+            }
+
+            sendGroupReceiptEmail({
+              to: primaryReg.email as string,
+              eventName: evtData?.name || "Event",
+              members: rows.map((r) => ({
+                firstName: r.first_name as string,
+                lastName: r.last_name as string,
+                category: r.category as string,
+                ageAtEvent: r.age_at_event as number,
+                amount: Number(r.computed_amount),
+                attendance: attendanceLabel(r),
+              })),
+              subtotal,
+              surcharge,
+              surchargeLabel,
+              grandTotal,
+              isFree: false,
+              primaryRegistrationId: primaryReg.id as string,
+            }).catch(() => {});
           }
 
           console.log(
