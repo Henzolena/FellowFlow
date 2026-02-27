@@ -70,35 +70,43 @@ export async function POST(request: NextRequest) {
 
   /* ---------- Process event ---------- */
   try {
+    console.log(`📥 Processing webhook event: ${event.type} (${stripeEventId})`);
+    
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const registrationId = session.metadata?.registration_id;
 
+        console.log(`🔍 Session ID: ${session.id}, Registration ID: ${registrationId}`);
+
         if (!registrationId) {
-          console.error("No registration_id in session metadata");
+          console.error("❌ No registration_id in session metadata");
           break;
         }
 
         // Guard: check the payment row exists and is still pending
-        const { data: payment } = await supabase
+        const { data: payment, error: fetchError } = await supabase
           .from("payments")
           .select("id, status")
           .eq("stripe_session_id", session.id)
           .maybeSingle();
 
+        console.log(`💳 Payment lookup result:`, { payment, fetchError });
+
         if (!payment) {
-          console.error(`No payment record for session ${session.id}`);
+          console.error(`❌ No payment record for session ${session.id}`);
           break;
         }
 
         if (payment.status === "completed") {
-          console.log(`Payment ${payment.id} already completed — first-write wins`);
+          console.log(`✓ Payment ${payment.id} already completed — first-write wins`);
           break;
         }
 
+        console.log(`🔄 Updating payment ${payment.id} to completed...`);
+
         // Atomic update: first write wins via status check
-        const { error: paymentError, count: paymentCount } = await supabase
+        const { error: paymentError, data: updatedPayment } = await supabase
           .from("payments")
           .update({
             stripe_payment_intent_id: session.payment_intent as string,
@@ -110,13 +118,15 @@ export async function POST(request: NextRequest) {
           .eq("status", "pending") // Only update if still pending
           .select("id");
 
+        console.log(`💳 Payment update result:`, { updatedPayment, paymentError });
+
         if (paymentError) {
-          console.error("Payment update failed:", paymentError.message);
+          console.error("❌ Payment update failed:", paymentError.message);
           break;
         }
 
-        if (!paymentCount || paymentCount === 0) {
-          console.log(`Payment for session ${session.id} was already updated — skipping`);
+        if (!updatedPayment || updatedPayment.length === 0) {
+          console.log(`⚠️ Payment for session ${session.id} was already updated — skipping`);
           break;
         }
 
