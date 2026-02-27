@@ -11,13 +11,13 @@ export const personalInfoSchema = z.object({
 export const attendanceSchema = z.discriminatedUnion("isFullDuration", [
   z.object({
     isFullDuration: z.literal(true),
-    isStayingInMotel: z.boolean(),
+    isStayingInMotel: z.undefined().optional(),
     numDays: z.undefined().optional(),
   }),
   z.object({
     isFullDuration: z.literal(false),
-    isStayingInMotel: z.undefined().optional(),
-    numDays: z.number().int().min(1, "At least 1 day required"),
+    isStayingInMotel: z.boolean(),
+    numDays: z.number().int().min(1).optional(),
   }),
 ]);
 

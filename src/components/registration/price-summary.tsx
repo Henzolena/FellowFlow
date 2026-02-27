@@ -70,14 +70,20 @@ export function PriceSummary({
         {isFullDuration !== undefined && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="h-4 w-4" />
-            <span>{isFullDuration ? "Full Conference" : `${numDays || "?"} Day(s)`}</span>
+            <span>
+              {isFullDuration
+                ? "Full Conference"
+                : isStayingInMotel
+                ? "Partial — Motel Guest"
+                : `${numDays || "?"} Day(s)`}
+            </span>
           </div>
         )}
 
-        {isStayingInMotel !== undefined && isFullDuration && (
+        {isStayingInMotel !== undefined && !isFullDuration && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Home className="h-4 w-4" />
-            <span>{isStayingInMotel ? "Motel Stay" : "No Motel"}</span>
+            <span>{isStayingInMotel ? "Motel Stay (Free)" : "No Motel"}</span>
           </div>
         )}
 

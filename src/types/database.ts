@@ -22,6 +22,13 @@ export type Event = {
   updated_at: string;
 };
 
+export type SurchargeTier = {
+  start_date: string;
+  end_date: string;
+  amount: number;
+  label: string;
+};
+
 export type PricingConfig = {
   id: string;
   event_id: string;
@@ -32,6 +39,7 @@ export type PricingConfig = {
   child_full_price: number;
   child_daily_price: number;
   motel_stay_free: boolean;
+  late_surcharge_tiers: SurchargeTier[];
   created_at: string;
   updated_at: string;
 };
@@ -39,10 +47,10 @@ export type PricingConfig = {
 export type AgeCategory = "adult" | "youth" | "child";
 
 export type ExplanationCode =
-  | "FULL_MOTEL_FREE"
   | "FULL_ADULT"
   | "FULL_YOUTH"
   | "FULL_CHILD"
+  | "PARTIAL_MOTEL_FREE"
   | "PARTIAL_ADULT"
   | "PARTIAL_YOUTH"
   | "PARTIAL_CHILD";

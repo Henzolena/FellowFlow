@@ -99,7 +99,9 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
   const canProceedStep0 =
     form.isFullDuration !== null &&
     form.dateOfBirth !== "" &&
-    (form.isFullDuration ? form.isStayingInMotel !== null : form.numDays >= 1);
+    (form.isFullDuration
+      ? true // full duration needs no extra input
+      : form.isStayingInMotel !== null && (form.isStayingInMotel || form.numDays >= 1));
 
   const canProceedStep1 =
     form.firstName.trim() !== "" &&
@@ -122,8 +124,8 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
           phone: form.phone || undefined,
           dateOfBirth: form.dateOfBirth,
           isFullDuration: form.isFullDuration,
-          isStayingInMotel: form.isFullDuration ? form.isStayingInMotel : undefined,
-          numDays: form.isFullDuration ? undefined : form.numDays,
+          isStayingInMotel: !form.isFullDuration ? form.isStayingInMotel : undefined,
+          numDays: !form.isFullDuration && !form.isStayingInMotel ? form.numDays : undefined,
         }),
       });
 
@@ -232,7 +234,8 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       onValueChange={(v) =>
                         update({
                           isFullDuration: v === "yes",
-                          isStayingInMotel: v === "yes" ? form.isStayingInMotel : null,
+                          isStayingInMotel: v === "no" ? form.isStayingInMotel : null,
+                          numDays: v === "no" ? form.numDays : 1,
                         })
                       }
                     >
@@ -252,7 +255,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   </div>
 
                   <AnimatePresence>
-                    {form.isFullDuration === true && (
+                    {form.isFullDuration === false && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
@@ -285,35 +288,30 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                             </Label>
                           </div>
                         </RadioGroup>
-                      </motion.div>
-                    )}
 
-                    {form.isFullDuration === false && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="space-y-3 overflow-hidden"
-                      >
-                        <Label>How many days will you attend?</Label>
-                        <Select
-                          value={String(form.numDays)}
-                          onValueChange={(v) => update({ numDays: parseInt(v) })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from(
-                              { length: event.duration_days - 1 },
-                              (_, i) => i + 1
-                            ).map((d) => (
-                              <SelectItem key={d} value={String(d)}>
-                                {d} day{d !== 1 ? "s" : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {form.isStayingInMotel === false && (
+                          <div className="space-y-3 pt-2">
+                            <Label>How many days will you attend?</Label>
+                            <Select
+                              value={String(form.numDays)}
+                              onValueChange={(v) => update({ numDays: parseInt(v) })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from(
+                                  { length: event.duration_days - 1 },
+                                  (_, i) => i + 1
+                                ).map((d) => (
+                                  <SelectItem key={d} value={String(d)}>
+                                    {d} day{d !== 1 ? "s" : ""}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -409,9 +407,11 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                     <p className="text-sm">
                       {form.isFullDuration
                         ? `Full conference (${event.duration_days} days)`
+                        : form.isStayingInMotel
+                        ? "Partial attendance — staying in motel"
                         : `${form.numDays} day(s)`}
                     </p>
-                    {form.isFullDuration && (
+                    {!form.isFullDuration && (
                       <p className="text-sm">
                         Motel: {form.isStayingInMotel ? "Yes" : "No"}
                       </p>
