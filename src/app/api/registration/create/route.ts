@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { computePricing } from "@/lib/pricing/engine";
 import { registrationSchema } from "@/lib/validations/registration";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
@@ -36,6 +37,8 @@ export async function POST(request: NextRequest) {
     }
 
     const data = parsed.data;
+    
+    // Use public client for reads (respects RLS for active events)
     const supabase = await createClient();
 
     // Get event
@@ -89,8 +92,12 @@ export async function POST(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
+    // Use admin client for INSERT to support anonymous registrations
+    // (bypasses RLS — anonymous users can't pass RLS INSERT policies)
+    const adminClient = createAdminClient();
+
     // Create registration
-    const { data: registration, error: regError } = await supabase
+    const { data: registration, error: regError } = await adminClient
       .from("registrations")
       .insert({
         event_id: data.eventId,
