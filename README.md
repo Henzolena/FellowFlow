@@ -100,4 +100,6 @@ src/
 
 ## Deployment
 
-Deploy to Vercel or any Node.js hosting platform. Ensure all environment variables are set in production, including `STRIPE_WEBHOOK_SECRET` for payment confirmation.
+Deploy to Netlify or any Node.js hosting platform. Ensure all environment variables are set in production, including `STRIPE_WEBHOOK_SECRET` for payment confirmation.
+
+**Production URL:** https://fellowflow.online
