@@ -59,6 +59,7 @@ export type Registration = {
   id: string;
   event_id: string;
   user_id: string | null;
+  group_id: string | null;
   first_name: string;
   last_name: string;
   email: string;

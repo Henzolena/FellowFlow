@@ -21,15 +21,18 @@ type RegStatus = "pending" | "confirmed" | "cancelled" | "refunded";
 function SuccessContent() {
   const searchParams = useSearchParams();
   const registrationId = searchParams.get("registration_id");
+  const groupId = searchParams.get("group_id");
   const isFree = searchParams.get("free") === "true";
   const lastName = searchParams.get("ln") || "";
 
   const [status, setStatus] = useState<RegStatus>(isFree ? "confirmed" : "pending");
   const [polling, setPolling] = useState(!isFree);
+  const [groupCount, setGroupCount] = useState<number | null>(null);
 
   const checkStatus = useCallback(async () => {
     if (!registrationId) return;
     try {
+      // For groups, check the primary registration status (all get confirmed together)
       const res = await fetch(`/api/registration/${registrationId}/status`);
       if (!res.ok) return;
       const data = await res.json();
@@ -41,6 +44,17 @@ function SuccessContent() {
       // Network error — keep polling
     }
   }, [registrationId]);
+
+  // Fetch group count if group registration
+  useEffect(() => {
+    if (!groupId) return;
+    fetch(`/api/registration/group/${groupId}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.registrations) setGroupCount(data.registrations.length);
+      })
+      .catch(() => {});
+  }, [groupId]);
 
   useEffect(() => {
     if (!polling || !registrationId) return;
@@ -94,7 +108,11 @@ function SuccessContent() {
               <>
                 <p className="text-muted-foreground">
                   {isFree
-                    ? "Your free registration has been confirmed. No payment is required."
+                    ? groupCount && groupCount > 1
+                      ? `All ${groupCount} free registrations have been confirmed. No payment is required.`
+                      : "Your free registration has been confirmed. No payment is required."
+                    : groupCount && groupCount > 1
+                    ? `Your payment was successful and all ${groupCount} registrations are confirmed.`
                     : "Your payment was successful and your registration is confirmed."}
                 </p>
                 <p className="text-sm text-muted-foreground">

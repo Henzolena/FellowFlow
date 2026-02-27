@@ -34,6 +34,26 @@ export type PersonalInfoValues = z.infer<typeof personalInfoSchema>;
 export type AttendanceValues = z.infer<typeof attendanceSchema>;
 export type RegistrationValues = z.infer<typeof registrationSchema>;
 
+// Group registration: multiple registrants + shared contact info
+export const groupRegistrantSchema = z.object({
+  firstName: z.string().min(1, "First name is required").max(100),
+  lastName: z.string().min(1, "Last name is required").max(100),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  isFullDuration: z.boolean(),
+  isStayingInMotel: z.boolean().optional(),
+  numDays: z.number().int().min(1).optional(),
+});
+
+export const groupRegistrationSchema = z.object({
+  eventId: z.string().uuid("Invalid event ID"),
+  email: z.string().email("Valid email is required"),
+  phone: z.string().optional(),
+  registrants: z.array(groupRegistrantSchema).min(1, "At least one registrant is required").max(20, "Maximum 20 registrants per group"),
+});
+
+export type GroupRegistrantValues = z.infer<typeof groupRegistrantSchema>;
+export type GroupRegistrationValues = z.infer<typeof groupRegistrationSchema>;
+
 export const eventSchema = z.object({
   name: z.string().min(1, "Event name is required").max(200),
   description: z.string().optional(),

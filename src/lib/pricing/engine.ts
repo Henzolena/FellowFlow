@@ -152,6 +152,66 @@ function applySurcharge(
   };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Group pricing: surcharge applied ONCE on the combined total        */
+/* ------------------------------------------------------------------ */
+
+export type GroupPricingInput = {
+  registrants: PricingInput[];
+};
+
+export type GroupPricingResult = {
+  items: PricingResult[];
+  subtotal: number;
+  surcharge: number;
+  surchargeLabel: string | null;
+  grandTotal: number;
+};
+
+/**
+ * Compute pricing for a group of registrants.
+ * Each person is priced individually (base only, no surcharge).
+ * Surcharge is applied ONCE on the combined subtotal.
+ */
+export function computeGroupPricing(
+  inputs: PricingInput[],
+  event: Event,
+  pricing: PricingConfig
+): GroupPricingResult {
+  // Compute base pricing for each registrant (no surcharge)
+  const items: PricingResult[] = inputs.map((input) => {
+    const result = computePricing(input, event, pricing);
+    // Strip out individual surcharge — it will be applied on the group total
+    return {
+      ...result,
+      amount: result.baseAmount, // Use base only
+      surcharge: 0,
+      surchargeLabel: null,
+      explanationDetail: result.explanationDetail
+        .replace(/ \+ \$[\d.]+ .+?(?=\. Total)/, "") // Remove surcharge text
+        .replace(/\. Total: \$[\d.]+$/, ""), // Remove old total
+    };
+  });
+
+  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+
+  // Determine surcharge once based on registration date
+  const regDate = inputs[0]?.registrationDate
+    ? parseISO(inputs[0].registrationDate)
+    : new Date();
+  const tier = findSurchargeTier(pricing.late_surcharge_tiers ?? [], regDate);
+  const surcharge = subtotal > 0 && tier ? Number(tier.amount) : 0;
+  const grandTotal = subtotal + surcharge;
+
+  return {
+    items,
+    subtotal,
+    surcharge,
+    surchargeLabel: tier?.label ?? null,
+    grandTotal,
+  };
+}
+
 export function getExplanationLabel(code: ExplanationCode | string): string {
   const labels: Record<string, string> = {
     FULL_ADULT: "Full Conference — Adult",

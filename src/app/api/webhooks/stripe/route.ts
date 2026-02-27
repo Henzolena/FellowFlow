@@ -76,8 +76,9 @@ export async function POST(request: NextRequest) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const registrationId = session.metadata?.registration_id;
+        const groupId = session.metadata?.group_id;
 
-        console.log(`🔍 Session ID: ${session.id}, Registration ID: ${registrationId}`);
+        console.log(`🔍 Session ID: ${session.id}, Registration ID: ${registrationId}, Group ID: ${groupId}`);
 
         if (!registrationId) {
           console.error("❌ No registration_id in session metadata");
@@ -130,44 +131,86 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        // Update registration status
-        const { error: regError } = await supabase
-          .from("registrations")
-          .update({
-            status: "confirmed",
-            confirmed_at: new Date().toISOString(),
-          })
-          .eq("id", registrationId)
-          .eq("status", "pending"); // Only update if still pending
+        // ─── Group confirmation: confirm ALL registrations in the group ───
+        if (groupId) {
+          const { error: groupRegError } = await supabase
+            .from("registrations")
+            .update({
+              status: "confirmed",
+              confirmed_at: new Date().toISOString(),
+            })
+            .eq("group_id", groupId)
+            .eq("status", "pending");
 
-        if (regError) {
-          console.error("Registration update failed:", regError.message);
+          if (groupRegError) {
+            console.error("Group registration update failed:", groupRegError.message);
+          }
+
+          // Send confirmation emails to all group members
+          const { data: groupRegs } = await supabase
+            .from("registrations")
+            .select("id, first_name, last_name, email, computed_amount, explanation_detail, events(name)")
+            .eq("group_id", groupId);
+
+          if (groupRegs) {
+            for (const reg of groupRegs) {
+              const evtData = reg.events as unknown as { name: string } | null;
+              sendConfirmationEmail({
+                to: reg.email,
+                firstName: reg.first_name,
+                lastName: reg.last_name,
+                eventName: evtData?.name || "Event",
+                amount: Number(reg.computed_amount),
+                isFree: false,
+                registrationId: reg.id,
+                explanationDetail: reg.explanation_detail,
+              }).catch(() => {});
+            }
+          }
+
+          console.log(
+            `✅ Group ${groupId} (${groupRegs?.length ?? 0} registrations) confirmed via payment (event: ${stripeEventId})`
+          );
+        } else {
+          // ─── Solo confirmation ───
+          const { error: regError } = await supabase
+            .from("registrations")
+            .update({
+              status: "confirmed",
+              confirmed_at: new Date().toISOString(),
+            })
+            .eq("id", registrationId)
+            .eq("status", "pending");
+
+          if (regError) {
+            console.error("Registration update failed:", regError.message);
+          }
+
+          // Send confirmation email
+          const { data: reg } = await supabase
+            .from("registrations")
+            .select("first_name, last_name, email, computed_amount, explanation_detail, event_id, events(name)")
+            .eq("id", registrationId)
+            .single();
+
+          if (reg) {
+            const evtData = reg.events as unknown as { name: string } | null;
+            sendConfirmationEmail({
+              to: reg.email,
+              firstName: reg.first_name,
+              lastName: reg.last_name,
+              eventName: evtData?.name || "Event",
+              amount: Number(reg.computed_amount),
+              isFree: false,
+              registrationId,
+              explanationDetail: reg.explanation_detail,
+            }).catch(() => {});
+          }
+
+          console.log(
+            `✅ Registration ${registrationId} confirmed via payment (event: ${stripeEventId})`
+          );
         }
-
-        // Send confirmation email
-        const { data: reg } = await supabase
-          .from("registrations")
-          .select("first_name, last_name, email, computed_amount, explanation_detail, event_id, events(name)")
-          .eq("id", registrationId)
-          .single();
-
-        if (reg) {
-          const evtData = reg.events as unknown as { name: string } | null;
-          sendConfirmationEmail({
-            to: reg.email,
-            firstName: reg.first_name,
-            lastName: reg.last_name,
-            eventName: evtData?.name || "Event",
-            amount: Number(reg.computed_amount),
-            isFree: false,
-            registrationId,
-            explanationDetail: reg.explanation_detail,
-          }).catch(() => {}); // fire-and-forget
-        }
-
-        console.log(
-          `✅ Registration ${registrationId} confirmed via payment (event: ${stripeEventId})`
-        );
         break;
       }
 

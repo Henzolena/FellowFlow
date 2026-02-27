@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, CreditCard, AlertCircle } from "lucide-react";
+import { Loader2, CreditCard, AlertCircle, User } from "lucide-react";
 import type { Registration } from "@/types/database";
 
 export default function ReviewPage() {
@@ -21,12 +21,16 @@ function ReviewContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const registrationId = searchParams.get("registration_id");
+  const groupId = searchParams.get("group_id");
   const cancelled = searchParams.get("cancelled");
 
-  const [registration, setRegistration] = useState<Registration | null>(null);
+  const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [groupPricing, setGroupPricing] = useState<{ subtotal: number; surcharge: number; surchargeLabel: string | null; grandTotal: number } | null>(null);
+
+  const isGroup = !!groupId;
 
   useEffect(() => {
     if (!registrationId) {
@@ -34,14 +38,27 @@ function ReviewContent() {
       return;
     }
 
-    async function fetchRegistration() {
+    async function fetchData() {
       try {
-        const res = await fetch(`/api/registration/${registrationId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setRegistration(data);
+        if (groupId) {
+          // Fetch all group registrations
+          const res = await fetch(`/api/registration/group/${groupId}`);
+          if (res.ok) {
+            const data = await res.json();
+            setRegistrations(data.registrations);
+            setGroupPricing(data.pricing);
+          } else {
+            setError("Group registrations not found");
+          }
         } else {
-          setError("Registration not found");
+          // Solo registration
+          const res = await fetch(`/api/registration/${registrationId}`);
+          if (res.ok) {
+            const data = await res.json();
+            setRegistrations([data]);
+          } else {
+            setError("Registration not found");
+          }
         }
       } catch {
         setError("Failed to load registration");
@@ -50,11 +67,10 @@ function ReviewContent() {
       }
     }
 
-    fetchRegistration();
-  }, [registrationId, router]);
+    fetchData();
+  }, [registrationId, groupId, router]);
 
   async function handlePayment() {
-    if (!registrationId) return;
     setPaymentLoading(true);
     setError(null);
 
@@ -62,7 +78,11 @@ function ReviewContent() {
       const res = await fetch("/api/payment/create-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registrationId }),
+        body: JSON.stringify(
+          groupId
+            ? { groupId }
+            : { registrationId }
+        ),
       });
 
       const data = await res.json();
@@ -73,7 +93,6 @@ function ReviewContent() {
         return;
       }
 
-      // Redirect to Stripe Checkout
       if (data.url) {
         window.location.href = data.url;
       }
@@ -91,7 +110,7 @@ function ReviewContent() {
     );
   }
 
-  if (!registration) {
+  if (registrations.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4">
@@ -102,6 +121,10 @@ function ReviewContent() {
       </div>
     );
   }
+
+  const primaryReg = registrations[0];
+  const soloAmount = Number(primaryReg.computed_amount);
+  const totalAmount = groupPricing ? groupPricing.grandTotal : soloAmount;
 
   return (
     <div className="min-h-screen relative">
@@ -117,7 +140,9 @@ function ReviewContent() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Review & Pay</CardTitle>
             <CardDescription>
-              Review your registration and complete payment
+              {isGroup
+                ? `Review ${registrations.length} registrations and complete payment`
+                : "Review your registration and complete payment"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -127,49 +152,75 @@ function ReviewContent() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Attendee
-              </h3>
-              <p className="font-semibold">
-                {registration.first_name} {registration.last_name}
-              </p>
-              <p className="text-sm text-muted-foreground">{registration.email}</p>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Details
-              </h3>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="capitalize">
-                  {registration.category}
-                </Badge>
-                <span className="text-sm text-muted-foreground">
-                  Age {registration.age_at_event}
-                </span>
+            {/* Registrants */}
+            {registrations.map((reg) => (
+              <div key={reg.id} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <p className="font-semibold">
+                      {reg.first_name} {reg.last_name}
+                    </p>
+                    <Badge variant="secondary" className="capitalize text-xs">
+                      {reg.category}
+                    </Badge>
+                  </div>
+                  {isGroup && (
+                    <span className="text-sm font-medium">
+                      ${Number(reg.computed_amount).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground ml-6">
+                  {reg.is_full_duration
+                    ? "Full Conference"
+                    : `${reg.num_days} Day(s)`}
+                  {reg.is_staying_in_motel && " + Motel Stay"}
+                </p>
+                {!isGroup && (
+                  <p className="text-sm text-muted-foreground">{reg.email}</p>
+                )}
               </div>
-              <p className="text-sm">
-                {registration.is_full_duration
-                  ? "Full Conference"
-                  : `${registration.num_days} Day(s)`}
-                {registration.is_staying_in_motel && " + Motel Stay"}
-              </p>
-            </div>
+            ))}
+
+            {isGroup && (
+              <p className="text-sm text-muted-foreground">{primaryReg.email}</p>
+            )}
 
             <Separator />
 
-            <div className="rounded-xl border border-border bg-muted/50 p-6 text-center">
-              <p className="text-sm text-muted-foreground mb-1">Amount Due</p>
-              <p className="text-4xl font-bold text-brand-amber-foreground">
-                ${Number(registration.computed_amount).toFixed(2)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                {registration.explanation_detail}
-              </p>
-            </div>
+            {/* Pricing */}
+            {isGroup && groupPricing ? (
+              <div className="rounded-xl border border-border bg-muted/50 p-5 space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal ({registrations.length} people)</span>
+                  <span>${groupPricing.subtotal.toFixed(2)}</span>
+                </div>
+                {groupPricing.surcharge > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{groupPricing.surchargeLabel || "Late Surcharge"}</span>
+                    <span className="text-amber-600">+${groupPricing.surcharge.toFixed(2)}</span>
+                  </div>
+                )}
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold">Total</span>
+                  <span className="text-3xl font-bold text-brand-amber-foreground">
+                    ${groupPricing.grandTotal.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-muted/50 p-6 text-center">
+                <p className="text-sm text-muted-foreground mb-1">Amount Due</p>
+                <p className="text-4xl font-bold text-brand-amber-foreground">
+                  ${soloAmount.toFixed(2)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {primaryReg.explanation_detail}
+                </p>
+              </div>
+            )}
 
             <Button
               onClick={handlePayment}
@@ -182,7 +233,7 @@ function ReviewContent() {
               ) : (
                 <CreditCard className="mr-2 h-4 w-4" />
               )}
-              Pay ${Number(registration.computed_amount).toFixed(2)}
+              Pay ${totalAmount.toFixed(2)}
             </Button>
           </CardContent>
         </Card>
