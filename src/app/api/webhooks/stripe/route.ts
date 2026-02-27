@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendConfirmationEmail } from "@/lib/email/resend";
 import Stripe from "stripe";
 
 /* ------------------------------------------------------------------ */
@@ -131,6 +132,27 @@ export async function POST(request: NextRequest) {
 
         if (regError) {
           console.error("Registration update failed:", regError.message);
+        }
+
+        // Send confirmation email
+        const { data: reg } = await supabase
+          .from("registrations")
+          .select("first_name, last_name, email, computed_amount, explanation_detail, event_id, events(name)")
+          .eq("id", registrationId)
+          .single();
+
+        if (reg) {
+          const evtData = reg.events as unknown as { name: string } | null;
+          sendConfirmationEmail({
+            to: reg.email,
+            firstName: reg.first_name,
+            lastName: reg.last_name,
+            eventName: evtData?.name || "Event",
+            amount: Number(reg.computed_amount),
+            isFree: false,
+            registrationId,
+            explanationDetail: reg.explanation_detail,
+          }).catch(() => {}); // fire-and-forget
         }
 
         console.log(

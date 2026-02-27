@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { computePricing } from "@/lib/pricing/engine";
 import { registrationSchema } from "@/lib/validations/registration";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { sendConfirmationEmail } from "@/lib/email/resend";
 import type { Event, PricingConfig } from "@/types/database";
 
 // 10 registrations per 60 seconds per IP (stricter than quote)
@@ -119,6 +120,20 @@ export async function POST(request: NextRequest) {
         { error: "Failed to create registration" },
         { status: 500 }
       );
+    }
+
+    // Send confirmation email for free registrations immediately
+    if (pricingResult.amount === 0 && registration) {
+      sendConfirmationEmail({
+        to: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        eventName: event.name,
+        amount: 0,
+        isFree: true,
+        registrationId: registration.id,
+        explanationDetail: pricingResult.explanationDetail,
+      }).catch(() => {}); // fire-and-forget
     }
 
     return NextResponse.json({ registration });
