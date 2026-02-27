@@ -1,50 +1,40 @@
 import { createClient } from "@/lib/supabase/server";
-import { RegistrationWizard } from "@/components/registration/wizard";
-import type { EventWithPricing } from "@/types/database";
-import { redirect } from "next/navigation";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { format, parseISO, isPast } from "date-fns";
+import { Calendar, MapPin, ArrowRight, Clock, Users } from "lucide-react";
+import Link from "next/link";
+import type { EventWithPricing, PricingConfig } from "@/types/database";
+import { EventSearch } from "@/components/registration/event-search";
 
-export default async function RegisterPage() {
+export default async function EventsListingPage() {
   const supabase = await createClient();
 
   const { data: events } = await supabase
     .from("events")
     .select("*, pricing_config(*)")
     .eq("is_active", true)
-    .order("start_date", { ascending: true })
-    .limit(1);
+    .order("start_date", { ascending: true });
 
-  const event = events?.[0] as EventWithPricing | undefined;
-
-  // Supabase may return pricing_config as object (1-to-1) or array (1-to-many)
-  const pricingConfig = event?.pricing_config
-    ? Array.isArray(event.pricing_config)
-      ? event.pricing_config[0]
-      : event.pricing_config
-    : undefined;
-
-  if (!event || !pricingConfig) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold">No Active Events</h1>
-          <p className="text-muted-foreground">
-            There are currently no events open for registration. Please check back later.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const allEvents = (events || []) as EventWithPricing[];
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <div className="mx-auto max-w-5xl px-4 py-8 pb-32 lg:pb-8">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>
-          <p className="mt-2 text-muted-foreground">
-            Register for the conference below
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
+        {/* Page header */}
+        <div className="text-center mb-10">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Upcoming <span className="brand-gradient-text">Events</span>
+          </h1>
+          <p className="mt-3 text-muted-foreground max-w-lg mx-auto">
+            Browse available conferences and register for the one that fits you best.
           </p>
+          <div className="mt-4 mx-auto h-0.5 w-12 brand-gradient rounded-full" />
         </div>
-        <RegistrationWizard event={event} pricing={pricingConfig} />
+
+        {/* Search + Filter (client component) */}
+        <EventSearch events={allEvents} />
       </div>
     </div>
   );

@@ -109,7 +109,7 @@ export default async function Home() {
                   <span className="text-muted-foreground/50">•</span>
                   <span>{event.duration_days} days</span>
                 </div>
-                <Link href="/register">
+                <Link href={`/register/${event.id}`}>
                   <Button className="mt-2 shadow-brand-sm hover:shadow-brand-md transition-shadow">
                     Register for this Event
                     <ArrowRight className="ml-2 h-4 w-4" />
