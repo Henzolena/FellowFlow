@@ -32,9 +32,26 @@ npm run dev
 
 ## Admin Access
 
-- URL: `/admin`
-- Default credentials: `admin@fellowflow.com` / `FellowFlow2026!`
-- Change the password after first login
+The admin portal is at `/admin`. There are no default credentials shipped with this repo.
+
+### Creating the first super admin
+
+1. **Via Supabase Dashboard:**
+   - Go to **Authentication → Users** and create a new user with a strong password.
+   - Copy the user's UUID from the dashboard.
+   - Go to **Table Editor → profiles** and set `role` to `super_admin` for that UUID.
+
+2. **Via SQL (Supabase SQL Editor):**
+   ```sql
+   -- After the user signs up via /auth/login, promote them:
+   UPDATE public.profiles
+   SET role = 'super_admin', updated_at = now()
+   WHERE email = 'your-email@example.com';
+   ```
+
+3. **After first login:**
+   - Navigate to `/admin/users` to invite additional admins.
+   - Enable 2FA in your Supabase project under **Authentication → Settings** for added security.
 
 ## Stripe Webhook (Local Development)
 
