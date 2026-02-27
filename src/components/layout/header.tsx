@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Users, Shield } from "lucide-react";
+import { Users } from "lucide-react";
 
 export function Header() {
   return (
@@ -11,10 +11,6 @@ export function Header() {
           <span>FellowFlow</span>
         </Link>
         <nav className="flex items-center gap-2 sm:gap-4">
-          <Link href="/admin" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
-            <Shield className="h-4 w-4" />
-            <span className="hidden sm:inline">Admin</span>
-          </Link>
           <Link href="/register">
             <Button size="sm" className="sm:size-default text-xs sm:text-sm">Register Now</Button>
           </Link>
