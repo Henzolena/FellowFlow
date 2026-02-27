@@ -22,6 +22,7 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const registrationId = searchParams.get("registration_id");
   const isFree = searchParams.get("free") === "true";
+  const lastName = searchParams.get("ln") || "";
 
   const [status, setStatus] = useState<RegStatus>(isFree ? "confirmed" : "pending");
   const [polling, setPolling] = useState(!isFree);
@@ -128,7 +129,7 @@ function SuccessContent() {
 
             <div className="flex flex-col gap-3 pt-4">
               {registrationId && (
-                <Link href={`/register/receipt/${registrationId}`}>
+                <Link href={`/register/receipt/${registrationId}${lastName ? `?ln=${encodeURIComponent(lastName)}` : ""}`}>
                   <Button className="w-full" variant="outline">
                     <Download className="mr-2 h-4 w-4" />
                     View Receipt

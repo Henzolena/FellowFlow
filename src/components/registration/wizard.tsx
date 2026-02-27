@@ -137,14 +137,16 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
 
       const registration = data.registration;
 
+      const ln = encodeURIComponent(form.lastName);
+
       if (registration.computed_amount === 0) {
         // Free registration — go directly to success
-        router.push(`/register/success?registration_id=${registration.id}&free=true`);
+        router.push(`/register/success?registration_id=${registration.id}&free=true&ln=${ln}`);
         return;
       }
 
       // Paid registration — go to review/payment
-      router.push(`/register/review?registration_id=${registration.id}`);
+      router.push(`/register/review?registration_id=${registration.id}&ln=${ln}`);
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);

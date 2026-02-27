@@ -134,8 +134,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: "payment",
-      success_url: `${appUrl}/register/success?session_id={CHECKOUT_SESSION_ID}&registration_id=${registrationId}`,
-      cancel_url: `${appUrl}/register/review?registration_id=${registrationId}&cancelled=true`,
+      success_url: `${appUrl}/register/success?session_id={CHECKOUT_SESSION_ID}&registration_id=${registrationId}&ln=${encodeURIComponent(registration.last_name)}`,
+      cancel_url: `${appUrl}/register/review?registration_id=${registrationId}&ln=${encodeURIComponent(registration.last_name)}&cancelled=true`,
       customer_email: registration.email,
       metadata: {
         registration_id: registrationId,
