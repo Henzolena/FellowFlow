@@ -40,9 +40,10 @@ export default async function ReceiptPage({
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 py-12 px-4">
-      <div className="mx-auto max-w-lg">
-        <Card className="print:shadow-none">
+    <div className="min-h-screen py-12 px-4 relative">
+      <div className="hero-glow absolute inset-0" aria-hidden="true" />
+      <div className="mx-auto max-w-lg relative">
+        <Card className="shadow-brand-md print:shadow-none">
           <CardHeader className="text-center space-y-2">
             <CardTitle className="text-2xl">Registration Receipt</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -110,9 +111,9 @@ export default async function ReceiptPage({
               </p>
             </div>
 
-            <div className="rounded-lg bg-muted p-4 text-center">
+            <div className="rounded-xl bg-muted/60 p-5 text-center">
               <p className="text-sm text-muted-foreground">Amount Paid</p>
-              <p className="text-3xl font-bold">
+              <p className="text-3xl font-bold text-brand-amber-foreground">
                 {Number(data.computed_amount) === 0
                   ? "FREE"
                   : `$${Number(data.computed_amount).toFixed(2)}`}

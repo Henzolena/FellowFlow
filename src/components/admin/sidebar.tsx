@@ -91,7 +91,7 @@ function SidebarNav({
 
   return (
     <>
-      <div className="flex h-14 items-center gap-2 border-b px-4">
+      <div className="flex h-14 items-center gap-2 border-b border-border/60 px-4">
         <Link
           href="/"
           onClick={onNavigate}
@@ -105,6 +105,7 @@ function SidebarNav({
       <div className="px-4 py-4">
         <h2 className="text-lg font-bold">Admin Portal</h2>
         <p className="text-xs text-muted-foreground">FellowFlow Management</p>
+        <div className="mt-2 h-0.5 w-8 brand-gradient rounded-full" />
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
@@ -119,10 +120,10 @@ function SidebarNav({
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
                 isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-primary text-primary-foreground shadow-brand-sm"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
               )}
             >
               <item.icon className="h-4 w-4" />
@@ -165,7 +166,7 @@ export function AdminSidebar() {
   const profile = useAdminProfile();
 
   return (
-    <aside className="hidden md:flex h-full w-64 flex-col border-r bg-card">
+    <aside className="hidden md:flex h-full w-64 flex-col border-r border-border/60 bg-card">
       <SidebarNav profile={profile} />
     </aside>
   );
@@ -183,7 +184,7 @@ export function AdminMobileHeader() {
   );
 
   return (
-    <div className="md:hidden sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-card px-4">
+    <div className="md:hidden sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border/60 bg-card px-4">
       <Button
         variant="ghost"
         size="icon"

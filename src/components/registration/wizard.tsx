@@ -154,16 +154,24 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
   return (
     <div className="grid gap-8 lg:grid-cols-3">
       <div className="lg:col-span-2 space-y-6 pb-24 lg:pb-0">
+        {/* Progress bar */}
+        <div className="h-1 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full brand-gradient rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${((step) / (STEPS.length - 1)) * 100}%` }}
+          />
+        </div>
+
         {/* Step indicator */}
         <div className="flex items-center justify-between">
           {STEPS.map((label, i) => (
             <div key={label} className="flex items-center gap-2">
               <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-all ${
                   i < step
-                    ? "bg-primary text-primary-foreground"
+                    ? "brand-gradient text-white"
                     : i === step
-                    ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
+                    ? "bg-primary text-primary-foreground ring-4 ring-primary/15"
                     : "bg-muted text-muted-foreground"
                 }`}
               >
@@ -179,7 +187,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
               {i < STEPS.length - 1 && (
                 <div
                   className={`mx-2 hidden h-px w-12 sm:block md:w-20 ${
-                    i < step ? "bg-primary" : "bg-border"
+                    i < step ? "brand-gradient" : "bg-border"
                   }`}
                 />
               )}
@@ -409,11 +417,11 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   </div>
 
                   {quote && (
-                    <div className="rounded-lg border-2 border-primary/20 bg-primary/5 p-4 text-center">
+                    <div className="rounded-xl border border-border bg-muted/50 p-5 text-center">
                       <p className="text-sm text-muted-foreground mb-1">
                         Amount Due
                       </p>
-                      <p className="text-3xl font-bold text-primary">
+                      <p className={`text-3xl font-bold ${quote.amount === 0 ? "text-brand-green" : "text-brand-amber-foreground"}`}>
                         {quote.amount === 0 ? "FREE" : `$${quote.amount.toFixed(2)}`}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -470,11 +478,11 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
       </div>
 
       {/* Mobile price summary */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t p-4 shadow-lg">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border/60 p-4 shadow-brand-lg">
         <div className="flex items-center justify-between max-w-md mx-auto">
           <div>
             <p className="text-xs text-muted-foreground">Estimated Price</p>
-            <p className="text-xl font-bold text-primary">
+            <p className="text-xl font-bold text-brand-amber-foreground">
               {quote
                 ? quote.amount === 0
                   ? "FREE"

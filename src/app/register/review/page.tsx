@@ -104,15 +104,16 @@ function ReviewContent() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <div className="mx-auto max-w-lg px-4 py-12">
+    <div className="min-h-screen relative">
+      <div className="hero-glow absolute inset-0" aria-hidden="true" />
+      <div className="mx-auto max-w-lg px-4 py-12 relative">
         {cancelled && (
           <div className="mb-6 rounded-md bg-yellow-50 border border-yellow-200 p-4 text-sm text-yellow-800">
             Payment was cancelled. You can try again below.
           </div>
         )}
 
-        <Card>
+        <Card className="shadow-brand-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Review & Pay</CardTitle>
             <CardDescription>
@@ -160,9 +161,9 @@ function ReviewContent() {
 
             <Separator />
 
-            <div className="rounded-lg border-2 border-primary/20 bg-primary/5 p-6 text-center">
+            <div className="rounded-xl border border-border bg-muted/50 p-6 text-center">
               <p className="text-sm text-muted-foreground mb-1">Amount Due</p>
-              <p className="text-4xl font-bold text-primary">
+              <p className="text-4xl font-bold text-brand-amber-foreground">
                 ${Number(registration.computed_amount).toFixed(2)}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
@@ -173,7 +174,7 @@ function ReviewContent() {
             <Button
               onClick={handlePayment}
               disabled={paymentLoading}
-              className="w-full"
+              className="w-full shadow-brand-sm hover:shadow-brand-md transition-shadow"
               size="lg"
             >
               {paymentLoading ? (

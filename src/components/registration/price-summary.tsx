@@ -35,17 +35,17 @@ export function PriceSummary({
   loading,
 }: PriceSummaryProps) {
   return (
-    <Card className="sticky top-6 border-primary/20 shadow-lg">
+    <Card className="sticky top-6 shadow-brand-lg brand-gradient-border overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <DollarSign className="h-5 w-5 text-primary" />
+          <DollarSign className="h-5 w-5 text-brand-teal" />
           Price Summary
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {eventName && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="h-4 w-4" />
+            <Calendar className="h-4 w-4 text-brand-cyan" />
             <span>{eventName}</span>
           </div>
         )}
@@ -81,7 +81,7 @@ export function PriceSummary({
           </div>
         )}
 
-        <Separator />
+        <Separator className="opacity-60" />
 
         <AnimatePresence mode="wait">
           {amount !== undefined && !loading ? (
@@ -91,9 +91,9 @@ export function PriceSummary({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="text-center"
+              className="text-center py-1"
             >
-              <p className="text-3xl font-bold text-primary">
+              <p className={`text-3xl font-bold ${amount === 0 ? "text-brand-green" : "text-brand-amber-foreground"}`}>
                 {amount === 0 ? "FREE" : `$${amount.toFixed(2)}`}
               </p>
               {explanationDetail && (

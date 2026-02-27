@@ -160,7 +160,7 @@ export default function SettingsPage() {
 
       {/* Existing events list */}
       {events.length > 0 && (
-        <Card>
+        <Card className="shadow-brand-sm">
           <CardHeader>
             <CardTitle>Events</CardTitle>
           </CardHeader>
@@ -168,7 +168,7 @@ export default function SettingsPage() {
             {events.map((event) => (
               <div
                 key={event.id}
-                className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                className="flex items-center justify-between rounded-lg border border-border/60 p-3 cursor-pointer hover:bg-muted/40 transition-colors"
                 onClick={() => editEvent(event)}
               >
                 <div>
@@ -194,7 +194,7 @@ export default function SettingsPage() {
       )}
 
       {/* Event form */}
-      <Card>
+      <Card className="shadow-brand-sm">
         <CardHeader>
           <CardTitle>{editingId ? "Edit Event" : "Create New Event"}</CardTitle>
           <CardDescription>
@@ -302,8 +302,8 @@ export default function SettingsPage() {
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-3 rounded-lg border p-4">
-                <h4 className="font-medium text-blue-700">Adult</h4>
+              <div className="space-y-3 rounded-lg border border-border/60 p-4">
+                <h4 className="font-medium text-brand-cyan">Adult</h4>
                 <div className="space-y-2">
                   <Label className="text-xs">Full Conference (P1)</Label>
                   <Input
@@ -340,8 +340,8 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="space-y-3 rounded-lg border p-4">
-                <h4 className="font-medium text-green-700">Youth (13+)</h4>
+              <div className="space-y-3 rounded-lg border border-border/60 p-4">
+                <h4 className="font-medium text-brand-teal">Youth (13+)</h4>
                 <div className="space-y-2">
                   <Label className="text-xs">Full Conference (P2)</Label>
                   <Input
@@ -378,8 +378,8 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="space-y-3 rounded-lg border p-4">
-                <h4 className="font-medium text-orange-700">Child (&lt;13)</h4>
+              <div className="space-y-3 rounded-lg border border-border/60 p-4">
+                <h4 className="font-medium text-brand-amber">Child (&lt;13)</h4>
                 <div className="space-y-2">
                   <Label className="text-xs">Full Conference (P3)</Label>
                   <Input

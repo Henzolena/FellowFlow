@@ -36,25 +36,25 @@ export default async function AdminDashboard() {
       title: "Total Registrations",
       value: totalRegistrations ?? 0,
       icon: Users,
-      color: "text-blue-600",
+      color: "text-brand-cyan",
     },
     {
       title: "Confirmed",
       value: confirmedRegistrations ?? 0,
       icon: CheckCircle2,
-      color: "text-green-600",
+      color: "text-brand-green",
     },
     {
       title: "Pending Payment",
       value: pendingRegistrations ?? 0,
       icon: Clock,
-      color: "text-yellow-600",
+      color: "text-brand-amber",
     },
     {
       title: "Total Revenue",
       value: `$${totalRevenue.toFixed(2)}`,
       icon: DollarSign,
-      color: "text-emerald-600",
+      color: "text-brand-teal",
     },
   ];
 
@@ -76,7 +76,7 @@ export default async function AdminDashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.title}>
+          <Card key={stat.title} className="shadow-brand-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {stat.title}
@@ -90,7 +90,7 @@ export default async function AdminDashboard() {
         ))}
       </div>
 
-      <Card>
+      <Card className="shadow-brand-sm">
         <CardHeader>
           <CardTitle>Recent Registrations</CardTitle>
         </CardHeader>
@@ -106,7 +106,7 @@ export default async function AdminDashboard() {
                 return (
                   <div
                     key={reg.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border/60 p-3 hover:bg-muted/30 transition-colors"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">

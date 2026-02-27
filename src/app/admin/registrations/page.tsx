@@ -114,7 +114,7 @@ function RegistrationsContent() {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="shadow-brand-sm">
         <CardContent className="p-4">
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
@@ -152,7 +152,7 @@ function RegistrationsContent() {
       </Card>
 
       {/* Table */}
-      <Card>
+      <Card className="shadow-brand-sm">
         <CardContent className="p-0 overflow-x-auto">
           {loading ? (
             <div className="flex items-center justify-center py-20">
@@ -177,7 +177,7 @@ function RegistrationsContent() {
               </TableHeader>
               <TableBody>
                 {data.registrations.map((reg) => (
-                  <TableRow key={reg.id} className="cursor-pointer hover:bg-muted/50">
+                  <TableRow key={reg.id} className="cursor-pointer hover:bg-muted/40 transition-colors">
                     <TableCell className="font-medium">
                       {reg.first_name} {reg.last_name}
                     </TableCell>

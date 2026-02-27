@@ -22,21 +22,22 @@ function SuccessContent() {
   const isFree = searchParams.get("free") === "true";
 
   return (
-    <div className="min-h-screen bg-muted/30 flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 relative">
+      <div className="hero-glow absolute inset-0" aria-hidden="true" />
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 20 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative"
       >
-        <Card className="text-center">
+        <Card className="text-center shadow-brand-lg">
           <CardHeader>
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 300 }}
             >
-              <CheckCircle2 className="mx-auto h-16 w-16 text-green-500" />
+              <CheckCircle2 className="mx-auto h-16 w-16 text-brand-green" />
             </motion.div>
             <CardTitle className="text-2xl mt-4">Registration Confirmed!</CardTitle>
           </CardHeader>

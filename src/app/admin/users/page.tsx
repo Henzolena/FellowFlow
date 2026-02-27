@@ -182,7 +182,7 @@ export default function AdminUsersPage() {
       </div>
 
       {showForm && isSuperAdmin && (
-        <Card>
+        <Card className="shadow-brand-sm">
           <CardHeader>
             <CardTitle className="text-lg">Add New Admin</CardTitle>
             <CardDescription>
@@ -279,7 +279,7 @@ export default function AdminUsersPage() {
         </Card>
       )}
 
-      <Card>
+      <Card className="shadow-brand-sm">
         <CardHeader>
           <CardTitle className="text-lg">
             Admin Users ({admins.length})
