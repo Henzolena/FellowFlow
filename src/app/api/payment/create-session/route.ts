@@ -45,11 +45,11 @@ async function handleSoloPayment(
 ) {
   const { data: registration, error } = await supabase
     .from("registrations")
-    .select("*, events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold)")
+    .select("*, events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)")
     .eq("id", registrationId)
     .single<
       Registration & {
-        events: Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold">;
+        events: Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold" | "infant_age_threshold">;
       }
     >();
 
@@ -144,7 +144,7 @@ async function handleGroupPayment(
   // Fetch all registrations in the group
   const { data: registrations, error } = await supabase
     .from("registrations")
-    .select("*, events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold)")
+    .select("*, events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)")
     .eq("group_id", groupId)
     .eq("status", "pending");
 
@@ -159,7 +159,7 @@ async function handleGroupPayment(
   }
 
   const primaryReg = registrations[0];
-  const eventData = primaryReg.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold">;
+  const eventData = primaryReg.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold" | "infant_age_threshold">;
 
   // Recompute group pricing server-side
   const { data: pricing } = await supabase

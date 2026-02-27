@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
               "id, first_name, last_name, email, computed_amount, explanation_detail, " +
               "category, age_at_event, is_full_duration, is_staying_in_motel, num_days, " +
               "date_of_birth, event_id, " +
-              "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold)"
+              "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)"
             )
             .eq("group_id", groupId)
             .order("created_at", { ascending: true });
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
             let grandTotal = subtotal;
 
             if (pricing) {
-              const eventObj = primaryReg.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold">;
+              const eventObj = primaryReg.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold" | "infant_age_threshold">;
               const result = computeGroupPricing(
                 (rows as unknown as Registration[]).map((r) => ({
                   dateOfBirth: r.date_of_birth,

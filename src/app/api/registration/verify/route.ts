@@ -11,7 +11,7 @@ const REG_SELECT =
   "id, first_name, last_name, email, phone, date_of_birth, age_at_event, category, " +
   "is_full_duration, is_staying_in_motel, num_days, computed_amount, explanation_code, " +
   "explanation_detail, status, confirmed_at, created_at, group_id, event_id, " +
-  "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold), payments(*)";
+  "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold), payments(*)";
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
           .single<PricingConfig>();
 
         if (pricing) {
-          const eventData = data.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold">;
+          const eventData = data.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold" | "infant_age_threshold">;
           const result = computeGroupPricing(
             (siblings as unknown as Registration[]).map((r) => ({
               dateOfBirth: r.date_of_birth,

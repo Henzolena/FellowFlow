@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       .select(
         "id, first_name, last_name, email, computed_amount, explanation_detail, " +
         "group_id, event_id, category, age_at_event, is_full_duration, is_staying_in_motel, " +
-        "num_days, date_of_birth, events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold)"
+        "num_days, date_of_birth, events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)"
       )
       .eq("id", confirmationId)
       .single<Record<string, unknown>>();
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         subtotal = rows.reduce((sum, r) => sum + Number(r.computed_amount), 0);
 
         if (pricing) {
-          const eventObj = data.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold">;
+          const eventObj = data.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold" | "infant_age_threshold">;
           const result = computeGroupPricing(
             (rows as unknown as Registration[]).map((r) => ({
               dateOfBirth: r.date_of_birth,

@@ -20,11 +20,13 @@ type WizardProps = {
   pricing: PricingConfig;
 };
 
+type AgeRangeKey = "infant" | "child" | "youth" | "adult" | "";
+
 type Registrant = {
   id: string;
   firstName: string;
   lastName: string;
-  dateOfBirth: string;
+  ageRange: AgeRangeKey;
   isFullDuration: boolean | null;
   isStayingInMotel: boolean | null;
   numDays: number;
@@ -63,11 +65,29 @@ function createEmptyRegistrant(): Registrant {
     id: genId(),
     firstName: "",
     lastName: "",
-    dateOfBirth: "",
+    ageRange: "",
     isFullDuration: null,
     isStayingInMotel: null,
     numDays: 1,
   };
+}
+
+function getAgeRangeOptions(event: Event) {
+  const infant = event.infant_age_threshold ?? 3;
+  const youth = event.youth_age_threshold;
+  const adult = event.adult_age_threshold;
+  return [
+    { key: "infant" as const, label: `0–${infant} years (Infant)`, representativeAge: Math.max(0, Math.floor(infant / 2)) },
+    { key: "child" as const,  label: `${infant + 1}–${youth - 1} years (Child)`, representativeAge: Math.floor((infant + 1 + youth - 1) / 2) },
+    { key: "youth" as const,  label: `${youth}–${adult - 1} years (Youth)`, representativeAge: Math.floor((youth + adult - 1) / 2) },
+    { key: "adult" as const,  label: `${adult}+ years (Adult)`, representativeAge: adult + 10 },
+  ];
+}
+
+function syntheticDob(representativeAge: number, eventStartDate: string): string {
+  const eventYear = new Date(eventStartDate).getFullYear();
+  const birthYear = eventYear - representativeAge;
+  return `${birthYear}-01-01`;
 }
 
 export function RegistrationWizard({ event, pricing }: WizardProps) {
@@ -109,9 +129,10 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
 
   // ─── Quote fetching ───
   const fetchGroupQuote = useCallback(async () => {
+    const ageOpts = getAgeRangeOptions(event);
     const validRegistrants = registrants.filter(
       (r) =>
-        r.dateOfBirth !== "" &&
+        r.ageRange !== "" &&
         r.isFullDuration !== null &&
         (r.isFullDuration || (r.isStayingInMotel !== null && (r.isStayingInMotel || r.numDays >= 1)))
     );
@@ -128,12 +149,15 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           eventId: event.id,
-          registrants: validRegistrants.map((r) => ({
-            dateOfBirth: r.dateOfBirth,
-            isFullDuration: r.isFullDuration,
-            isStayingInMotel: r.isStayingInMotel ?? false,
-            numDays: r.isFullDuration ? undefined : r.numDays,
-          })),
+          registrants: validRegistrants.map((r) => {
+            const opt = ageOpts.find((o) => o.key === r.ageRange);
+            return {
+              dateOfBirth: syntheticDob(opt?.representativeAge ?? 25, event.start_date),
+              isFullDuration: r.isFullDuration,
+              isStayingInMotel: r.isStayingInMotel ?? false,
+              numDays: r.isFullDuration ? undefined : r.numDays,
+            };
+          }),
         }),
       });
       if (res.ok) {
@@ -158,7 +182,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
 
   // ─── Validation ───
   function isRegistrantComplete(r: Registrant): boolean {
-    if (!r.firstName.trim() || !r.lastName.trim() || !r.dateOfBirth) return false;
+    if (!r.firstName.trim() || !r.lastName.trim() || !r.ageRange) return false;
     if (r.isFullDuration === null) return false;
     if (!r.isFullDuration) {
       if (r.isStayingInMotel === null) return false;
@@ -184,14 +208,17 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
           eventId: event.id,
           email: contact.email,
           phone: contact.phone || undefined,
-          registrants: registrants.map((r) => ({
-            firstName: r.firstName,
-            lastName: r.lastName,
-            dateOfBirth: r.dateOfBirth,
-            isFullDuration: r.isFullDuration,
-            isStayingInMotel: !r.isFullDuration ? r.isStayingInMotel : undefined,
-            numDays: !r.isFullDuration && !r.isStayingInMotel ? r.numDays : undefined,
-          })),
+          registrants: registrants.map((r) => {
+            const opt = getAgeRangeOptions(event).find((o) => o.key === r.ageRange);
+            return {
+              firstName: r.firstName,
+              lastName: r.lastName,
+              dateOfBirth: syntheticDob(opt?.representativeAge ?? 25, event.start_date),
+              isFullDuration: r.isFullDuration,
+              isStayingInMotel: !r.isFullDuration ? r.isStayingInMotel : undefined,
+              numDays: !r.isFullDuration && !r.isStayingInMotel ? r.numDays : undefined,
+            };
+          }),
         }),
       });
 
@@ -301,13 +328,22 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Date of Birth *</Label>
-                  <Input
-                    type="date"
-                    value={reg.dateOfBirth}
-                    onChange={(e) => updateRegistrant(idx, { dateOfBirth: e.target.value })}
-                    max={new Date().toISOString().split("T")[0]}
-                  />
+                  <Label>Age Range *</Label>
+                  <Select
+                    value={reg.ageRange}
+                    onValueChange={(v) => updateRegistrant(idx, { ageRange: v as AgeRangeKey })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select age range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAgeRangeOptions(event).map((opt) => (
+                        <SelectItem key={opt.key} value={opt.key}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-3">

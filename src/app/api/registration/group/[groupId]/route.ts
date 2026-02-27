@@ -18,7 +18,7 @@ export async function GET(
 
     const { data: registrations, error } = await supabase
       .from("registrations")
-      .select("*, events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold)")
+      .select("*, events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)")
       .eq("group_id", groupId)
       .order("created_at", { ascending: true });
 
@@ -27,7 +27,7 @@ export async function GET(
     }
 
     const primaryReg = registrations[0];
-    const eventData = primaryReg.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold">;
+    const eventData = primaryReg.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold" | "infant_age_threshold">;
 
     // Compute group pricing for surcharge
     const { data: pricing } = await supabase

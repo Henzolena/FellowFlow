@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { computeGroupPricing } from "@/lib/pricing/engine";
 import { groupRegistrationSchema } from "@/lib/validations/registration";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
-import { sendConfirmationEmail } from "@/lib/email/resend";
+import { sendGroupReceiptEmail } from "@/lib/email/resend";
 import type { Event, PricingConfig } from "@/types/database";
 import { randomUUID } from "crypto";
 
@@ -123,20 +123,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send confirmation emails for free group registrations
+    // Send consolidated group receipt email for free registrations
     if (isFreeGroup) {
-      for (const reg of registrations) {
-        sendConfirmationEmail({
-          to: reg.email,
-          firstName: reg.first_name,
-          lastName: reg.last_name,
-          eventName: event.name,
-          amount: 0,
-          isFree: true,
-          registrationId: reg.id,
-          explanationDetail: reg.explanation_detail,
-        }).catch(() => {});
+      function attendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null }): string {
+        if (r.is_full_duration) return "Full Conference";
+        if (r.is_staying_in_motel) return "Partial — Motel";
+        return `${r.num_days} Day(s)`;
       }
+
+      sendGroupReceiptEmail({
+        to: data.email,
+        eventName: event.name,
+        members: registrations.map((r, i) => ({
+          firstName: r.first_name,
+          lastName: r.last_name,
+          category: r.category,
+          ageAtEvent: r.age_at_event,
+          amount: Number(r.computed_amount),
+          attendance: attendanceLabel(r),
+        })),
+        subtotal: groupPricing.subtotal,
+        surcharge: groupPricing.surcharge,
+        surchargeLabel: groupPricing.surchargeLabel,
+        grandTotal: groupPricing.grandTotal,
+        isFree: true,
+        primaryRegistrationId: registrations[0].id,
+      }).catch(() => {});
     }
 
     return NextResponse.json({

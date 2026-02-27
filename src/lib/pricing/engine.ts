@@ -69,6 +69,21 @@ export function computePricing(
     event.youth_age_threshold
   );
 
+  // ─── Infant path: children at or below infant_age_threshold are FREE ───
+  const infantThreshold = event.infant_age_threshold ?? 3;
+  if (ageAtEvent <= infantThreshold) {
+    return {
+      category: "child",
+      ageAtEvent,
+      amount: 0,
+      baseAmount: 0,
+      surcharge: 0,
+      surchargeLabel: null,
+      explanationCode: "FREE_INFANT",
+      explanationDetail: `Age ${ageAtEvent} — children ${infantThreshold} and under attend free.`,
+    };
+  }
+
   // ─── Full duration path ───
   // Full duration → always pay full price by age category (no motel discount)
   if (input.isFullDuration) {
@@ -214,6 +229,7 @@ export function computeGroupPricing(
 
 export function getExplanationLabel(code: ExplanationCode | string): string {
   const labels: Record<string, string> = {
+    FREE_INFANT: "Infant / Toddler (Free)",
     FULL_ADULT: "Full Conference — Adult",
     FULL_YOUTH: "Full Conference — Youth",
     FULL_CHILD: "Full Conference — Child",

@@ -17,6 +17,7 @@ export type Event = {
   duration_days: number;
   adult_age_threshold: number;
   youth_age_threshold: number;
+  infant_age_threshold: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -47,6 +48,7 @@ export type PricingConfig = {
 export type AgeCategory = "adult" | "youth" | "child";
 
 export type ExplanationCode =
+  | "FREE_INFANT"
   | "FULL_ADULT"
   | "FULL_YOUTH"
   | "FULL_CHILD"
