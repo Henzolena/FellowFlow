@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PriceSummary } from "./price-summary";
+import { DuplicateRegistrationDialog, type ExistingRegistration } from "./duplicate-dialog";
 import { ArrowLeft, ArrowRight, Loader2, Check } from "lucide-react";
 import type { Event, PricingConfig, AgeCategory } from "@/types/database";
 
@@ -58,8 +59,18 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
     numDays: 1,
   });
 
+  // Duplicate registration check state
+  const [dupChecking, setDupChecking] = useState(false);
+  const [dupDialogOpen, setDupDialogOpen] = useState(false);
+  const [dupRegistrations, setDupRegistrations] = useState<ExistingRegistration[]>([]);
+  const [dupBypassed, setDupBypassed] = useState(false);
+
   const update = useCallback(
-    (fields: Partial<FormData>) => setForm((prev) => ({ ...prev, ...fields })),
+    (fields: Partial<FormData>) => {
+      setForm((prev) => ({ ...prev, ...fields }));
+      // Reset duplicate bypass if email changes
+      if ("email" in fields) setDupBypassed(false);
+    },
     []
   );
 
@@ -450,9 +461,40 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
 
           {step < STEPS.length - 1 ? (
             <Button
-              onClick={() => setStep((s) => s + 1)}
-              disabled={step === 0 ? !canProceedStep0 : !canProceedStep1}
+              onClick={async () => {
+                // When moving from Personal Info (step 1) → Review (step 2), check for duplicates
+                if (step === 1 && !dupBypassed) {
+                  setDupChecking(true);
+                  try {
+                    const res = await fetch("/api/registration/check-duplicate", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email: form.email.trim(), eventId: event.id }),
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (data.hasDuplicates) {
+                        setDupRegistrations(data.registrations);
+                        setDupDialogOpen(true);
+                        setDupChecking(false);
+                        return; // Don't advance — dialog will handle proceed/cancel
+                      }
+                    }
+                  } catch {
+                    // If check fails, allow proceeding
+                  } finally {
+                    setDupChecking(false);
+                  }
+                }
+                setStep((s) => s + 1);
+              }}
+              disabled={
+                (step === 0 ? !canProceedStep0 : !canProceedStep1) || dupChecking
+              }
             >
+              {dupChecking ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
               Next
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -499,6 +541,17 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
           )}
         </div>
       </div>
+      {/* Duplicate registration dialog */}
+      <DuplicateRegistrationDialog
+        open={dupDialogOpen}
+        onOpenChange={setDupDialogOpen}
+        registrations={dupRegistrations}
+        email={form.email}
+        onProceedAnyway={() => {
+          setDupBypassed(true);
+          setStep(2);
+        }}
+      />
     </div>
   );
 }
