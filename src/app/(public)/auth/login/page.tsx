@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,6 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const router = useRouter();
   const redirect = searchParams.get("redirect") || "/admin";
 
   async function handleLogin(e: React.FormEvent) {
@@ -44,8 +43,8 @@ function LoginContent() {
       return;
     }
 
-    router.push(redirect);
-    router.refresh();
+    // Hard navigation ensures cookies are sent fresh on the next request
+    window.location.href = redirect;
   }
 
   return (
