@@ -113,13 +113,19 @@ async function handleSoloPayment(
   });
 
   if (existingPayment) {
-    await supabase.from("payments").update({
+    const { error: dbError } = await supabase.from("payments").update({
       stripe_session_id: session.id,
       amount: registration.computed_amount,
       idempotency_key: idempotencyKey,
     }).eq("id", existingPayment.id);
+
+    if (dbError) {
+      console.error("Payment update failed after Stripe session created:", dbError);
+      try { await stripe.checkout.sessions.expire(session.id); } catch { /* best effort */ }
+      return NextResponse.json({ error: "Failed to save payment record" }, { status: 500 });
+    }
   } else {
-    await supabase.from("payments").insert({
+    const { error: dbError } = await supabase.from("payments").insert({
       registration_id: registrationId,
       stripe_session_id: session.id,
       amount: registration.computed_amount,
@@ -127,6 +133,12 @@ async function handleSoloPayment(
       status: "pending",
       idempotency_key: idempotencyKey,
     });
+
+    if (dbError) {
+      console.error("Payment insert failed after Stripe session created:", dbError);
+      try { await stripe.checkout.sessions.expire(session.id); } catch { /* best effort */ }
+      return NextResponse.json({ error: "Failed to save payment record" }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ sessionId: session.id, url: session.url });
@@ -258,13 +270,19 @@ async function handleGroupPayment(
 
   // Create payment record linked to primary registration
   if (existingPayment) {
-    await supabase.from("payments").update({
+    const { error: dbError } = await supabase.from("payments").update({
       stripe_session_id: session.id,
       amount: grandTotal,
       idempotency_key: idempotencyKey,
     }).eq("id", existingPayment.id);
+
+    if (dbError) {
+      console.error("Group payment update failed after Stripe session created:", dbError);
+      try { await stripe.checkout.sessions.expire(session.id); } catch { /* best effort */ }
+      return NextResponse.json({ error: "Failed to save payment record" }, { status: 500 });
+    }
   } else {
-    await supabase.from("payments").insert({
+    const { error: dbError } = await supabase.from("payments").insert({
       registration_id: primaryReg.id,
       stripe_session_id: session.id,
       amount: grandTotal,
@@ -272,6 +290,12 @@ async function handleGroupPayment(
       status: "pending",
       idempotency_key: idempotencyKey,
     });
+
+    if (dbError) {
+      console.error("Group payment insert failed after Stripe session created:", dbError);
+      try { await stripe.checkout.sessions.expire(session.id); } catch { /* best effort */ }
+      return NextResponse.json({ error: "Failed to save payment record" }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ sessionId: session.id, url: session.url });

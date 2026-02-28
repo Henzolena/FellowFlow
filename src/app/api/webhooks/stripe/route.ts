@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         // Guard: check the payment row exists and is still pending
         const { data: payment, error: fetchError } = await supabase
           .from("payments")
-          .select("id, status")
+          .select("id, status, amount")
           .eq("stripe_session_id", session.id)
           .maybeSingle();
 
@@ -98,6 +98,15 @@ export async function POST(request: NextRequest) {
 
         if (!payment) {
           console.error(`❌ No payment record for session ${session.id}`);
+          await supabase.from("webhook_failures").insert({
+            stripe_event_id: stripeEventId,
+            event_type: event.type,
+            session_id: session.id,
+            registration_id: registrationId ?? null,
+            group_id: groupId ?? null,
+            failure_reason: "No payment record found for Stripe session",
+            payload: { session_id: session.id, amount_total: session.amount_total },
+          });
           break;
         }
 
@@ -106,7 +115,26 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        console.log(`🔄 Updating payment ${payment.id} to completed...`);
+        // ─── Stripe amount validation ───
+        const expectedAmountCents = Math.round(Number(payment.amount) * 100);
+        const stripeAmountCents = session.amount_total ?? 0;
+
+        if (stripeAmountCents !== expectedAmountCents) {
+          const reason = `Amount mismatch: Stripe charged ${stripeAmountCents} cents, expected ${expectedAmountCents} cents (stored $${payment.amount})`;
+          console.error(`🚨 ${reason}`);
+          await supabase.from("webhook_failures").insert({
+            stripe_event_id: stripeEventId,
+            event_type: event.type,
+            session_id: session.id,
+            registration_id: registrationId ?? null,
+            group_id: groupId ?? null,
+            failure_reason: reason,
+            payload: { session_id: session.id, stripe_amount: stripeAmountCents, expected_amount: expectedAmountCents },
+          });
+          break;
+        }
+
+        console.log(`🔄 Updating payment ${payment.id} to completed (amount validated: ${stripeAmountCents} cents)...`);
 
         // Atomic update: first write wins via status check
         const { error: paymentError, data: updatedPayment } = await supabase
@@ -219,7 +247,23 @@ export async function POST(request: NextRequest) {
               grandTotal,
               isFree: false,
               primaryRegistrationId: primaryReg.id as string,
-            }).catch(() => {});
+            }).then(() => {
+              supabase.from("email_logs").insert({
+                recipient: primaryReg.email as string,
+                email_type: "group_receipt_webhook",
+                group_id: groupId,
+                status: "sent",
+              });
+            }).catch((err) => {
+              console.error("Group receipt email failed:", err);
+              supabase.from("email_logs").insert({
+                recipient: primaryReg.email as string,
+                email_type: "group_receipt_webhook",
+                group_id: groupId,
+                status: "failed",
+                error_message: err instanceof Error ? err.message : String(err),
+              });
+            });
           }
 
           console.log(
@@ -258,7 +302,23 @@ export async function POST(request: NextRequest) {
               isFree: false,
               registrationId,
               explanationDetail: reg.explanation_detail,
-            }).catch(() => {});
+            }).then(() => {
+              supabase.from("email_logs").insert({
+                recipient: reg.email,
+                email_type: "confirmation_webhook",
+                registration_id: registrationId,
+                status: "sent",
+              });
+            }).catch((err) => {
+              console.error("Confirmation email failed:", err);
+              supabase.from("email_logs").insert({
+                recipient: reg.email,
+                email_type: "confirmation_webhook",
+                registration_id: registrationId,
+                status: "failed",
+                error_message: err instanceof Error ? err.message : String(err),
+              });
+            });
           }
 
           console.log(

@@ -80,9 +80,39 @@ export async function POST(request: NextRequest) {
       pricing
     );
 
+    // ─── Server-enforced duplicate check ───
+    const adminClient = createAdminClient();
+    const duplicateNames = data.registrants.map((r) => ({
+      first: r.firstName.toLowerCase().trim(),
+      last: r.lastName.toLowerCase().trim(),
+    }));
+
+    const { data: existingRegs } = await adminClient
+      .from("registrations")
+      .select("first_name, last_name, email, status")
+      .eq("event_id", data.eventId)
+      .ilike("email", data.email.trim())
+      .in("status", ["pending", "confirmed"]);
+
+    if (existingRegs && existingRegs.length > 0) {
+      const dupes = duplicateNames.filter((n) =>
+        existingRegs.some(
+          (e) =>
+            e.first_name.toLowerCase().trim() === n.first &&
+            e.last_name.toLowerCase().trim() === n.last
+        )
+      );
+      if (dupes.length > 0) {
+        const names = dupes.map((d) => `${d.first} ${d.last}`).join(", ");
+        return NextResponse.json(
+          { error: `Duplicate registration(s) found for: ${names}. They already have an active registration for this event.` },
+          { status: 409 }
+        );
+      }
+    }
+
     // Get current user if authenticated
     const { data: { user } } = await supabase.auth.getUser();
-    const adminClient = createAdminClient();
 
     // Always generate group_id for the group flow (ensures review page shows all registrants)
     const groupId = randomUUID();
@@ -116,6 +146,13 @@ export async function POST(request: NextRequest) {
       .select();
 
     if (regError || !registrations) {
+      // Handle unique constraint violation from DB index
+      if (regError?.code === "23505") {
+        return NextResponse.json(
+          { error: "Duplicate registration detected. One or more registrants already have an active registration for this event." },
+          { status: 409 }
+        );
+      }
       console.error("Group registration create error:", regError);
       return NextResponse.json(
         { error: "Failed to create registrations" },
@@ -134,7 +171,7 @@ export async function POST(request: NextRequest) {
       sendGroupReceiptEmail({
         to: data.email,
         eventName: event.name,
-        members: registrations.map((r, i) => ({
+        members: registrations.map((r) => ({
           firstName: r.first_name,
           lastName: r.last_name,
           category: r.category,
@@ -148,7 +185,23 @@ export async function POST(request: NextRequest) {
         grandTotal: groupPricing.grandTotal,
         isFree: true,
         primaryRegistrationId: registrations[0].id,
-      }).catch(() => {});
+      }).then(() => {
+        adminClient.from("email_logs").insert({
+          recipient: data.email,
+          email_type: "group_receipt_free",
+          group_id: groupId,
+          status: "sent",
+        });
+      }).catch((err) => {
+        console.error("Free group receipt email failed:", err);
+        adminClient.from("email_logs").insert({
+          recipient: data.email,
+          email_type: "group_receipt_free",
+          group_id: groupId,
+          status: "failed",
+          error_message: err instanceof Error ? err.message : String(err),
+        });
+      });
     }
 
     return NextResponse.json({
