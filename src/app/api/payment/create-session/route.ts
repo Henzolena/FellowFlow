@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
-import { computeGroupPricing } from "@/lib/pricing/engine";
+import { computePricing, computeGroupPricing } from "@/lib/pricing/engine";
 import type { Registration, Event, PricingConfig } from "@/types/database";
 
 export async function POST(request: NextRequest) {
@@ -61,7 +61,43 @@ async function handleSoloPayment(
     return NextResponse.json({ error: "Registration already confirmed" }, { status: 400 });
   }
 
-  if (registration.computed_amount === 0) {
+  // ─── Recompute pricing server-side (never trust stored computed_amount) ───
+  const { data: pricing } = await supabase
+    .from("pricing_config")
+    .select("*")
+    .eq("event_id", registration.event_id)
+    .single<PricingConfig>();
+
+  if (!pricing) {
+    return NextResponse.json({ error: "Pricing not configured" }, { status: 404 });
+  }
+
+  const serverRegistrationDate = new Date().toISOString();
+  const recomputed = computePricing(
+    {
+      dateOfBirth: registration.date_of_birth,
+      isFullDuration: registration.is_full_duration,
+      isStayingInMotel: registration.is_staying_in_motel ?? undefined,
+      numDays: registration.num_days ?? undefined,
+      registrationDate: serverRegistrationDate,
+    },
+    { ...registration.events, id: registration.event_id, is_active: true, created_at: "", updated_at: "", description: null } as Event,
+    pricing
+  );
+
+  // If recomputed amount differs from stored, update the registration
+  if (recomputed.amount !== Number(registration.computed_amount)) {
+    console.log(
+      `💰 Solo amount drift: stored=$${registration.computed_amount}, recomputed=$${recomputed.amount} for registration ${registrationId}`
+    );
+    await supabase.from("registrations").update({
+      computed_amount: recomputed.amount,
+      explanation_code: recomputed.explanationCode,
+      explanation_detail: recomputed.explanationDetail,
+    }).eq("id", registrationId);
+  }
+
+  if (recomputed.amount === 0) {
     return NextResponse.json({ error: "No payment required for free registrations" }, { status: 400 });
   }
 
@@ -95,9 +131,9 @@ async function handleSoloPayment(
           currency: "usd",
           product_data: {
             name: `Registration: ${registration.events.name}`,
-            description: `${registration.first_name} ${registration.last_name} — ${registration.explanation_detail}`,
+            description: `${registration.first_name} ${registration.last_name} — ${recomputed.explanationDetail}`,
           },
-          unit_amount: Math.round(Number(registration.computed_amount) * 100),
+          unit_amount: Math.round(recomputed.amount * 100),
         },
         quantity: 1,
       },
@@ -117,7 +153,7 @@ async function handleSoloPayment(
   if (existingPayment) {
     const { error: dbError } = await supabase.from("payments").update({
       stripe_session_id: session.id,
-      amount: registration.computed_amount,
+      amount: recomputed.amount,
       idempotency_key: idempotencyKey,
     }).eq("id", existingPayment.id);
 
@@ -130,7 +166,7 @@ async function handleSoloPayment(
     const { error: dbError } = await supabase.from("payments").insert({
       registration_id: registrationId,
       stripe_session_id: session.id,
-      amount: registration.computed_amount,
+      amount: recomputed.amount,
       currency: "usd",
       status: "pending",
       idempotency_key: idempotencyKey,
@@ -186,35 +222,51 @@ async function handleGroupPayment(
     .eq("event_id", primaryReg.event_id)
     .single<PricingConfig>();
 
-  let surcharge = 0;
-  let surchargeLabel: string | null = null;
-
-  if (pricing) {
-    const serverRegistrationDate = new Date().toISOString();
-    const groupResult = computeGroupPricing(
-      registrations.map((r: Registration) => ({
-        dateOfBirth: r.date_of_birth,
-        isFullDuration: r.is_full_duration,
-        isStayingInMotel: r.is_staying_in_motel ?? undefined,
-        numDays: r.num_days ?? undefined,
-        registrationDate: serverRegistrationDate,
-      })),
-      { ...eventData, id: primaryReg.event_id, is_active: true, created_at: "", updated_at: "", description: null } as Event,
-      pricing
-    );
-    surcharge = groupResult.surcharge;
-    surchargeLabel = groupResult.surchargeLabel;
+  if (!pricing) {
+    return NextResponse.json({ error: "Pricing not configured" }, { status: 404 });
   }
 
-  // Build line items — one per registrant + optional surcharge
-  const lineItems = registrations.map((r: Registration) => ({
+  // ─── Recompute full group pricing server-side (never trust stored computed_amount) ───
+  const serverRegistrationDate = new Date().toISOString();
+  const groupResult = computeGroupPricing(
+    registrations.map((r: Registration) => ({
+      dateOfBirth: r.date_of_birth,
+      isFullDuration: r.is_full_duration,
+      isStayingInMotel: r.is_staying_in_motel ?? undefined,
+      numDays: r.num_days ?? undefined,
+      registrationDate: serverRegistrationDate,
+    })),
+    { ...eventData, id: primaryReg.event_id, is_active: true, created_at: "", updated_at: "", description: null } as Event,
+    pricing
+  );
+
+  const { surcharge, surchargeLabel } = groupResult;
+
+  // Update any registrations whose amounts have drifted from recomputed values
+  for (let i = 0; i < registrations.length; i++) {
+    const r = registrations[i];
+    const recomputed = groupResult.items[i];
+    if (recomputed.amount !== Number(r.computed_amount)) {
+      console.log(
+        `💰 Group amount drift: stored=$${r.computed_amount}, recomputed=$${recomputed.amount} for registration ${r.id}`
+      );
+      await supabase.from("registrations").update({
+        computed_amount: recomputed.amount,
+        explanation_code: recomputed.explanationCode,
+        explanation_detail: recomputed.explanationDetail,
+      }).eq("id", r.id);
+    }
+  }
+
+  // Build line items from RECOMPUTED amounts
+  const lineItems = registrations.map((r: Registration, i: number) => ({
     price_data: {
       currency: "usd",
       product_data: {
         name: `${r.first_name} ${r.last_name}`,
-        description: r.explanation_detail || `Registration for ${eventData.name}`,
+        description: groupResult.items[i].explanationDetail || `Registration for ${eventData.name}`,
       },
-      unit_amount: Math.round(Number(r.computed_amount) * 100),
+      unit_amount: Math.round(groupResult.items[i].amount * 100),
     },
     quantity: 1,
   }));
@@ -233,8 +285,8 @@ async function handleGroupPayment(
     });
   }
 
-  const subtotal = registrations.reduce((sum: number, r: Registration) => sum + Number(r.computed_amount), 0);
-  const grandTotal = subtotal + surcharge;
+  const subtotal = groupResult.subtotal;
+  const grandTotal = groupResult.grandTotal;
 
   if (grandTotal === 0) {
     return NextResponse.json({ error: "No payment required" }, { status: 400 });
