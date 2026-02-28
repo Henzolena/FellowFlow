@@ -193,77 +193,108 @@ export async function POST(request: NextRequest) {
             const primaryReg = rows[0];
             const evtData = primaryReg.events as unknown as { name: string } | null;
             const eventId = primaryReg.event_id as string;
+            const isSoloInGroup = rows.length === 1;
 
-            // Compute group pricing for the email
-            const { data: pricing } = await supabase
-              .from("pricing_config")
-              .select("*")
-              .eq("event_id", eventId)
-              .single<PricingConfig>();
+            if (isSoloInGroup) {
+              // Single registrant in group — send solo confirmation email
+              sendConfirmationEmail({
+                to: primaryReg.email as string,
+                firstName: primaryReg.first_name as string,
+                lastName: primaryReg.last_name as string,
+                eventName: evtData?.name || "Event",
+                amount: Number(primaryReg.computed_amount),
+                isFree: false,
+                registrationId: primaryReg.id as string,
+                explanationDetail: primaryReg.explanation_detail as string | null,
+              }).then(() => {
+                supabase.from("email_logs").insert({
+                  recipient: primaryReg.email as string,
+                  email_type: "confirmation_webhook",
+                  registration_id: primaryReg.id as string,
+                  status: "sent",
+                });
+              }).catch((err) => {
+                console.error("Solo confirmation email failed:", err);
+                supabase.from("email_logs").insert({
+                  recipient: primaryReg.email as string,
+                  email_type: "confirmation_webhook",
+                  registration_id: primaryReg.id as string,
+                  status: "failed",
+                  error_message: err instanceof Error ? err.message : String(err),
+                });
+              });
+            } else {
+              // Multiple registrants — send group receipt email
+              const { data: pricing } = await supabase
+                .from("pricing_config")
+                .select("*")
+                .eq("event_id", eventId)
+                .single<PricingConfig>();
 
-            let subtotal = rows.reduce((sum, r) => sum + Number(r.computed_amount), 0);
-            let surcharge = 0;
-            let surchargeLabel: string | null = null;
-            let grandTotal = subtotal;
+              let subtotal = rows.reduce((sum, r) => sum + Number(r.computed_amount), 0);
+              let surcharge = 0;
+              let surchargeLabel: string | null = null;
+              let grandTotal = subtotal;
 
-            if (pricing) {
-              const eventObj = primaryReg.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold" | "infant_age_threshold">;
-              const result = computeGroupPricing(
-                (rows as unknown as Registration[]).map((r) => ({
-                  dateOfBirth: r.date_of_birth,
-                  isFullDuration: r.is_full_duration,
-                  isStayingInMotel: r.is_staying_in_motel ?? undefined,
-                  numDays: r.num_days ?? undefined,
+              if (pricing) {
+                const eventObj = primaryReg.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold" | "infant_age_threshold">;
+                const result = computeGroupPricing(
+                  (rows as unknown as Registration[]).map((r) => ({
+                    dateOfBirth: r.date_of_birth,
+                    isFullDuration: r.is_full_duration,
+                    isStayingInMotel: r.is_staying_in_motel ?? undefined,
+                    numDays: r.num_days ?? undefined,
+                  })),
+                  { ...eventObj, id: eventId, is_active: true, created_at: "", updated_at: "", description: null } as Event,
+                  pricing
+                );
+                subtotal = result.subtotal;
+                surcharge = result.surcharge;
+                surchargeLabel = result.surchargeLabel;
+                grandTotal = result.grandTotal;
+              }
+
+              function attendanceLabel(r: Record<string, unknown>): string {
+                if (r.is_full_duration) return "Full Conference";
+                if (r.is_staying_in_motel) return "Partial — Motel";
+                return `${r.num_days} Day(s)`;
+              }
+
+              sendGroupReceiptEmail({
+                to: primaryReg.email as string,
+                eventName: evtData?.name || "Event",
+                members: rows.map((r) => ({
+                  firstName: r.first_name as string,
+                  lastName: r.last_name as string,
+                  category: r.category as string,
+                  ageAtEvent: r.age_at_event as number,
+                  amount: Number(r.computed_amount),
+                  attendance: attendanceLabel(r),
                 })),
-                { ...eventObj, id: eventId, is_active: true, created_at: "", updated_at: "", description: null } as Event,
-                pricing
-              );
-              subtotal = result.subtotal;
-              surcharge = result.surcharge;
-              surchargeLabel = result.surchargeLabel;
-              grandTotal = result.grandTotal;
-            }
-
-            function attendanceLabel(r: Record<string, unknown>): string {
-              if (r.is_full_duration) return "Full Conference";
-              if (r.is_staying_in_motel) return "Partial — Motel";
-              return `${r.num_days} Day(s)`;
-            }
-
-            sendGroupReceiptEmail({
-              to: primaryReg.email as string,
-              eventName: evtData?.name || "Event",
-              members: rows.map((r) => ({
-                firstName: r.first_name as string,
-                lastName: r.last_name as string,
-                category: r.category as string,
-                ageAtEvent: r.age_at_event as number,
-                amount: Number(r.computed_amount),
-                attendance: attendanceLabel(r),
-              })),
-              subtotal,
-              surcharge,
-              surchargeLabel,
-              grandTotal,
-              isFree: false,
-              primaryRegistrationId: primaryReg.id as string,
-            }).then(() => {
-              supabase.from("email_logs").insert({
-                recipient: primaryReg.email as string,
-                email_type: "group_receipt_webhook",
-                group_id: groupId,
-                status: "sent",
+                subtotal,
+                surcharge,
+                surchargeLabel,
+                grandTotal,
+                isFree: false,
+                primaryRegistrationId: primaryReg.id as string,
+              }).then(() => {
+                supabase.from("email_logs").insert({
+                  recipient: primaryReg.email as string,
+                  email_type: "group_receipt_webhook",
+                  group_id: groupId,
+                  status: "sent",
+                });
+              }).catch((err) => {
+                console.error("Group receipt email failed:", err);
+                supabase.from("email_logs").insert({
+                  recipient: primaryReg.email as string,
+                  email_type: "group_receipt_webhook",
+                  group_id: groupId,
+                  status: "failed",
+                  error_message: err instanceof Error ? err.message : String(err),
+                });
               });
-            }).catch((err) => {
-              console.error("Group receipt email failed:", err);
-              supabase.from("email_logs").insert({
-                recipient: primaryReg.email as string,
-                email_type: "group_receipt_webhook",
-                group_id: groupId,
-                status: "failed",
-                error_message: err instanceof Error ? err.message : String(err),
-              });
-            });
+            }
           }
 
           console.log(

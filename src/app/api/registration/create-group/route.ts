@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { computeGroupPricing } from "@/lib/pricing/engine";
 import { groupRegistrationSchema } from "@/lib/validations/registration";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
-import { sendGroupReceiptEmail } from "@/lib/email/resend";
+import { sendConfirmationEmail, sendGroupReceiptEmail } from "@/lib/email/resend";
 import type { Event, PricingConfig } from "@/types/database";
 import { randomUUID } from "crypto";
 
@@ -162,48 +162,80 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send consolidated group receipt email for free registrations
+    // Send confirmation email for free registrations
     if (isFreeGroup) {
-      function attendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null }): string {
-        if (r.is_full_duration) return "Full Conference";
-        if (r.is_staying_in_motel) return "Partial — Motel";
-        return `${r.num_days} Day(s)`;
-      }
-
-      sendGroupReceiptEmail({
-        to: data.email,
-        eventName: event.name,
-        members: registrations.map((r) => ({
+      if (registrations.length === 1) {
+        // Solo registrant — send individual confirmation email
+        const r = registrations[0];
+        sendConfirmationEmail({
+          to: data.email,
           firstName: r.first_name,
           lastName: r.last_name,
-          category: r.category,
-          ageAtEvent: r.age_at_event,
+          eventName: event.name,
           amount: Number(r.computed_amount),
-          attendance: attendanceLabel(r),
-        })),
-        subtotal: groupPricing.subtotal,
-        surcharge: groupPricing.surcharge,
-        surchargeLabel: groupPricing.surchargeLabel,
-        grandTotal: groupPricing.grandTotal,
-        isFree: true,
-        primaryRegistrationId: registrations[0].id,
-      }).then(() => {
-        adminClient.from("email_logs").insert({
-          recipient: data.email,
-          email_type: "group_receipt_free",
-          group_id: groupId,
-          status: "sent",
+          isFree: true,
+          registrationId: r.id,
+          explanationDetail: r.explanation_detail,
+        }).then(() => {
+          adminClient.from("email_logs").insert({
+            recipient: data.email,
+            email_type: "confirmation_free",
+            registration_id: r.id,
+            status: "sent",
+          });
+        }).catch((err) => {
+          console.error("Free solo confirmation email failed:", err);
+          adminClient.from("email_logs").insert({
+            recipient: data.email,
+            email_type: "confirmation_free",
+            registration_id: r.id,
+            status: "failed",
+            error_message: err instanceof Error ? err.message : String(err),
+          });
         });
-      }).catch((err) => {
-        console.error("Free group receipt email failed:", err);
-        adminClient.from("email_logs").insert({
-          recipient: data.email,
-          email_type: "group_receipt_free",
-          group_id: groupId,
-          status: "failed",
-          error_message: err instanceof Error ? err.message : String(err),
+      } else {
+        // Multiple registrants — send consolidated group receipt
+        function attendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null }): string {
+          if (r.is_full_duration) return "Full Conference";
+          if (r.is_staying_in_motel) return "Partial — Motel";
+          return `${r.num_days} Day(s)`;
+        }
+
+        sendGroupReceiptEmail({
+          to: data.email,
+          eventName: event.name,
+          members: registrations.map((r) => ({
+            firstName: r.first_name,
+            lastName: r.last_name,
+            category: r.category,
+            ageAtEvent: r.age_at_event,
+            amount: Number(r.computed_amount),
+            attendance: attendanceLabel(r),
+          })),
+          subtotal: groupPricing.subtotal,
+          surcharge: groupPricing.surcharge,
+          surchargeLabel: groupPricing.surchargeLabel,
+          grandTotal: groupPricing.grandTotal,
+          isFree: true,
+          primaryRegistrationId: registrations[0].id,
+        }).then(() => {
+          adminClient.from("email_logs").insert({
+            recipient: data.email,
+            email_type: "group_receipt_free",
+            group_id: groupId,
+            status: "sent",
+          });
+        }).catch((err) => {
+          console.error("Free group receipt email failed:", err);
+          adminClient.from("email_logs").insert({
+            recipient: data.email,
+            email_type: "group_receipt_free",
+            group_id: groupId,
+            status: "failed",
+            error_message: err instanceof Error ? err.message : String(err),
+          });
         });
-      });
+      }
     }
 
     return NextResponse.json({
