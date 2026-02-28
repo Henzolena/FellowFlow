@@ -65,12 +65,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Pricing not configured" }, { status: 404 });
     }
 
+    const serverRegistrationDate = new Date().toISOString();
     const result = computeGroupPricing(
       registrants.map((r) => ({
         dateOfBirth: r.dateOfBirth,
         isFullDuration: r.isFullDuration,
         isStayingInMotel: r.isStayingInMotel,
         numDays: r.isFullDuration ? undefined : r.numDays,
+        registrationDate: serverRegistrationDate,
       })),
       event,
       pricing

@@ -7,7 +7,7 @@ import type { Registration, Event, PricingConfig } from "@/types/database";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { registrationId, groupId, surcharge: clientSurcharge } = body;
+    const { registrationId, groupId } = body;
 
     if (!registrationId && !groupId) {
       return NextResponse.json(
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     // ─── Group payment flow ───
     if (groupId) {
-      return handleGroupPayment(supabase, groupId, clientSurcharge, appUrl);
+      return handleGroupPayment(supabase, groupId, appUrl);
     }
 
     // ─── Solo payment flow (backwards compatible) ───
@@ -112,6 +112,8 @@ async function handleSoloPayment(
     },
   });
 
+  const now = new Date().toISOString();
+
   if (existingPayment) {
     const { error: dbError } = await supabase.from("payments").update({
       stripe_session_id: session.id,
@@ -141,6 +143,11 @@ async function handleSoloPayment(
     }
   }
 
+  // Mark registration as having started payment flow
+  await supabase.from("registrations").update({
+    pending_payment_started_at: now,
+  }).eq("id", registrationId).eq("status", "pending");
+
   return NextResponse.json({ sessionId: session.id, url: session.url });
 }
 
@@ -150,7 +157,6 @@ async function handleSoloPayment(
 async function handleGroupPayment(
   supabase: ReturnType<typeof createAdminClient>,
   groupId: string,
-  clientSurcharge: number | undefined,
   appUrl: string
 ) {
   // Fetch all registrations in the group
@@ -184,12 +190,14 @@ async function handleGroupPayment(
   let surchargeLabel: string | null = null;
 
   if (pricing) {
+    const serverRegistrationDate = new Date().toISOString();
     const groupResult = computeGroupPricing(
       registrations.map((r: Registration) => ({
         dateOfBirth: r.date_of_birth,
         isFullDuration: r.is_full_duration,
         isStayingInMotel: r.is_staying_in_motel ?? undefined,
         numDays: r.num_days ?? undefined,
+        registrationDate: serverRegistrationDate,
       })),
       { ...eventData, id: primaryReg.event_id, is_active: true, created_at: "", updated_at: "", description: null } as Event,
       pricing
@@ -269,6 +277,8 @@ async function handleGroupPayment(
   });
 
   // Create payment record linked to primary registration
+  const now = new Date().toISOString();
+
   if (existingPayment) {
     const { error: dbError } = await supabase.from("payments").update({
       stripe_session_id: session.id,
@@ -297,6 +307,11 @@ async function handleGroupPayment(
       return NextResponse.json({ error: "Failed to save payment record" }, { status: 500 });
     }
   }
+
+  // Mark all group registrations as having started payment flow
+  await supabase.from("registrations").update({
+    pending_payment_started_at: now,
+  }).eq("group_id", groupId).eq("status", "pending");
 
   return NextResponse.json({ sessionId: session.id, url: session.url });
 }

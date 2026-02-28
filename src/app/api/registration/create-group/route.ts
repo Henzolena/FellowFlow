@@ -69,12 +69,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Compute group pricing (surcharge applied once on total)
+    const serverRegistrationDate = new Date().toISOString();
     const groupPricing = computeGroupPricing(
       data.registrants.map((r) => ({
         dateOfBirth: r.dateOfBirth,
         isFullDuration: r.isFullDuration,
         isStayingInMotel: r.isStayingInMotel,
         numDays: r.isFullDuration ? undefined : r.numDays,
+        registrationDate: serverRegistrationDate,
       })),
       event,
       pricing
