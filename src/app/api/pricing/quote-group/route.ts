@@ -65,6 +65,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Pricing not configured" }, { status: 404 });
     }
 
+    // Validate numDays does not exceed event duration for partial attendance
+    for (const r of registrants) {
+      if (!r.isFullDuration && r.numDays && r.numDays > event.duration_days) {
+        return NextResponse.json(
+          { error: `numDays (${r.numDays}) cannot exceed event duration (${event.duration_days} days)` },
+          { status: 400 }
+        );
+      }
+    }
+
     const serverRegistrationDate = new Date().toISOString();
     const result = computeGroupPricing(
       registrants.map((r) => ({

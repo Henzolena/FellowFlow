@@ -206,12 +206,6 @@ async function handleGroupPayment(
     return NextResponse.json({ error: "Group registrations not found" }, { status: 404 });
   }
 
-  // Verify none are already confirmed
-  const alreadyConfirmed = registrations.some((r: Registration) => r.status === "confirmed");
-  if (alreadyConfirmed) {
-    return NextResponse.json({ error: "Some registrations already confirmed" }, { status: 400 });
-  }
-
   const primaryReg = registrations[0];
   const eventData = primaryReg.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold" | "infant_age_threshold">;
 
