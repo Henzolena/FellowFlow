@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, CreditCard, AlertCircle, User } from "lucide-react";
 import type { Registration } from "@/types/database";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function ReviewClient() {
   return (
@@ -18,6 +19,7 @@ export default function ReviewClient() {
 }
 
 function ReviewContent() {
+  const { dict } = useTranslation();
   const searchParams = useSearchParams();
   const router = useRouter();
   const registrationId = searchParams.get("registration_id");
@@ -132,8 +134,8 @@ function ReviewContent() {
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
-          <h1 className="text-2xl font-bold">Registration Not Found</h1>
-          <Button onClick={() => router.push("/register")}>Start New Registration</Button>
+          <h1 className="text-2xl font-bold">{dict.review.registrationNotFound}</h1>
+          <Button onClick={() => router.push("/register")}>{dict.common.startNewRegistration}</Button>
         </div>
       </div>
     );
@@ -149,17 +151,17 @@ function ReviewContent() {
       <div className="mx-auto max-w-lg px-4 py-12 relative">
         {cancelled && (
           <div className="mb-6 rounded-md bg-yellow-50 border border-yellow-200 p-4 text-sm text-yellow-800">
-            Payment was cancelled. You can try again below.
+            {dict.review.paymentCancelled}
           </div>
         )}
 
         <Card className="shadow-brand-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Review & Pay</CardTitle>
+            <CardTitle className="text-2xl">{dict.review.title}</CardTitle>
             <CardDescription>
               {isGroup
-                ? `Review ${registrations.length} registrations and complete payment`
-                : "Review your registration and complete payment"}
+                ? dict.review.descriptionGroup.replace("{count}", String(registrations.length))
+                : dict.review.descriptionSolo}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -190,9 +192,9 @@ function ReviewContent() {
                 </div>
                 <p className="text-xs text-muted-foreground ml-6">
                   {reg.is_full_duration
-                    ? "Full Conference"
-                    : `${reg.num_days} Day(s)`}
-                  {reg.is_staying_in_motel && " + Motel Stay"}
+                    ? dict.common.fullConference
+                    : `${reg.num_days} ${dict.wizard.nDays}`}
+                  {reg.is_staying_in_motel && ` + ${dict.review.motelStay}`}
                 </p>
                 {!isGroup && (
                   <p className="text-sm text-muted-foreground">{reg.email}</p>
@@ -210,18 +212,18 @@ function ReviewContent() {
             {isGroup && groupPricing ? (
               <div className="rounded-xl border border-border bg-muted/50 p-5 space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal ({registrations.length} people)</span>
+                  <span className="text-muted-foreground">{dict.common.subtotal} ({registrations.length} {dict.review.people})</span>
                   <span>${groupPricing.subtotal.toFixed(2)}</span>
                 </div>
                 {groupPricing.surcharge > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{groupPricing.surchargeLabel || "Late Surcharge"}</span>
+                    <span className="text-muted-foreground">{groupPricing.surchargeLabel || dict.common.lateSurcharge}</span>
                     <span className="text-amber-600">+${groupPricing.surcharge.toFixed(2)}</span>
                   </div>
                 )}
                 <Separator />
                 <div className="flex justify-between items-center">
-                  <span className="font-semibold">Total</span>
+                  <span className="font-semibold">{dict.common.total}</span>
                   <span className="text-3xl font-bold text-brand-amber-foreground">
                     ${groupPricing.grandTotal.toFixed(2)}
                   </span>
@@ -229,7 +231,7 @@ function ReviewContent() {
               </div>
             ) : (
               <div className="rounded-xl border border-border bg-muted/50 p-6 text-center">
-                <p className="text-sm text-muted-foreground mb-1">Amount Due</p>
+                <p className="text-sm text-muted-foreground mb-1">{dict.common.amountDue}</p>
                 <p className="text-4xl font-bold text-brand-amber-foreground">
                   ${soloAmount.toFixed(2)}
                 </p>
@@ -250,7 +252,7 @@ function ReviewContent() {
               ) : (
                 <CreditCard className="mr-2 h-4 w-4" />
               )}
-              Pay ${totalAmount.toFixed(2)}
+              {dict.review.pay} ${totalAmount.toFixed(2)}
             </Button>
           </CardContent>
         </Card>

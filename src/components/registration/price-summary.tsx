@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { DollarSign, User, Calendar, Home } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AgeCategory } from "@/types/database";
+import { useTranslation } from "@/lib/i18n/context";
 
 type PriceSummaryProps = {
   eventName?: string;
@@ -34,12 +35,13 @@ export function PriceSummary({
   explanationDetail,
   loading,
 }: PriceSummaryProps) {
+  const { dict } = useTranslation();
   return (
     <Card className="sticky top-6 shadow-brand-lg brand-gradient-border overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
           <DollarSign className="h-5 w-5 text-brand-teal" />
-          Price Summary
+          {dict.priceSummary.title}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -72,10 +74,10 @@ export function PriceSummary({
             <Calendar className="h-4 w-4" />
             <span>
               {isFullDuration
-                ? "Full Conference"
+                ? dict.priceSummary.fullConference
                 : isStayingInMotel
-                ? "Partial — Motel Guest"
-                : `${numDays || "?"} Day(s)`}
+                ? dict.priceSummary.partialMotelGuest
+                : `${numDays || "?"} ${dict.wizard.nDays}`}
             </span>
           </div>
         )}
@@ -83,7 +85,7 @@ export function PriceSummary({
         {isStayingInMotel !== undefined && !isFullDuration && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Home className="h-4 w-4" />
-            <span>{isStayingInMotel ? "Motel Stay (Free)" : "No Motel"}</span>
+            <span>{isStayingInMotel ? dict.priceSummary.motelStayFree : dict.common.noMotel}</span>
           </div>
         )}
 
@@ -100,7 +102,7 @@ export function PriceSummary({
               className="text-center py-1"
             >
               <p className={`text-3xl font-bold ${amount === 0 ? "text-brand-green" : "text-brand-amber-foreground"}`}>
-                {amount === 0 ? "FREE" : `$${amount.toFixed(2)}`}
+                {amount === 0 ? dict.common.free : `$${amount.toFixed(2)}`}
               </p>
               {explanationDetail && (
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -116,7 +118,7 @@ export function PriceSummary({
               className="text-center"
             >
               <p className="text-sm text-muted-foreground">
-                {loading ? "Calculating..." : "Complete the form to see pricing"}
+                {loading ? dict.common.calculating : dict.priceSummary.completeForm}
               </p>
             </motion.div>
           )}

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function LoginClient() {
   return (
@@ -19,6 +20,7 @@ export default function LoginClient() {
 }
 
 function LoginContent() {
+  const { dict } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,7 +61,7 @@ function LoginContent() {
             height={100}
             className="mx-auto h-10 w-auto"
           />
-          <CardDescription>Sign in to access the admin portal</CardDescription>
+          <CardDescription>{dict.login.signInDesc}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -69,7 +71,7 @@ function LoginContent() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{dict.login.emailLabel}</Label>
               <Input
                 id="email"
                 type="email"
@@ -80,7 +82,7 @@ function LoginContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{dict.login.passwordLabel}</Label>
               <Input
                 id="password"
                 type="password"
@@ -91,7 +93,7 @@ function LoginContent() {
             </div>
             <Button type="submit" className="w-full shadow-brand-sm" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign In
+              {dict.login.signIn}
             </Button>
           </form>
         </CardContent>

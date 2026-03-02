@@ -27,6 +27,7 @@ import { format, parseISO } from "date-fns";
 import { getExplanationLabel } from "@/lib/pricing/engine";
 import type { ExplanationCode } from "@/types/database";
 import Link from "next/link";
+import { useTranslation } from "@/lib/i18n/context";
 
 export type ExistingRegistration = {
   id: string;
@@ -48,19 +49,6 @@ type Props = {
   onProceedAnyway: () => void;
 };
 
-const statusConfig: Record<string, { label: string; className: string; icon: typeof CheckCircle2 }> = {
-  confirmed: {
-    label: "Confirmed",
-    className: "bg-green-100 text-green-800 border-green-200",
-    icon: CheckCircle2,
-  },
-  pending: {
-    label: "Pending Payment",
-    className: "bg-amber-100 text-amber-800 border-amber-200",
-    icon: Clock,
-  },
-};
-
 export function DuplicateRegistrationDialog({
   open,
   onOpenChange,
@@ -68,6 +56,19 @@ export function DuplicateRegistrationDialog({
   email,
   onProceedAnyway,
 }: Props) {
+  const { dict } = useTranslation();
+  const statusConfig: Record<string, { label: string; className: string; icon: typeof CheckCircle2 }> = {
+    confirmed: {
+      label: dict.duplicate.confirmed,
+      className: "bg-green-100 text-green-800 border-green-200",
+      icon: CheckCircle2,
+    },
+    pending: {
+      label: dict.duplicate.pendingPayment,
+      className: "bg-amber-100 text-amber-800 border-amber-200",
+      icon: Clock,
+    },
+  };
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [sendError, setSendError] = useState<string | null>(null);
@@ -105,13 +106,11 @@ export function DuplicateRegistrationDialog({
             <AlertTriangle className="h-6 w-6 text-amber-600" />
           </div>
           <DialogTitle className="text-center">
-            Existing Registration Found
+            {dict.duplicate.existingFound}
           </DialogTitle>
           <DialogDescription className="text-center">
-            We found {registrations.length} existing registration
-            {registrations.length > 1 ? "s" : ""} for{" "}
-            <span className="font-medium text-foreground">{email}</span> at this
-            event.
+            {dict.duplicate.existingFoundDesc.replace("{count}", String(registrations.length)).replace("{s}", registrations.length > 1 ? "s" : "")}{" "}
+            <span className="font-medium text-foreground">{email}</span> {dict.duplicate.atThisEvent}
           </DialogDescription>
         </DialogHeader>
 
@@ -142,7 +141,7 @@ export function DuplicateRegistrationDialog({
                   </div>
                   <span className="text-sm font-semibold">
                     {reg.amount === 0 ? (
-                      <span className="text-brand-green">FREE</span>
+                      <span className="text-brand-green">{dict.common.free}</span>
                     ) : (
                       <span className="text-brand-amber-foreground">
                         ${reg.amount.toFixed(2)}
@@ -168,7 +167,7 @@ export function DuplicateRegistrationDialog({
                     <Link href={`/register/receipt`} onClick={() => onOpenChange(false)}>
                       <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
                         <Receipt className="h-3 w-3" />
-                        View Receipt
+                        {dict.duplicate.viewReceipt}
                       </Button>
                     </Link>
                     <Button
@@ -185,14 +184,14 @@ export function DuplicateRegistrationDialog({
                       ) : (
                         <Mail className="h-3 w-3" />
                       )}
-                      {isSent ? "Sent!" : "Resend Confirmation"}
+                      {isSent ? dict.duplicate.sent : dict.duplicate.resendConfirmation}
                     </Button>
                   </div>
                 )}
 
                 {reg.status === "pending" && (
                   <p className="text-xs text-amber-600">
-                    This registration is pending payment. You can complete payment or register again.
+                    {dict.duplicate.pendingNote}
                   </p>
                 )}
               </div>
@@ -210,13 +209,13 @@ export function DuplicateRegistrationDialog({
         <Separator />
 
         <div className="text-center space-y-1">
-          <p className="text-sm font-medium">Want to register again anyway?</p>
+          <p className="text-sm font-medium">{dict.duplicate.registerAgain}</p>
           <p className="text-xs text-muted-foreground">
             {confirmed.length > 0
-              ? "You already have a confirmed registration. A new one will create an additional entry."
+              ? dict.duplicate.alreadyConfirmed
               : pending.length > 0
-              ? "You have a pending registration. Consider completing that payment instead."
-              : "You can proceed with a new registration if needed."}
+              ? dict.duplicate.hasPending
+              : dict.duplicate.canProceed}
           </p>
         </div>
 
@@ -229,7 +228,7 @@ export function DuplicateRegistrationDialog({
             variant={confirmed.length > 0 ? "outline" : "default"}
             className="w-full gap-1.5"
           >
-            Proceed with New Registration
+            {dict.duplicate.proceedNew}
             <ArrowRight className="h-3.5 w-3.5" />
           </Button>
           <Button
@@ -237,7 +236,7 @@ export function DuplicateRegistrationDialog({
             className="w-full"
             onClick={() => onOpenChange(false)}
           >
-            Cancel
+            {dict.common.cancel}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -13,8 +13,10 @@ import {
 } from "lucide-react";
 import type { EventWithPricing } from "@/types/database";
 import { HeroSection } from "@/components/landing/hero-section";
+import { getServerDictionary } from "@/lib/i18n/server";
 
 export default async function Home() {
+  const dict = await getServerDictionary();
   const supabase = await createClient();
   const { data: events } = await supabase
     .from("events")
@@ -36,7 +38,7 @@ export default async function Home() {
         <section className="py-16 bg-muted/40">
           <div className="mx-auto max-w-7xl px-4">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold">Upcoming Event</h2>
+              <h2 className="text-2xl font-bold">{dict.home.upcomingEvent}</h2>
             </div>
             <Card className="mx-auto max-w-xl shadow-brand-md brand-gradient-border overflow-hidden">
               <CardContent className="p-6 text-center space-y-4">
@@ -51,11 +53,11 @@ export default async function Home() {
                     {format(parseISO(event.end_date), "MMM d, yyyy")}
                   </span>
                   <span className="text-muted-foreground/50">•</span>
-                  <span>{event.duration_days} days</span>
+                  <span>{event.duration_days} {dict.common.days}</span>
                 </div>
                 <Link href={`/register/${event.id}`}>
                   <Button className="mt-2 shadow-brand-sm hover:shadow-brand-md transition-shadow">
-                    Register for this Event
+                    {dict.home.registerForEvent}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
@@ -69,9 +71,9 @@ export default async function Home() {
       <section id="how-it-works" className="py-16 scroll-mt-20">
         <div className="mx-auto max-w-7xl px-4">
           <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold">How It Works</h2>
+            <h2 className="text-2xl font-bold">{dict.home.howItWorks}</h2>
             <p className="mt-2 text-muted-foreground">
-              Three simple steps to register
+              {dict.home.threeSteps}
             </p>
             <div className="mt-4 mx-auto h-0.5 w-12 brand-gradient rounded-full" />
           </div>
@@ -79,23 +81,20 @@ export default async function Home() {
             {[
               {
                 icon: Users,
-                title: "1. Tell Us About You",
-                description:
-                  "Answer a few quick questions about your attendance plans and provide your contact information.",
+                title: dict.home.step1Title,
+                description: dict.home.step1Desc,
                 color: "text-brand-cyan",
               },
               {
                 icon: CreditCard,
-                title: "2. See Your Price",
-                description:
-                  "Pricing is calculated automatically based on your age, attendance type, and accommodation.",
+                title: dict.home.step2Title,
+                description: dict.home.step2Desc,
                 color: "text-brand-teal",
               },
               {
                 icon: CheckCircle2,
-                title: "3. Pay & Confirm",
-                description:
-                  "Complete your registration with secure online payment and receive instant confirmation.",
+                title: dict.home.step3Title,
+                description: dict.home.step3Desc,
                 color: "text-brand-green",
               },
             ].map((feature) => (
@@ -121,15 +120,15 @@ export default async function Home() {
           <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-brand-teal" />
-              <span>Secure Payments via Stripe</span>
+              <span>{dict.home.securePayments}</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-brand-green" />
-              <span>Instant Confirmation</span>
+              <span>{dict.home.instantConfirmation}</span>
             </div>
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-brand-cyan" />
-              <span>All Major Cards Accepted</span>
+              <span>{dict.home.allCardsAccepted}</span>
             </div>
           </div>
         </div>

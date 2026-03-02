@@ -11,6 +11,7 @@ import {
   CreditCard,
   CalendarCheck,
 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/context";
 
 function FloatingChip({
   children,
@@ -36,6 +37,7 @@ function FloatingChip({
 }
 
 export function HeroSection() {
+  const { dict } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
 
@@ -108,7 +110,7 @@ export function HeroSection() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-cyan opacity-60" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-teal" />
                 </span>
-                Registration Open
+                {dict.hero.registrationOpen}
               </span>
             </div>
 
@@ -117,17 +119,17 @@ export function HeroSection() {
               <h1 className="relative">
                 <span className="block text-[2.75rem] sm:text-6xl lg:text-7xl xl:text-[5rem] font-black tracking-[-0.02em] leading-[0.95] mb-3">
                   <span className="relative inline-block">
-                    Conference
+                    {dict.hero.headline1}
                     <svg className="absolute -bottom-2 left-0 w-full h-3 text-brand-cyan/20" viewBox="0 0 200 12" preserveAspectRatio="none">
                       <path d="M0,7 Q50,0 100,7 T200,7" fill="none" stroke="currentColor" strokeWidth="3" />
                     </svg>
                   </span>
                 </span>
                 <span className="block text-[2.75rem] sm:text-6xl lg:text-7xl xl:text-[5rem] font-black tracking-[-0.02em] leading-[0.95]">
-                  Registration
+                  {dict.hero.headline2}
                 </span>
                 <span className="block text-[3rem] sm:text-[4rem] lg:text-[5rem] xl:text-[5.5rem] font-black tracking-[-0.03em] leading-[0.9] mt-4 hero-gradient-text-enhanced">
-                  Made Effortless
+                  {dict.hero.headline3}
                 </span>
               </h1>
             </div>
@@ -135,12 +137,12 @@ export function HeroSection() {
             {/* Subheadline */}
             <div className="animate-in fade-in slide-in-from-bottom-3 duration-700" style={{ animationDelay: "250ms", animationFillMode: "both" }}>
               <p className="text-lg sm:text-xl leading-relaxed text-foreground/70 max-w-xl mx-auto lg:mx-0 font-medium">
-                From sign-up to confirmation in{" "}
+                {dict.hero.subheadline}{" "}
                 <span className="relative inline-block">
-                  <span className="relative z-10 text-foreground font-semibold">under 2 minutes</span>
+                  <span className="relative z-10 text-foreground font-semibold">{dict.hero.under2Minutes}</span>
                   <span className="absolute bottom-0 left-0 w-full h-2 bg-brand-amber/20 -rotate-1" />
                 </span>
-                . Smart pricing, secure payments, and instant receipts — all in one seamless flow.
+                {dict.hero.subheadlineEnd}
               </p>
             </div>
 
@@ -155,7 +157,7 @@ export function HeroSection() {
                   className="group relative text-base px-8 h-12 shadow-brand-md hover:shadow-brand-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <span className="relative z-10 flex items-center gap-2">
-                    Browse Events
+                    {dict.hero.browseEvents}
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </span>
                 </Button>
@@ -166,7 +168,7 @@ export function HeroSection() {
                   size="lg"
                   className="text-base h-12 px-6 border-border/60 hover:bg-muted/60 transition-all duration-300"
                 >
-                  See How It Works
+                  {dict.hero.seeHowItWorks}
                 </Button>
               </Link>
             </div>
@@ -178,17 +180,17 @@ export function HeroSection() {
             >
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="h-3.5 w-3.5 text-brand-teal" />
-                <span>256-bit SSL</span>
+                <span>{dict.hero.ssl}</span>
               </div>
               <div className="h-3 w-px bg-border" />
               <div className="flex items-center gap-1.5">
                 <CreditCard className="h-3.5 w-3.5 text-brand-cyan" />
-                <span>Stripe Powered</span>
+                <span>{dict.hero.stripePowered}</span>
               </div>
               <div className="h-3 w-px bg-border" />
               <div className="flex items-center gap-1.5">
                 <Zap className="h-3.5 w-3.5 text-brand-amber" />
-                <span>Instant Confirmation</span>
+                <span>{dict.hero.instantConfirmation}</span>
               </div>
             </div>
           </div>
@@ -232,7 +234,7 @@ export function HeroSection() {
               <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-teal/10">
                 <Zap className="h-3 w-3 text-brand-teal" />
               </div>
-              <span className="text-foreground/80">Fast Registration</span>
+              <span className="text-foreground/80">{dict.hero.fastRegistration}</span>
             </FloatingChip>
 
             <FloatingChip
@@ -242,7 +244,7 @@ export function HeroSection() {
               <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-cyan/10">
                 <CreditCard className="h-3 w-3 text-brand-cyan" />
               </div>
-              <span className="text-foreground/80">Secure Payments</span>
+              <span className="text-foreground/80">{dict.hero.securePayments}</span>
             </FloatingChip>
 
             <FloatingChip
@@ -252,7 +254,7 @@ export function HeroSection() {
               <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-green/10">
                 <CalendarCheck className="h-3 w-3 text-brand-green" />
               </div>
-              <span className="text-foreground/80">Instant Receipts</span>
+              <span className="text-foreground/80">{dict.hero.instantReceipts}</span>
             </FloatingChip>
           </div>
         </div>

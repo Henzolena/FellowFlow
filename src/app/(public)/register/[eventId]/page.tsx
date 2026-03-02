@@ -4,6 +4,7 @@ import type { EventWithPricing } from "@/types/database";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { getServerDictionary } from "@/lib/i18n/server";
 
 export default async function RegisterForEventPage({
   params,
@@ -11,6 +12,7 @@ export default async function RegisterForEventPage({
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
+  const dict = await getServerDictionary();
   const supabase = await createClient();
 
   const { data: event, error } = await supabase
@@ -34,12 +36,12 @@ export default async function RegisterForEventPage({
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold">Pricing Not Configured</h1>
+          <h1 className="text-2xl font-bold">{dict.notConfigured.title}</h1>
           <p className="text-muted-foreground">
-            This event does not have pricing configured yet. Please check back later.
+            {dict.notConfigured.description}
           </p>
           <Link href="/register" className="text-sm text-primary hover:underline">
-            &larr; Back to Events
+            &larr; {dict.notConfigured.backToEvents}
           </Link>
         </div>
       </div>
@@ -54,7 +56,7 @@ export default async function RegisterForEventPage({
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
-          All Events
+          {dict.eventPage.allEvents}
         </Link>
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>

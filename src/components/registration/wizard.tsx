@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { DuplicateRegistrationDialog, type ExistingRegistration } from "./duplicate-dialog";
 import { ArrowLeft, ArrowRight, Loader2, Check, Plus, Trash2, User, Users } from "lucide-react";
 import type { Event, PricingConfig, AgeCategory } from "@/types/database";
+import { useTranslation } from "@/lib/i18n/context";
 
 type WizardProps = {
   event: Event;
@@ -53,7 +54,7 @@ type GroupQuote = {
   grandTotal: number;
 };
 
-const STEPS = ["Registrants", "Contact Info", "Review"];
+// STEPS is now derived from dict inside the component
 
 let nextId = 1;
 function genId() {
@@ -72,15 +73,15 @@ function createEmptyRegistrant(): Registrant {
   };
 }
 
-function getAgeRangeOptions(event: Event) {
+function getAgeRangeOptions(event: Event, labels: { infant: string; child: string; youth: string; adult: string }) {
   const infant = event.infant_age_threshold ?? 3;
   const youth = event.youth_age_threshold;
   const adult = event.adult_age_threshold;
   return [
-    { key: "infant" as const, label: `0–${infant} years (Infant)`, representativeAge: Math.max(0, Math.floor(infant / 2)) },
-    { key: "child" as const,  label: `${infant + 1}–${youth - 1} years (Child)`, representativeAge: Math.floor((infant + 1 + youth - 1) / 2) },
-    { key: "youth" as const,  label: `${youth}–${adult - 1} years (Youth)`, representativeAge: Math.floor((youth + adult - 1) / 2) },
-    { key: "adult" as const,  label: `${adult}+ years (Adult)`, representativeAge: adult + 10 },
+    { key: "infant" as const, label: `0–${infant} ${labels.infant}`, representativeAge: Math.max(0, Math.floor(infant / 2)) },
+    { key: "child" as const,  label: `${infant + 1}–${youth - 1} ${labels.child}`, representativeAge: Math.floor((infant + 1 + youth - 1) / 2) },
+    { key: "youth" as const,  label: `${youth}–${adult - 1} ${labels.youth}`, representativeAge: Math.floor((youth + adult - 1) / 2) },
+    { key: "adult" as const,  label: `${adult}+ ${labels.adult}`, representativeAge: adult + 10 },
   ];
 }
 
@@ -92,6 +93,9 @@ function syntheticDob(representativeAge: number, eventStartDate: string): string
 
 export function RegistrationWizard({ event, pricing }: WizardProps) {
   const router = useRouter();
+  const { dict } = useTranslation();
+  const STEPS = dict.wizard.steps;
+  const ageLabels = { infant: dict.wizard.infantLabel, child: dict.wizard.childLabel, youth: dict.wizard.youthLabel, adult: dict.wizard.adultLabel };
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -129,7 +133,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
 
   // ─── Quote fetching ───
   const fetchGroupQuote = useCallback(async () => {
-    const ageOpts = getAgeRangeOptions(event);
+    const ageOpts = getAgeRangeOptions(event, ageLabels);
     const validRegistrants = registrants.filter(
       (r) =>
         r.ageRange !== "" &&
@@ -150,7 +154,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
         body: JSON.stringify({
           eventId: event.id,
           registrants: validRegistrants.map((r) => {
-            const opt = ageOpts.find((o) => o.key === r.ageRange);
+            const opt = ageOpts.find((o: { key: string }) => o.key === r.ageRange);
             return {
               dateOfBirth: syntheticDob(opt?.representativeAge ?? 25, event.start_date),
               isFullDuration: r.isFullDuration,
@@ -209,7 +213,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
           email: contact.email,
           phone: contact.phone || undefined,
           registrants: registrants.map((r) => {
-            const opt = getAgeRangeOptions(event).find((o) => o.key === r.ageRange);
+            const opt = getAgeRangeOptions(event, ageLabels).find((o) => o.key === r.ageRange);
             return {
               firstName: r.firstName,
               lastName: r.lastName,
@@ -270,11 +274,11 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 <p className="font-medium text-sm">
                   {reg.firstName && reg.lastName
                     ? `${reg.firstName} ${reg.lastName}`
-                    : `Person ${idx + 1}`}
+                    : `${dict.common.person} ${idx + 1}`}
                 </p>
                 {isComplete && quote && (
                   <p className="text-xs text-muted-foreground">
-                    {quote.category} — {quote.amount === 0 ? "Free" : `$${quote.amount.toFixed(2)}`}
+                    {quote.category} — {quote.amount === 0 ? dict.common.free_lower : `$${quote.amount.toFixed(2)}`}
                   </p>
                 )}
               </div>
@@ -310,7 +314,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 <Separator />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>First Name *</Label>
+                    <Label>{dict.wizard.firstName} *</Label>
                     <Input
                       value={reg.firstName}
                       onChange={(e) => updateRegistrant(idx, { firstName: e.target.value })}
@@ -318,7 +322,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Last Name *</Label>
+                    <Label>{dict.wizard.lastName} *</Label>
                     <Input
                       value={reg.lastName}
                       onChange={(e) => updateRegistrant(idx, { lastName: e.target.value })}
@@ -328,16 +332,16 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Age Range *</Label>
+                  <Label>{dict.wizard.ageRange} *</Label>
                   <Select
                     value={reg.ageRange}
                     onValueChange={(v) => updateRegistrant(idx, { ageRange: v as AgeRangeKey })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select age range" />
+                      <SelectValue placeholder={dict.wizard.selectAgeRange} />
                     </SelectTrigger>
                     <SelectContent>
-                      {getAgeRangeOptions(event).map((opt) => (
+                      {getAgeRangeOptions(event, ageLabels).map((opt) => (
                         <SelectItem key={opt.key} value={opt.key}>
                           {opt.label}
                         </SelectItem>
@@ -347,7 +351,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 </div>
 
                 <div className="space-y-3">
-                  <Label>Attending for the full duration?</Label>
+                  <Label>{dict.wizard.attendingFullDuration}</Label>
                   <RadioGroup
                     value={reg.isFullDuration === null ? "" : reg.isFullDuration ? "yes" : "no"}
                     onValueChange={(v) =>
@@ -361,13 +365,13 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="yes" id={`full-yes-${idx}`} />
                       <Label htmlFor={`full-yes-${idx}`} className="font-normal">
-                        Yes, full conference ({event.duration_days} days)
+                        {dict.wizard.yesFullConference} ({event.duration_days} {dict.common.days})
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="no" id={`full-no-${idx}`} />
                       <Label htmlFor={`full-no-${idx}`} className="font-normal">
-                        No, partial attendance
+                        {dict.wizard.noPartialAttendance}
                       </Label>
                     </div>
                   </RadioGroup>
@@ -381,24 +385,24 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       exit={{ opacity: 0, height: 0 }}
                       className="space-y-3 overflow-hidden"
                     >
-                      <Label>Staying in the motel?</Label>
+                      <Label>{dict.wizard.stayingInMotel}</Label>
                       <RadioGroup
                         value={reg.isStayingInMotel === null ? "" : reg.isStayingInMotel ? "yes" : "no"}
                         onValueChange={(v) => updateRegistrant(idx, { isStayingInMotel: v === "yes" })}
                       >
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="yes" id={`motel-yes-${idx}`} />
-                          <Label htmlFor={`motel-yes-${idx}`} className="font-normal">Yes</Label>
+                          <Label htmlFor={`motel-yes-${idx}`} className="font-normal">{dict.common.yes}</Label>
                         </div>
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="no" id={`motel-no-${idx}`} />
-                          <Label htmlFor={`motel-no-${idx}`} className="font-normal">No</Label>
+                          <Label htmlFor={`motel-no-${idx}`} className="font-normal">{dict.common.no}</Label>
                         </div>
                       </RadioGroup>
 
                       {reg.isStayingInMotel === false && (
                         <div className="space-y-2 pt-1">
-                          <Label>Number of days</Label>
+                          <Label>{dict.wizard.numberOfDays}</Label>
                           <Select
                             value={String(reg.numDays)}
                             onValueChange={(v) => updateRegistrant(idx, { numDays: parseInt(v) })}
@@ -409,7 +413,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                             <SelectContent>
                               {Array.from({ length: event.duration_days - 1 }, (_, i) => i + 1).map((d) => (
                                 <SelectItem key={d} value={String(d)}>
-                                  {d} day{d !== 1 ? "s" : ""}
+                                  {d} {d !== 1 ? dict.common.days : dict.common.day}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -477,9 +481,9 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold">Who is attending?</h2>
+                    <h2 className="text-lg font-semibold">{dict.wizard.whoIsAttending}</h2>
                     <p className="text-sm text-muted-foreground">
-                      Add everyone you&apos;d like to register for {event.name}
+                      {dict.wizard.addEveryoneDesc.replace("{event}", event.name)}
                     </p>
                   </div>
                   <Badge variant="secondary" className="gap-1">
@@ -496,7 +500,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   onClick={addRegistrant}
                 >
                   <Plus className="h-4 w-4" />
-                  Add Another Person
+                  {dict.wizard.addAnotherPerson}
                 </Button>
               </div>
             )}
@@ -505,14 +509,14 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
             {step === 1 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Contact Information</CardTitle>
+                  <CardTitle>{dict.wizard.contactInfo}</CardTitle>
                   <CardDescription>
-                    Provide the email for registration confirmations and receipts
+                    {dict.wizard.contactDesc}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
+                    <Label htmlFor="email">{dict.wizard.emailRequired}</Label>
                     <Input
                       id="email"
                       type="email"
@@ -524,11 +528,11 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       placeholder="john@example.com"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Confirmation emails and receipts will be sent to this address
+                      {dict.wizard.emailHint}
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone (optional)</Label>
+                    <Label htmlFor="phone">{dict.wizard.phoneOptional}</Label>
                     <Input
                       id="phone"
                       type="tel"
@@ -545,9 +549,9 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
             {step === 2 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Review & Submit</CardTitle>
+                  <CardTitle>{dict.wizard.reviewAndSubmit}</CardTitle>
                   <CardDescription>
-                    Verify all details before submitting
+                    {dict.wizard.reviewDesc}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -560,7 +564,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   {/* Contact info */}
                   <div className="rounded-lg bg-muted/50 p-4 space-y-1">
                     <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                      Contact
+                      {dict.common.contact}
                     </h4>
                     <p className="text-sm">{contact.email}</p>
                     {contact.phone && <p className="text-sm text-muted-foreground">{contact.phone}</p>}
@@ -569,7 +573,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   {/* Registrants */}
                   <div className="space-y-3">
                     <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                      Registrants ({registrants.length})
+                      {dict.common.registrants} ({registrants.length})
                     </h4>
                     {registrants.map((reg, idx) => {
                       const q = groupQuote?.items?.[idx];
@@ -587,14 +591,14 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 ml-6">
                               {reg.isFullDuration
-                                ? `Full conference`
+                                ? dict.common.fullConference
                                 : reg.isStayingInMotel
-                                ? "Partial — Motel (Free)"
-                                : `${reg.numDays} day(s)`}
+                                ? dict.common.partialMotel
+                                : `${reg.numDays} ${dict.wizard.nDays}`}
                             </p>
                           </div>
                           <p className={`font-semibold text-sm ${q?.amount === 0 ? "text-brand-green" : "text-foreground"}`}>
-                            {q ? (q.amount === 0 ? "FREE" : `$${q.amount.toFixed(2)}`) : "—"}
+                            {q ? (q.amount === 0 ? dict.common.free : `$${q.amount.toFixed(2)}`) : "—"}
                           </p>
                         </div>
                       );
@@ -605,22 +609,22 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   {groupQuote && (
                     <div className="rounded-xl border border-border bg-muted/50 p-5 space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="text-muted-foreground">{dict.common.subtotal}</span>
                         <span>${groupQuote.subtotal.toFixed(2)}</span>
                       </div>
                       {groupQuote.surcharge > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">
-                            {groupQuote.surchargeLabel || "Late Surcharge"}
+                            {groupQuote.surchargeLabel || dict.common.lateSurcharge}
                           </span>
                           <span className="text-amber-600">+${groupQuote.surcharge.toFixed(2)}</span>
                         </div>
                       )}
                       <Separator />
                       <div className="flex justify-between items-center">
-                        <span className="font-semibold">Total</span>
+                        <span className="font-semibold">{dict.common.total}</span>
                         <span className={`text-2xl font-bold ${groupQuote.grandTotal === 0 ? "text-brand-green" : "text-brand-amber-foreground"}`}>
-                          {groupQuote.grandTotal === 0 ? "FREE" : `$${groupQuote.grandTotal.toFixed(2)}`}
+                          {groupQuote.grandTotal === 0 ? dict.common.free : `$${groupQuote.grandTotal.toFixed(2)}`}
                         </span>
                       </div>
                     </div>
@@ -639,7 +643,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
             disabled={step === 0}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            {dict.common.back}
           </Button>
 
           {step < STEPS.length - 1 ? (
@@ -674,13 +678,13 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
               disabled={(step === 0 ? !canProceedStep0 : !canProceedStep1) || dupChecking}
             >
               {dupChecking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Next
+              {dict.common.next}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           ) : (
             <Button onClick={handleSubmit} disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {groupQuote?.grandTotal === 0 ? "Complete Registration" : "Proceed to Payment"}
+              {groupQuote?.grandTotal === 0 ? dict.wizard.completeRegistration : dict.wizard.proceedToPayment}
             </Button>
           )}
         </div>
@@ -692,7 +696,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Users className="h-5 w-5 text-brand-teal" />
-              Price Summary
+              {dict.wizard.priceSummary}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -703,10 +707,10 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 {groupQuote.items.map((item, i) => (
                   <div key={i} className="flex justify-between text-sm">
                     <span className="text-muted-foreground truncate mr-2">
-                      {registrants[i]?.firstName || `Person ${i + 1}`}
+                      {registrants[i]?.firstName || `${dict.common.person} ${i + 1}`}
                     </span>
                     <span className={item.amount === 0 ? "text-brand-green" : ""}>
-                      {item.amount === 0 ? "Free" : `$${item.amount.toFixed(2)}`}
+                      {item.amount === 0 ? dict.common.free_lower : `$${item.amount.toFixed(2)}`}
                     </span>
                   </div>
                 ))}
@@ -714,13 +718,13 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 <Separator className="opacity-60" />
 
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="text-muted-foreground">{dict.common.subtotal}</span>
                   <span>${groupQuote.subtotal.toFixed(2)}</span>
                 </div>
 
                 {groupQuote.surcharge > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground text-xs">{groupQuote.surchargeLabel || "Late Surcharge"}</span>
+                    <span className="text-muted-foreground text-xs">{groupQuote.surchargeLabel || dict.common.lateSurcharge}</span>
                     <span className="text-amber-600">+${groupQuote.surcharge.toFixed(2)}</span>
                   </div>
                 )}
@@ -729,13 +733,13 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
 
                 <div className="text-center py-1">
                   <p className={`text-3xl font-bold ${groupQuote.grandTotal === 0 ? "text-brand-green" : "text-brand-amber-foreground"}`}>
-                    {groupQuote.grandTotal === 0 ? "FREE" : `$${groupQuote.grandTotal.toFixed(2)}`}
+                    {groupQuote.grandTotal === 0 ? dict.common.free : `$${groupQuote.grandTotal.toFixed(2)}`}
                   </p>
                 </div>
               </>
             ) : (
               <p className="text-sm text-muted-foreground text-center">
-                {quoteLoading ? "Calculating..." : "Add registrant details to see pricing"}
+                {quoteLoading ? dict.common.calculating : dict.wizard.addDetailsToSee}
               </p>
             )}
           </CardContent>
@@ -747,19 +751,19 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
         <div className="flex items-center justify-between max-w-md mx-auto">
           <div>
             <p className="text-xs text-muted-foreground">
-              {registrants.length > 1 ? `${registrants.length} Registrants` : "Estimated Price"}
+              {registrants.length > 1 ? `${registrants.length} ${dict.common.registrants}` : dict.common.estimatedPrice}
             </p>
             <p className="text-xl font-bold text-brand-amber-foreground">
               {groupQuote
                 ? groupQuote.grandTotal === 0
-                  ? "FREE"
+                  ? dict.common.free
                   : `$${groupQuote.grandTotal.toFixed(2)}`
                 : "—"}
             </p>
           </div>
           {groupQuote && groupQuote.surcharge > 0 && (
             <span className="text-xs text-amber-600">
-              incl. ${groupQuote.surcharge.toFixed(2)} surcharge
+              {dict.common.inclSurcharge.replace("{amount}", groupQuote.surcharge.toFixed(2))}
             </span>
           )}
         </div>

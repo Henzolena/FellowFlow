@@ -23,6 +23,7 @@ import {
   FileText,
 } from "lucide-react";
 import type { EventWithPricing, PricingConfig } from "@/types/database";
+import { useTranslation } from "@/lib/i18n/context";
 
 type Props = {
   events: EventWithPricing[];
@@ -55,15 +56,16 @@ function getEventStatus(event: EventWithPricing): "upcoming" | "ongoing" | "past
   return "ongoing";
 }
 
-const statusConfig = {
-  upcoming: { label: "Upcoming", className: "bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20" },
-  ongoing: { label: "Happening Now", className: "bg-brand-green/10 text-brand-green border-brand-green/20" },
-  past: { label: "Ended", className: "bg-muted text-muted-foreground border-border" },
-};
-
 export function EventSearch({ events }: Props) {
+  const { dict } = useTranslation();
   const [query, setQuery] = useState("");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+
+  const statusConfig = {
+    upcoming: { label: dict.events.upcoming, className: "bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20" },
+    ongoing: { label: dict.events.happeningNow, className: "bg-brand-green/10 text-brand-green border-brand-green/20" },
+    past: { label: dict.events.ended, className: "bg-muted text-muted-foreground border-border" },
+  };
 
   const filtered = useMemo(() => {
     return events.filter((event) => {
@@ -100,7 +102,7 @@ export function EventSearch({ events }: Props) {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search events by name or description..."
+            placeholder={dict.events.searchPlaceholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-10"
@@ -112,13 +114,13 @@ export function EventSearch({ events }: Props) {
         >
           <SelectTrigger className="w-full sm:w-48">
             <CalendarDays className="mr-2 h-4 w-4 text-muted-foreground" />
-            <SelectValue placeholder="Filter by time" />
+            <SelectValue placeholder={dict.events.filterByTime} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Events ({counts.all})</SelectItem>
-            <SelectItem value="upcoming">Upcoming ({counts.upcoming})</SelectItem>
-            <SelectItem value="ongoing">Happening Now ({counts.ongoing})</SelectItem>
-            <SelectItem value="past">Past ({counts.past})</SelectItem>
+            <SelectItem value="all">{dict.events.allEvents} ({counts.all})</SelectItem>
+            <SelectItem value="upcoming">{dict.events.upcoming} ({counts.upcoming})</SelectItem>
+            <SelectItem value="ongoing">{dict.events.happeningNow} ({counts.ongoing})</SelectItem>
+            <SelectItem value="past">{dict.events.past} ({counts.past})</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -126,19 +128,19 @@ export function EventSearch({ events }: Props) {
       {/* Results count */}
       <p className="text-sm text-muted-foreground">
         {filtered.length === 0
-          ? "No events found"
-          : `Showing ${filtered.length} event${filtered.length !== 1 ? "s" : ""}`}
+          ? dict.common.noEventsFound
+          : dict.common.showingEvents.replace("{count}", String(filtered.length)).replace("{s}", filtered.length !== 1 ? "s" : "")}
       </p>
 
       {/* Event cards */}
       {filtered.length === 0 ? (
         <div className="py-16 text-center">
           <CalendarDays className="mx-auto h-12 w-12 text-muted-foreground/40 mb-4" />
-          <h3 className="text-lg font-semibold">No events found</h3>
+          <h3 className="text-lg font-semibold">{dict.common.noEventsFound}</h3>
           <p className="text-sm text-muted-foreground mt-1">
             {query
-              ? "Try a different search term or filter."
-              : "There are no active events at the moment. Check back later."}
+              ? dict.common.searchError
+              : dict.common.noActiveEvents}
           </p>
         </div>
       ) : (
@@ -188,7 +190,7 @@ export function EventSearch({ events }: Props) {
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Clock className="h-3.5 w-3.5 text-brand-cyan" />
-                      <span>{event.duration_days} days</span>
+                      <span>{event.duration_days} {dict.common.days}</span>
                     </div>
                   </div>
 
@@ -196,10 +198,10 @@ export function EventSearch({ events }: Props) {
                     {lowestPrice !== null && (
                       <p className="text-sm">
                         {lowestPrice === 0 ? (
-                          <span className="font-semibold text-brand-green">Free</span>
+                          <span className="font-semibold text-brand-green">{dict.common.free_lower}</span>
                         ) : (
                           <>
-                            From{" "}
+                            {dict.common.from}{" "}
                             <span className="font-semibold text-brand-amber-foreground">
                               ${lowestPrice.toFixed(0)}
                             </span>
@@ -211,7 +213,7 @@ export function EventSearch({ events }: Props) {
                       <Link href="/register/receipt">
                         <Button size="sm" variant="ghost" className="gap-1.5 text-muted-foreground hover:text-foreground">
                           <FileText className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">My Receipt</span>
+                          <span className="hidden sm:inline">{dict.events.myReceipt}</span>
                         </Button>
                       </Link>
                       {!isPastEvent ? (
@@ -220,13 +222,13 @@ export function EventSearch({ events }: Props) {
                             size="sm"
                             className="gap-1.5 shadow-brand-sm hover:shadow-brand-md transition-shadow"
                           >
-                            Register
+                            {dict.common.register}
                             <ArrowRight className="h-3.5 w-3.5" />
                           </Button>
                         </Link>
                       ) : (
                         <Button size="sm" variant="outline" disabled>
-                          Registration Closed
+                          {dict.common.registrationClosed}
                         </Button>
                       )}
                     </div>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Download, Loader2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function SuccessClient() {
   return (
@@ -19,6 +20,7 @@ export default function SuccessClient() {
 type RegStatus = "pending" | "confirmed" | "cancelled" | "refunded";
 
 function SuccessContent() {
+  const { dict } = useTranslation();
   const searchParams = useSearchParams();
   const registrationId = searchParams.get("registration_id");
   const groupId = searchParams.get("group_id");
@@ -93,7 +95,7 @@ function SuccessContent() {
               )}
             </motion.div>
             <CardTitle className="text-2xl mt-4">
-              {isConfirmed ? "Registration Confirmed!" : "Processing Payment..."}
+              {isConfirmed ? dict.success.confirmed : dict.success.processing}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -102,25 +104,25 @@ function SuccessContent() {
                 <p className="text-muted-foreground">
                   {isFree
                     ? groupCount && groupCount > 1
-                      ? `All ${groupCount} free registrations have been confirmed. No payment is required.`
-                      : "Your free registration has been confirmed. No payment is required."
+                      ? dict.success.freeGroupConfirmed.replace("{count}", String(groupCount))
+                      : dict.success.freeSoloConfirmed
                     : groupCount && groupCount > 1
-                    ? `Your payment was successful and all ${groupCount} registrations are confirmed.`
-                    : "Your payment was successful and your registration is confirmed."}
+                    ? dict.success.paidGroupConfirmed.replace("{count}", String(groupCount))
+                    : dict.success.paidSoloConfirmed}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  A confirmation email will be sent to your registered email address.
+                  {dict.success.confirmationEmailSent}
                 </p>
               </>
             ) : (
               <>
                 <p className="text-muted-foreground">
-                  Your payment is being verified. This usually takes a few seconds.
+                  {dict.success.verifying}
                 </p>
                 {!polling && (
                   <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">
-                      Verification is taking longer than expected. You can check again or view your receipt — your registration will be confirmed shortly.
+                      {dict.success.takingLonger}
                     </p>
                     <Button
                       variant="outline"
@@ -131,7 +133,7 @@ function SuccessContent() {
                       }}
                     >
                       <RefreshCw className="mr-2 h-4 w-4" />
-                      Check Again
+                      {dict.success.checkAgain}
                     </Button>
                   </div>
                 )}
@@ -143,12 +145,12 @@ function SuccessContent() {
                 <Link href={`/register/receipt/${registrationId}${lastName ? `?ln=${encodeURIComponent(lastName)}` : ""}`}>
                   <Button className="w-full" variant="outline">
                     <Download className="mr-2 h-4 w-4" />
-                    View Receipt
+                    {dict.common.viewReceipt}
                   </Button>
                 </Link>
               )}
               <Link href="/">
-                <Button className="w-full">Back to Home</Button>
+                <Button className="w-full">{dict.common.backToHome}</Button>
               </Link>
             </div>
           </CardContent>

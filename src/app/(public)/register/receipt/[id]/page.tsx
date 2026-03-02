@@ -13,6 +13,7 @@ import { format, parseISO } from "date-fns";
 import { Printer, Mail, Loader2, Search, ArrowLeft } from "lucide-react";
 import type { ExplanationCode } from "@/types/database";
 import Link from "next/link";
+import { useTranslation } from "@/lib/i18n/context";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -49,6 +50,7 @@ export default function ReceiptPage({
 }
 
 function ReceiptContent({ confirmationId }: { confirmationId: string }) {
+  const { dict } = useTranslation();
   const searchParams = useSearchParams();
   const autoLastName = searchParams.get("ln");
 
@@ -132,9 +134,9 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
         <div className="w-full max-w-sm relative">
           <Card className="shadow-brand-md">
             <CardHeader className="text-center space-y-2">
-              <CardTitle className="text-xl">View Your Receipt</CardTitle>
+              <CardTitle className="text-xl">{dict.receipt.viewYourReceipt}</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Enter your last name to verify your identity.
+                {dict.receipt.verifyIdentity}
               </p>
             </CardHeader>
             <CardContent>
@@ -146,7 +148,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                 className="space-y-4"
               >
                 <div className="space-y-2">
-                  <Label htmlFor="confirmationId">Confirmation ID</Label>
+                  <Label htmlFor="confirmationId">{dict.receipt.confirmationIdLabel}</Label>
                   <Input
                     id="confirmationId"
                     value={confirmationId}
@@ -155,10 +157,10 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
+                  <Label htmlFor="lastName">{dict.receipt.lastNameLabel}</Label>
                   <Input
                     id="lastName"
-                    placeholder="Enter your last name"
+                    placeholder={dict.receipt.lastNamePlaceholder}
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     autoFocus
@@ -174,12 +176,12 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                   ) : (
                     <Search className="mr-2 h-4 w-4" />
                   )}
-                  View Receipt
+                  {dict.common.viewReceipt}
                 </Button>
                 <Link href="/register/receipt" className="block">
                   <Button variant="ghost" className="w-full text-sm" type="button">
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Look up a different registration
+                    {dict.receipt.lookUpDifferent}
                   </Button>
                 </Link>
               </form>
@@ -205,7 +207,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
         <Card className="shadow-brand-md print:shadow-none" id="receipt-card">
           <CardHeader className="text-center space-y-2">
             <CardTitle className="text-2xl">
-              {isGroup ? "Group Registration Receipt" : "Registration Receipt"}
+              {isGroup ? dict.receipt.groupReceiptTitle : dict.receipt.soloReceiptTitle}
             </CardTitle>
             {eventData && (
               <p className="text-sm text-muted-foreground">{eventData.name}</p>
@@ -221,7 +223,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
             {/* Confirmation ID */}
             <div className="space-y-1">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Confirmation ID
+                {dict.receipt.confirmationIdLabel}
               </h3>
               <p className="font-mono text-sm break-all">{data.id}</p>
             </div>
@@ -231,7 +233,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
             {/* Contact info */}
             <div className="space-y-1">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Contact
+                {dict.common.contact}
               </h3>
               <p className="text-sm text-muted-foreground">{data.email}</p>
               {data.phone && (
@@ -246,7 +248,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
               <>
                 <div className="space-y-1">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Event
+                    {dict.common.event}
                   </h3>
                   <p className="text-sm font-medium">{eventData.name}</p>
                   <p className="text-sm text-muted-foreground">
@@ -263,7 +265,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
               <>
                 <div className="space-y-1">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Registrants ({groupMembers.length})
+                    {dict.common.registrants} ({groupMembers.length})
                   </h3>
                 </div>
                 <div className="space-y-3">
@@ -279,15 +281,15 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                         <p className="text-xs text-muted-foreground capitalize">
                           {member.category} · Age {member.age_at_event} ·{" "}
                           {member.is_full_duration
-                            ? "Full Conference"
+                            ? dict.common.fullConference
                             : member.is_staying_in_motel
-                            ? "Partial — Motel"
-                            : `${member.num_days} Day(s)`}
+                            ? dict.common.partialMotel
+                            : `${member.num_days} ${dict.wizard.nDays}`}
                         </p>
                       </div>
                       <p className="text-sm font-semibold">
                         {Number(member.computed_amount) === 0
-                          ? "FREE"
+                          ? dict.common.free
                           : `$${Number(member.computed_amount).toFixed(2)}`}
                       </p>
                     </div>
@@ -298,13 +300,13 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                 {groupPricing && (
                   <div className="rounded-xl bg-muted/60 p-5 space-y-3">
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Subtotal</span>
+                      <span className="text-muted-foreground">{dict.common.subtotal}</span>
                       <span>${groupPricing.subtotal.toFixed(2)}</span>
                     </div>
                     {groupPricing.surcharge > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">
-                          {groupPricing.surchargeLabel || "Late Surcharge"}
+                          {groupPricing.surchargeLabel || dict.common.lateSurcharge}
                         </span>
                         <span className="text-amber-600">
                           +${groupPricing.surcharge.toFixed(2)}
@@ -314,11 +316,11 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                     <Separator />
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-semibold text-muted-foreground">
-                        Total Paid
+                        {dict.common.totalPaid}
                       </span>
                       <span className="text-2xl font-bold text-brand-amber-foreground">
                         {groupPricing.grandTotal === 0
-                          ? "FREE"
+                          ? dict.common.free
                           : `$${groupPricing.grandTotal.toFixed(2)}`}
                       </span>
                     </div>
@@ -335,18 +337,18 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                 {/* ─── Solo: single registrant ─── */}
                 <div className="space-y-1">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Attendee
+                    {dict.common.attendee}
                   </h3>
                   <p className="font-medium">
                     {data.first_name} {data.last_name}
                   </p>
-                  <p className="text-sm capitalize">Category: {data.category}</p>
+                  <p className="text-sm capitalize">{dict.common.category}: {data.category}</p>
                   <p className="text-sm">
                     {data.is_full_duration
                       ? eventData
-                        ? `Full Conference (${eventData.duration_days} days)`
-                        : "Full Conference"
-                      : `${data.num_days} Day(s)`}
+                        ? `${dict.common.fullConference} (${eventData.duration_days} ${dict.common.days})`
+                        : dict.common.fullConference
+                      : `${data.num_days} ${dict.wizard.nDays}`}
                   </p>
                 </div>
 
@@ -354,7 +356,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
 
                 <div className="space-y-1">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Pricing
+                    {dict.common.pricing}
                   </h3>
                   <p className="text-sm">
                     {getExplanationLabel(data.explanation_code as ExplanationCode)}
@@ -367,10 +369,10 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                 </div>
 
                 <div className="rounded-xl bg-muted/60 p-5 text-center">
-                  <p className="text-sm text-muted-foreground">Amount Paid</p>
+                  <p className="text-sm text-muted-foreground">{dict.common.amountPaid}</p>
                   <p className="text-3xl font-bold text-brand-amber-foreground">
                     {Number(data.computed_amount) === 0
-                      ? "FREE"
+                      ? dict.common.free
                       : `$${Number(data.computed_amount).toFixed(2)}`}
                   </p>
                   {payment && (
@@ -383,7 +385,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
             )}
 
             <p className="text-xs text-center text-muted-foreground">
-              Registered on{" "}
+              {dict.common.registeredOn}{" "}
               {format(parseISO(data.created_at), "MMM d, yyyy 'at' h:mm a")}
             </p>
 
@@ -392,7 +394,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1" onClick={handlePrint}>
                   <Printer className="mr-2 h-4 w-4" />
-                  Print / Download
+                  {dict.receipt.printDownload}
                 </Button>
                 <Button
                   variant="outline"
@@ -405,17 +407,17 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                   ) : (
                     <Mail className="mr-2 h-4 w-4" />
                   )}
-                  {emailSent ? "Email Sent!" : "Email Receipt"}
+                  {emailSent ? dict.receipt.emailSent : dict.receipt.emailReceipt}
                 </Button>
               </div>
               {emailSent && (
                 <p className="text-xs text-center text-muted-foreground">
-                  Receipt sent to {data.email}
+                  {dict.receipt.receiptSentTo.replace("{email}", data.email)}
                 </p>
               )}
               <Link href="/">
                 <Button variant="ghost" className="w-full">
-                  Back to Home
+                  {dict.common.backToHome}
                 </Button>
               </Link>
             </div>

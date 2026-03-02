@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Search, Loader2, FileText } from "lucide-react";
 import Link from "next/link";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function ReceiptLookupPage() {
+  const { dict } = useTranslation();
   const router = useRouter();
   const [confirmationId, setConfirmationId] = useState("");
   const [lastName, setLastName] = useState("");
@@ -57,15 +59,15 @@ export default function ReceiptLookupPage() {
         <Card className="shadow-brand-md">
           <CardHeader className="text-center space-y-2">
             <FileText className="mx-auto h-10 w-10 text-brand-cyan" />
-            <CardTitle className="text-xl">Find Your Receipt</CardTitle>
+            <CardTitle className="text-xl">{dict.receipt.findYourReceipt}</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Enter your Confirmation ID and last name to access your registration receipt.
+              {dict.receipt.findReceiptDesc}
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="confirmationId">Confirmation ID</Label>
+                <Label htmlFor="confirmationId">{dict.receipt.confirmationIdLabel}</Label>
                 <Input
                   id="confirmationId"
                   placeholder="e.g. e02a0681-5cc8-4e65-..."
@@ -76,14 +78,14 @@ export default function ReceiptLookupPage() {
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Found in your confirmation email or on the success page.
+                  {dict.receipt.confirmationIdHint}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lastName">{dict.receipt.lastNameLabel}</Label>
                 <Input
                   id="lastName"
-                  placeholder="Enter your last name"
+                  placeholder={dict.receipt.lastNamePlaceholder}
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
@@ -102,11 +104,11 @@ export default function ReceiptLookupPage() {
                 ) : (
                   <Search className="mr-2 h-4 w-4" />
                 )}
-                Find Receipt
+                {dict.receipt.findReceipt}
               </Button>
               <Link href="/">
                 <Button variant="ghost" className="w-full" type="button">
-                  Back to Home
+                  {dict.common.backToHome}
                 </Button>
               </Link>
             </form>

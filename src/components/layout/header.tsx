@@ -1,9 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
+import { useTranslation } from "@/lib/i18n/context";
 
 export function Header() {
+  const { dict } = useTranslation();
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-lg">
       <div className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between px-4">
@@ -18,9 +24,10 @@ export function Header() {
           />
         </Link>
         <nav className="flex items-center gap-3">
+          <LanguageSwitcher />
           <Link href="/register">
             <Button size="sm" className="gap-1.5 text-xs sm:text-sm shadow-brand-sm hover:shadow-brand-md transition-shadow">
-              Register
+              {dict.header.register}
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           </Link>
