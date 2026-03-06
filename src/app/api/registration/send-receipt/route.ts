@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendConfirmationEmail, sendGroupReceiptEmail } from "@/lib/email/resend";
 import { computeGroupPricing } from "@/lib/pricing/engine";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { receiptLookupSchema } from "@/lib/validations/api";
 import type { Registration, Event, PricingConfig } from "@/types/database";
 
 const RATE_LIMIT = 5;
@@ -19,16 +20,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { confirmationId, lastName } = await request.json();
+    const body = await request.json();
+    const parsed = receiptLookupSchema.safeParse(body);
 
-    if (!confirmationId || !lastName) {
-      return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(confirmationId)) {
-      return NextResponse.json({ error: "Invalid confirmation ID." }, { status: 400 });
-    }
+    const { confirmationId, lastName } = parsed.data;
 
     const supabase = createAdminClient();
 

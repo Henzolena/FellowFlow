@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { adminUpdateUserSchema } from "@/lib/validations/api";
 
 export async function PATCH(
   request: NextRequest,
@@ -39,12 +40,15 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { role, fullName, phone } = body;
+    const parsed = adminUpdateUserSchema.safeParse(body);
 
-    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (role && ["user", "admin", "super_admin"].includes(role)) {
-      updates.role = role;
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
+
+    const { role, fullName, phone } = parsed.data;
+    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (role) updates.role = role;
     if (fullName !== undefined) updates.full_name = fullName;
     if (phone !== undefined) updates.phone = phone || null;
 

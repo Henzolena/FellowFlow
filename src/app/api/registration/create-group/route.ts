@@ -5,6 +5,7 @@ import { computeGroupPricing } from "@/lib/pricing/engine";
 import { groupRegistrationSchema } from "@/lib/validations/registration";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendConfirmationEmail, sendGroupReceiptEmail } from "@/lib/email/resend";
+import { createRequestLogger } from "@/lib/logger";
 import type { Event, PricingConfig } from "@/types/database";
 import { randomUUID } from "crypto";
 
@@ -12,6 +13,7 @@ const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 
 export async function POST(request: NextRequest) {
+  const log = createRequestLogger(request, "create-group");
   try {
     const ip = getClientIp(request);
     const rl = rateLimit(`reg-create-group:${ip}`, RATE_LIMIT, RATE_WINDOW_MS);
@@ -155,7 +157,7 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
-      console.error("Group registration create error:", regError);
+      log.error("Group registration create error", { error: regError?.message, code: regError?.code });
       return NextResponse.json(
         { error: "Failed to create registrations" },
         { status: 500 }
@@ -177,6 +179,7 @@ export async function POST(request: NextRequest) {
           registrationId: r.id,
           explanationDetail: r.explanation_detail,
         }).then(() => {
+          log.info("Free solo confirmation email sent", { registrationId: r.id });
           adminClient.from("email_logs").insert({
             recipient: data.email,
             email_type: "confirmation_free",
@@ -184,7 +187,7 @@ export async function POST(request: NextRequest) {
             status: "sent",
           });
         }).catch((err) => {
-          console.error("Free solo confirmation email failed:", err);
+          log.error("Free solo confirmation email failed", { registrationId: r.id, error: err instanceof Error ? err.message : String(err) });
           adminClient.from("email_logs").insert({
             recipient: data.email,
             email_type: "confirmation_free",
@@ -219,6 +222,7 @@ export async function POST(request: NextRequest) {
           isFree: true,
           primaryRegistrationId: registrations[0].id,
         }).then(() => {
+          log.info("Free group receipt email sent", { groupId, memberCount: registrations.length });
           adminClient.from("email_logs").insert({
             recipient: data.email,
             email_type: "group_receipt_free",
@@ -226,7 +230,7 @@ export async function POST(request: NextRequest) {
             status: "sent",
           });
         }).catch((err) => {
-          console.error("Free group receipt email failed:", err);
+          log.error("Free group receipt email failed", { groupId, error: err instanceof Error ? err.message : String(err) });
           adminClient.from("email_logs").insert({
             recipient: data.email,
             email_type: "group_receipt_free",
@@ -247,7 +251,7 @@ export async function POST(request: NextRequest) {
       grandTotal: groupPricing.grandTotal,
     });
   } catch (error) {
-    console.error("Group registration error:", error);
+    log.error("Group registration error", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

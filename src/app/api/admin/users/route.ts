@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { adminCreateUserSchema } from "@/lib/validations/api";
 
 export async function GET() {
   try {
@@ -68,16 +69,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, fullName, phone, password, role } = body;
+    const parsed = adminCreateUserSchema.safeParse(body);
 
-    if (!email || !fullName || !password) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Email, full name, and password are required" },
+        { error: "Invalid input", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
 
-    const targetRole = role === "super_admin" ? "super_admin" : "admin";
+    const { email, fullName, phone, password, role: targetRole } = parsed.data;
 
     // Check if user already exists in profiles
     const { data: existingProfile } = await supabase

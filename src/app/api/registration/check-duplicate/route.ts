@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkDuplicateSchema } from "@/lib/validations/api";
 
 const RATE_LIMIT = 20;
 const RATE_WINDOW_MS = 60_000;
@@ -16,11 +17,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, eventId } = await request.json();
+    const body = await request.json();
+    const parsed = checkDuplicateSchema.safeParse(body);
 
-    if (!email || !eventId) {
-      return NextResponse.json({ error: "Missing email or eventId" }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
+
+    const { email, eventId } = parsed.data;
 
     const supabase = createAdminClient();
 

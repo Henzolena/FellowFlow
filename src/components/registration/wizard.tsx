@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -11,193 +10,36 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { DuplicateRegistrationDialog, type ExistingRegistration } from "./duplicate-dialog";
+import { DuplicateRegistrationDialog } from "./duplicate-dialog";
 import { ArrowLeft, ArrowRight, Loader2, Check, Plus, Trash2, User, Users } from "lucide-react";
-import type { Event, PricingConfig, AgeCategory } from "@/types/database";
+import type { Event, PricingConfig } from "@/types/database";
 import { useTranslation } from "@/lib/i18n/context";
+import { useWizardState, type Registrant } from "./hooks/use-wizard-state";
+import { useGroupQuote, getAgeRangeOptions, syntheticDob } from "./hooks/use-group-quote";
+import { useDuplicateCheck } from "./hooks/use-duplicate-check";
+
+type AgeRangeKey = "infant" | "child" | "youth" | "adult" | "";
 
 type WizardProps = {
   event: Event;
   pricing: PricingConfig;
 };
 
-type AgeRangeKey = "infant" | "child" | "youth" | "adult" | "";
-
-type Registrant = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  ageRange: AgeRangeKey;
-  isFullDuration: boolean | null;
-  isStayingInMotel: boolean | null;
-  numDays: number;
-};
-
-type ContactInfo = {
-  email: string;
-  phone: string;
-};
-
-type ItemQuote = {
-  category: AgeCategory;
-  ageAtEvent: number;
-  amount: number;
-  explanationCode: string;
-  explanationDetail: string;
-};
-
-type GroupQuote = {
-  items: ItemQuote[];
-  subtotal: number;
-  surcharge: number;
-  surchargeLabel: string | null;
-  grandTotal: number;
-};
-
-// STEPS is now derived from dict inside the component
-
-let nextId = 1;
-function genId() {
-  return `reg-${nextId++}`;
-}
-
-function createEmptyRegistrant(): Registrant {
-  return {
-    id: genId(),
-    firstName: "",
-    lastName: "",
-    ageRange: "",
-    isFullDuration: null,
-    isStayingInMotel: null,
-    numDays: 1,
-  };
-}
-
-function getAgeRangeOptions(event: Event, labels: { infant: string; child: string; youth: string; adult: string }) {
-  const infant = event.infant_age_threshold ?? 3;
-  const youth = event.youth_age_threshold;
-  const adult = event.adult_age_threshold;
-  return [
-    { key: "infant" as const, label: `0–${infant} ${labels.infant}`, representativeAge: Math.max(0, Math.floor(infant / 2)) },
-    { key: "child" as const,  label: `${infant + 1}–${youth - 1} ${labels.child}`, representativeAge: Math.floor((infant + 1 + youth - 1) / 2) },
-    { key: "youth" as const,  label: `${youth}–${adult - 1} ${labels.youth}`, representativeAge: Math.floor((youth + adult - 1) / 2) },
-    { key: "adult" as const,  label: `${adult}+ ${labels.adult}`, representativeAge: adult + 10 },
-  ];
-}
-
-function syntheticDob(representativeAge: number, eventStartDate: string): string {
-  const eventYear = new Date(eventStartDate).getFullYear();
-  const birthYear = eventYear - representativeAge;
-  return `${birthYear}-01-01`;
-}
-
 export function RegistrationWizard({ event, pricing }: WizardProps) {
   const router = useRouter();
   const { dict } = useTranslation();
   const STEPS = dict.wizard.steps;
   const ageLabels = { infant: dict.wizard.infantLabel, child: dict.wizard.childLabel, youth: dict.wizard.youthLabel, adult: dict.wizard.adultLabel };
-  const [step, setStep] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [quoteLoading, setQuoteLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [groupQuote, setGroupQuote] = useState<GroupQuote | null>(null);
 
-  const [registrants, setRegistrants] = useState<Registrant[]>([createEmptyRegistrant()]);
-  const [expandedIdx, setExpandedIdx] = useState(0);
-  const [contact, setContact] = useState<ContactInfo>({ email: "", phone: "" });
+  const {
+    step, setStep, loading, setLoading, error, setError,
+    registrants, expandedIdx, setExpandedIdx, contact, setContact,
+    updateRegistrant, addRegistrant, removeRegistrant,
+    canProceedStep0, canProceedStep1, isRegistrantComplete,
+  } = useWizardState();
 
-  // Duplicate check state
-  const [dupChecking, setDupChecking] = useState(false);
-  const [dupDialogOpen, setDupDialogOpen] = useState(false);
-  const [dupRegistrations, setDupRegistrations] = useState<ExistingRegistration[]>([]);
-  const [dupBypassed, setDupBypassed] = useState(false);
-
-  const quoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ─── Registrant helpers ───
-  function updateRegistrant(idx: number, fields: Partial<Registrant>) {
-    setRegistrants((prev) => prev.map((r, i) => (i === idx ? { ...r, ...fields } : r)));
-  }
-
-  function addRegistrant() {
-    const newReg = createEmptyRegistrant();
-    setRegistrants((prev) => [...prev, newReg]);
-    setExpandedIdx(registrants.length);
-  }
-
-  function removeRegistrant(idx: number) {
-    if (registrants.length <= 1) return;
-    setRegistrants((prev) => prev.filter((_, i) => i !== idx));
-    setExpandedIdx(Math.min(expandedIdx, registrants.length - 2));
-  }
-
-  // ─── Quote fetching ───
-  const fetchGroupQuote = useCallback(async () => {
-    const ageOpts = getAgeRangeOptions(event, ageLabels);
-    const validRegistrants = registrants.filter(
-      (r) =>
-        r.ageRange !== "" &&
-        r.isFullDuration !== null &&
-        (r.isFullDuration || (r.isStayingInMotel !== null && (r.isStayingInMotel || r.numDays >= 1)))
-    );
-
-    if (validRegistrants.length === 0) {
-      setGroupQuote(null);
-      return;
-    }
-
-    setQuoteLoading(true);
-    try {
-      const res = await fetch("/api/pricing/quote-group", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventId: event.id,
-          registrants: validRegistrants.map((r) => {
-            const opt = ageOpts.find((o: { key: string }) => o.key === r.ageRange);
-            return {
-              dateOfBirth: syntheticDob(opt?.representativeAge ?? 25, event.start_date),
-              isFullDuration: r.isFullDuration,
-              isStayingInMotel: r.isStayingInMotel ?? false,
-              numDays: r.isFullDuration ? undefined : r.numDays,
-            };
-          }),
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setGroupQuote(data);
-      }
-    } catch {
-      // Silently fail
-    } finally {
-      setQuoteLoading(false);
-    }
-  }, [event.id, registrants]);
-
-  // Debounced quote fetching
-  useEffect(() => {
-    if (quoteTimerRef.current) clearTimeout(quoteTimerRef.current);
-    quoteTimerRef.current = setTimeout(fetchGroupQuote, 400);
-    return () => {
-      if (quoteTimerRef.current) clearTimeout(quoteTimerRef.current);
-    };
-  }, [fetchGroupQuote]);
-
-  // ─── Validation ───
-  function isRegistrantComplete(r: Registrant): boolean {
-    if (!r.firstName.trim() || !r.lastName.trim() || !r.ageRange) return false;
-    if (r.isFullDuration === null) return false;
-    if (!r.isFullDuration) {
-      if (r.isStayingInMotel === null) return false;
-      if (!r.isStayingInMotel && r.numDays < 1) return false;
-    }
-    return true;
-  }
-
-  const allRegistrantsComplete = registrants.every(isRegistrantComplete);
-  const canProceedStep0 = allRegistrantsComplete;
-  const canProceedStep1 = contact.email.trim() !== "";
+  const { groupQuote, quoteLoading } = useGroupQuote(event, registrants, ageLabels);
+  const dup = useDuplicateCheck(event.id);
 
   // ─── Submit ───
   async function handleSubmit() {
@@ -523,7 +365,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       value={contact.email}
                       onChange={(e) => {
                         setContact((prev) => ({ ...prev, email: e.target.value }));
-                        setDupBypassed(false);
+                        dup.resetBypass();
                       }}
                       placeholder="john@example.com"
                     />
@@ -650,34 +492,15 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
             <Button
               onClick={async () => {
                 // Duplicate check when moving from Contact (step 1) → Review (step 2)
-                if (step === 1 && !dupBypassed) {
-                  setDupChecking(true);
-                  try {
-                    const res = await fetch("/api/registration/check-duplicate", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ email: contact.email.trim(), eventId: event.id }),
-                    });
-                    if (res.ok) {
-                      const data = await res.json();
-                      if (data.hasDuplicates) {
-                        setDupRegistrations(data.registrations);
-                        setDupDialogOpen(true);
-                        setDupChecking(false);
-                        return;
-                      }
-                    }
-                  } catch {
-                    // Allow proceeding if check fails
-                  } finally {
-                    setDupChecking(false);
-                  }
+                if (step === 1) {
+                  const canProceed = await dup.checkDuplicate(contact.email);
+                  if (!canProceed) return;
                 }
                 setStep((s) => s + 1);
               }}
-              disabled={(step === 0 ? !canProceedStep0 : !canProceedStep1) || dupChecking}
+              disabled={(step === 0 ? !canProceedStep0 : !canProceedStep1) || dup.dupChecking}
             >
-              {dupChecking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {dup.dupChecking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {dict.common.next}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -771,12 +594,12 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
 
       {/* Duplicate registration dialog */}
       <DuplicateRegistrationDialog
-        open={dupDialogOpen}
-        onOpenChange={setDupDialogOpen}
-        registrations={dupRegistrations}
+        open={dup.dupDialogOpen}
+        onOpenChange={dup.setDupDialogOpen}
+        registrations={dup.dupRegistrations}
         email={contact.email}
         onProceedAnyway={() => {
-          setDupBypassed(true);
+          dup.bypassDuplicate();
           setStep(2);
         }}
       />

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeGroupPricing } from "@/lib/pricing/engine";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { receiptLookupSchema } from "@/lib/validations/api";
 import type { Registration, Event, PricingConfig } from "@/types/database";
 
 const RATE_LIMIT = 15;
@@ -24,22 +25,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { confirmationId, lastName } = await request.json();
+    const body = await request.json();
+    const parsed = receiptLookupSchema.safeParse(body);
 
-    if (!confirmationId || !lastName) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Confirmation ID and last name are required." },
+        { error: "Invalid input", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(confirmationId)) {
-      return NextResponse.json(
-        { error: "Invalid confirmation ID format." },
-        { status: 400 }
-      );
-    }
+    const { confirmationId, lastName } = parsed.data;
 
     const supabase = createAdminClient();
 

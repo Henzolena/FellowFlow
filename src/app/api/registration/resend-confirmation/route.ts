@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendConfirmationEmail } from "@/lib/email/resend";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { resendConfirmationSchema } from "@/lib/validations/api";
 
 const RATE_LIMIT = 5;
 const RATE_WINDOW_MS = 60_000;
@@ -17,16 +18,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { registrationId, email } = await request.json();
+    const body = await request.json();
+    const parsed = resendConfirmationSchema.safeParse(body);
 
-    if (!registrationId || !email) {
-      return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(registrationId)) {
-      return NextResponse.json({ error: "Invalid registration ID." }, { status: 400 });
-    }
+    const { registrationId, email } = parsed.data;
 
     const supabase = createAdminClient();
 

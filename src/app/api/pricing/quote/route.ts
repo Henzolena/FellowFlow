@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { computePricing } from "@/lib/pricing/engine";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { quoteSchema } from "@/lib/validations/api";
 import type { Event, PricingConfig } from "@/types/database";
 
 // 30 requests per 60 seconds per IP
@@ -24,14 +25,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { eventId, dateOfBirth, isFullDuration, isStayingInMotel, numDays } = body;
+    const parsed = quoteSchema.safeParse(body);
 
-    if (!eventId || !dateOfBirth || typeof isFullDuration !== "boolean") {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Invalid input", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
+
+    const { eventId, dateOfBirth, isFullDuration, isStayingInMotel, numDays } = parsed.data;
 
     const supabase = await createClient();
 

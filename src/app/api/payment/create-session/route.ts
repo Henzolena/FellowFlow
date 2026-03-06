@@ -2,19 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { computePricing, computeGroupPricing } from "@/lib/pricing/engine";
+import { createSessionSchema } from "@/lib/validations/api";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import type { Registration, Event, PricingConfig } from "@/types/database";
+
+const RATE_LIMIT = 10;
+const RATE_WINDOW_MS = 60_000;
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { registrationId, groupId } = body;
-
-    if (!registrationId && !groupId) {
+    const ip = getClientIp(request);
+    const rl = rateLimit(`create-session:${ip}`, RATE_LIMIT, RATE_WINDOW_MS);
+    if (!rl.success) {
       return NextResponse.json(
-        { error: "Registration ID or Group ID required" },
+        { error: "Too many requests. Please try again shortly." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+      );
+    }
+
+    const body = await request.json();
+    const parsed = createSessionSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
+
+    const { registrationId, groupId } = parsed.data;
 
     const supabase = createAdminClient();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -25,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── Solo payment flow (backwards compatible) ───
-    return handleSoloPayment(supabase, registrationId, appUrl);
+    return handleSoloPayment(supabase, registrationId!, appUrl);
   } catch (error) {
     console.error("Payment session error:", error);
     return NextResponse.json(
