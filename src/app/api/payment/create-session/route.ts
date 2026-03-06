@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getStripe } from "@/lib/stripe/client";
-import { computePricing, computeGroupPricing } from "@/lib/pricing/engine";
 import { createSessionSchema } from "@/lib/validations/api";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { createRequestLogger } from "@/lib/logger";
+import { recomputeSoloPricing, recomputeGroupPricing } from "@/lib/services/pricing-recomputer";
+import { reuseExistingSession, createAndPersistSession } from "@/lib/services/session-manager";
 import type { Registration, Event, PricingConfig } from "@/types/database";
 
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 
 export async function POST(request: NextRequest) {
+  const log = createRequestLogger(request, "create-session");
   try {
     const ip = getClientIp(request);
     const rl = rateLimit(`create-session:${ip}`, RATE_LIMIT, RATE_WINDOW_MS);
@@ -31,19 +33,16 @@ export async function POST(request: NextRequest) {
     }
 
     const { registrationId, groupId } = parsed.data;
-
     const supabase = createAdminClient();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-    // ─── Group payment flow ───
     if (groupId) {
-      return handleGroupPayment(supabase, groupId, appUrl);
+      return handleGroupPayment(supabase, groupId, appUrl, log);
     }
 
-    // ─── Solo payment flow (backwards compatible) ───
-    return handleSoloPayment(supabase, registrationId!, appUrl);
+    return handleSoloPayment(supabase, registrationId!, appUrl, log);
   } catch (error) {
-    console.error("Payment session error:", error);
+    log.error("Payment session error", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       { error: "Failed to create payment session" },
       { status: 500 }
@@ -57,7 +56,8 @@ export async function POST(request: NextRequest) {
 async function handleSoloPayment(
   supabase: ReturnType<typeof createAdminClient>,
   registrationId: string,
-  appUrl: string
+  appUrl: string,
+  log: ReturnType<typeof createRequestLogger>
 ) {
   const { data: registration, error } = await supabase
     .from("registrations")
@@ -77,7 +77,6 @@ async function handleSoloPayment(
     return NextResponse.json({ error: "Registration already confirmed" }, { status: 400 });
   }
 
-  // ─── Recompute pricing server-side (never trust stored computed_amount) ───
   const { data: pricing } = await supabase
     .from("pricing_config")
     .select("*")
@@ -88,119 +87,47 @@ async function handleSoloPayment(
     return NextResponse.json({ error: "Pricing not configured" }, { status: 404 });
   }
 
-  const serverRegistrationDate = new Date().toISOString();
-  const recomputed = computePricing(
-    {
-      dateOfBirth: registration.date_of_birth,
-      isFullDuration: registration.is_full_duration,
-      isStayingInMotel: registration.is_staying_in_motel ?? undefined,
-      numDays: registration.num_days ?? undefined,
-      registrationDate: serverRegistrationDate,
-    },
-    { ...registration.events, id: registration.event_id, is_active: true, created_at: "", updated_at: "", description: null } as Event,
-    pricing
-  );
-
-  // If recomputed amount differs from stored, update the registration
-  if (recomputed.amount !== Number(registration.computed_amount)) {
-    console.log(
-      `💰 Solo amount drift: stored=$${registration.computed_amount}, recomputed=$${recomputed.amount} for registration ${registrationId}`
-    );
-    await supabase.from("registrations").update({
-      computed_amount: recomputed.amount,
-      explanation_code: recomputed.explanationCode,
-      explanation_detail: recomputed.explanationDetail,
-    }).eq("id", registrationId);
-  }
+  const recomputed = await recomputeSoloPricing(supabase, registration, pricing, log);
 
   if (recomputed.amount === 0) {
     return NextResponse.json({ error: "No payment required for free registrations" }, { status: 400 });
   }
 
-  // Check for existing pending payment
-  const { data: existingPayment } = await supabase
-    .from("payments")
-    .select("id, stripe_session_id, status")
-    .eq("registration_id", registrationId)
-    .eq("status", "pending")
-    .maybeSingle();
-
-  if (existingPayment?.stripe_session_id) {
-    const stripe = getStripe();
-    try {
-      const existingSession = await stripe.checkout.sessions.retrieve(existingPayment.stripe_session_id);
-      if (existingSession.status === "open" && existingSession.url) {
-        return NextResponse.json({ sessionId: existingSession.id, url: existingSession.url });
-      }
-    } catch {
-      // Session expired — continue
-    }
+  // Reuse existing open Stripe session if available
+  const existing = await reuseExistingSession(supabase, registrationId, log);
+  if (existing) {
+    return NextResponse.json(existing);
   }
 
-  const idempotencyKey = `reg_${registrationId}`;
-  const stripe = getStripe();
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
-    line_items: [
+  const ln = encodeURIComponent(registration.last_name);
+  const result = await createAndPersistSession({
+    supabase,
+    log,
+    registrationId,
+    customerEmail: registration.email,
+    amount: recomputed.amount,
+    lineItems: [
       {
         price_data: {
           currency: "usd",
           product_data: {
             name: `Registration: ${registration.events.name}`,
-            description: `${registration.first_name} ${registration.last_name} — ${recomputed.explanationDetail}`,
+            description: `${registration.first_name} ${registration.last_name} \u2014 ${recomputed.explanationDetail}`,
           },
           unit_amount: Math.round(recomputed.amount * 100),
         },
         quantity: 1,
       },
     ],
-    mode: "payment",
-    success_url: `${appUrl}/register/success?session_id={CHECKOUT_SESSION_ID}&registration_id=${registrationId}&ln=${encodeURIComponent(registration.last_name)}`,
-    cancel_url: `${appUrl}/register/review?registration_id=${registrationId}&ln=${encodeURIComponent(registration.last_name)}&cancelled=true`,
-    customer_email: registration.email,
-    metadata: {
-      registration_id: registrationId,
-      idempotency_key: idempotencyKey,
-    },
+    successUrl: `${appUrl}/register/success?session_id={CHECKOUT_SESSION_ID}&registration_id=${registrationId}&ln=${ln}`,
+    cancelUrl: `${appUrl}/register/review?registration_id=${registrationId}&ln=${ln}&cancelled=true`,
   });
 
-  const now = new Date().toISOString();
-
-  if (existingPayment) {
-    const { error: dbError } = await supabase.from("payments").update({
-      stripe_session_id: session.id,
-      amount: recomputed.amount,
-      idempotency_key: idempotencyKey,
-    }).eq("id", existingPayment.id);
-
-    if (dbError) {
-      console.error("Payment update failed after Stripe session created:", dbError);
-      try { await stripe.checkout.sessions.expire(session.id); } catch { /* best effort */ }
-      return NextResponse.json({ error: "Failed to save payment record" }, { status: 500 });
-    }
-  } else {
-    const { error: dbError } = await supabase.from("payments").insert({
-      registration_id: registrationId,
-      stripe_session_id: session.id,
-      amount: recomputed.amount,
-      currency: "usd",
-      status: "pending",
-      idempotency_key: idempotencyKey,
-    });
-
-    if (dbError) {
-      console.error("Payment insert failed after Stripe session created:", dbError);
-      try { await stripe.checkout.sessions.expire(session.id); } catch { /* best effort */ }
-      return NextResponse.json({ error: "Failed to save payment record" }, { status: 500 });
-    }
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  // Mark registration as having started payment flow
-  await supabase.from("registrations").update({
-    pending_payment_started_at: now,
-  }).eq("id", registrationId).eq("status", "pending");
-
-  return NextResponse.json({ sessionId: session.id, url: session.url });
+  return NextResponse.json({ sessionId: result.sessionId, url: result.url });
 }
 
 /* ------------------------------------------------------------------ */
@@ -209,9 +136,9 @@ async function handleSoloPayment(
 async function handleGroupPayment(
   supabase: ReturnType<typeof createAdminClient>,
   groupId: string,
-  appUrl: string
+  appUrl: string,
+  log: ReturnType<typeof createRequestLogger>
 ) {
-  // Fetch all registrations in the group
   const { data: registrations, error } = await supabase
     .from("registrations")
     .select("*, events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)")
@@ -225,7 +152,6 @@ async function handleGroupPayment(
   const primaryReg = registrations[0];
   const eventData = primaryReg.events as unknown as Pick<Event, "name" | "start_date" | "end_date" | "duration_days" | "adult_age_threshold" | "youth_age_threshold" | "infant_age_threshold">;
 
-  // Recompute group pricing server-side
   const { data: pricing } = await supabase
     .from("pricing_config")
     .select("*")
@@ -236,39 +162,20 @@ async function handleGroupPayment(
     return NextResponse.json({ error: "Pricing not configured" }, { status: 404 });
   }
 
-  // ─── Recompute full group pricing server-side (never trust stored computed_amount) ───
-  const serverRegistrationDate = new Date().toISOString();
-  const groupResult = computeGroupPricing(
-    registrations.map((r: Registration) => ({
-      dateOfBirth: r.date_of_birth,
-      isFullDuration: r.is_full_duration,
-      isStayingInMotel: r.is_staying_in_motel ?? undefined,
-      numDays: r.num_days ?? undefined,
-      registrationDate: serverRegistrationDate,
-    })),
-    { ...eventData, id: primaryReg.event_id, is_active: true, created_at: "", updated_at: "", description: null } as Event,
-    pricing
-  );
+  const groupResult = await recomputeGroupPricing(supabase, registrations, pricing, log);
+  const { surcharge, surchargeLabel, grandTotal } = groupResult;
 
-  const { surcharge, surchargeLabel } = groupResult;
-
-  // Update any registrations whose amounts have drifted from recomputed values
-  for (let i = 0; i < registrations.length; i++) {
-    const r = registrations[i];
-    const recomputed = groupResult.items[i];
-    if (recomputed.amount !== Number(r.computed_amount)) {
-      console.log(
-        `💰 Group amount drift: stored=$${r.computed_amount}, recomputed=$${recomputed.amount} for registration ${r.id}`
-      );
-      await supabase.from("registrations").update({
-        computed_amount: recomputed.amount,
-        explanation_code: recomputed.explanationCode,
-        explanation_detail: recomputed.explanationDetail,
-      }).eq("id", r.id);
-    }
+  if (grandTotal === 0) {
+    return NextResponse.json({ error: "No payment required" }, { status: 400 });
   }
 
-  // Build line items from RECOMPUTED amounts
+  // Reuse existing open Stripe session if available
+  const existing = await reuseExistingSession(supabase, primaryReg.id, log);
+  if (existing) {
+    return NextResponse.json(existing);
+  }
+
+  // Build line items from recomputed amounts
   const lineItems = registrations.map((r: Registration, i: number) => ({
     price_data: {
       currency: "usd",
@@ -295,85 +202,22 @@ async function handleGroupPayment(
     });
   }
 
-  const subtotal = groupResult.subtotal;
-  const grandTotal = groupResult.grandTotal;
-
-  if (grandTotal === 0) {
-    return NextResponse.json({ error: "No payment required" }, { status: 400 });
-  }
-
-  const idempotencyKey = `group_${groupId}`;
-  const stripe = getStripe();
-
-  // Check for existing group payment
-  const { data: existingPayment } = await supabase
-    .from("payments")
-    .select("id, stripe_session_id, status")
-    .eq("registration_id", primaryReg.id)
-    .eq("status", "pending")
-    .maybeSingle();
-
-  if (existingPayment?.stripe_session_id) {
-    try {
-      const existingSession = await stripe.checkout.sessions.retrieve(existingPayment.stripe_session_id);
-      if (existingSession.status === "open" && existingSession.url) {
-        return NextResponse.json({ sessionId: existingSession.id, url: existingSession.url });
-      }
-    } catch {
-      // continue
-    }
-  }
-
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
-    line_items: lineItems,
-    mode: "payment",
-    success_url: `${appUrl}/register/success?session_id={CHECKOUT_SESSION_ID}&group_id=${groupId}&registration_id=${primaryReg.id}&ln=${encodeURIComponent(primaryReg.last_name)}`,
-    cancel_url: `${appUrl}/register/review?group_id=${groupId}&registration_id=${primaryReg.id}&ln=${encodeURIComponent(primaryReg.last_name)}&cancelled=true`,
-    customer_email: primaryReg.email,
-    metadata: {
-      group_id: groupId,
-      registration_id: primaryReg.id,
-      idempotency_key: idempotencyKey,
-    },
+  const ln = encodeURIComponent(primaryReg.last_name);
+  const result = await createAndPersistSession({
+    supabase,
+    log,
+    registrationId: primaryReg.id,
+    groupId,
+    customerEmail: primaryReg.email,
+    amount: grandTotal,
+    lineItems,
+    successUrl: `${appUrl}/register/success?session_id={CHECKOUT_SESSION_ID}&group_id=${groupId}&registration_id=${primaryReg.id}&ln=${ln}`,
+    cancelUrl: `${appUrl}/register/review?group_id=${groupId}&registration_id=${primaryReg.id}&ln=${ln}&cancelled=true`,
   });
 
-  // Create payment record linked to primary registration
-  const now = new Date().toISOString();
-
-  if (existingPayment) {
-    const { error: dbError } = await supabase.from("payments").update({
-      stripe_session_id: session.id,
-      amount: grandTotal,
-      idempotency_key: idempotencyKey,
-    }).eq("id", existingPayment.id);
-
-    if (dbError) {
-      console.error("Group payment update failed after Stripe session created:", dbError);
-      try { await stripe.checkout.sessions.expire(session.id); } catch { /* best effort */ }
-      return NextResponse.json({ error: "Failed to save payment record" }, { status: 500 });
-    }
-  } else {
-    const { error: dbError } = await supabase.from("payments").insert({
-      registration_id: primaryReg.id,
-      stripe_session_id: session.id,
-      amount: grandTotal,
-      currency: "usd",
-      status: "pending",
-      idempotency_key: idempotencyKey,
-    });
-
-    if (dbError) {
-      console.error("Group payment insert failed after Stripe session created:", dbError);
-      try { await stripe.checkout.sessions.expire(session.id); } catch { /* best effort */ }
-      return NextResponse.json({ error: "Failed to save payment record" }, { status: 500 });
-    }
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  // Mark all group registrations as having started payment flow
-  await supabase.from("registrations").update({
-    pending_payment_started_at: now,
-  }).eq("group_id", groupId).eq("status", "pending");
-
-  return NextResponse.json({ sessionId: session.id, url: session.url });
+  return NextResponse.json({ sessionId: result.sessionId, url: result.url });
 }

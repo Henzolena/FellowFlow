@@ -38,7 +38,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
     canProceedStep0, canProceedStep1, isRegistrantComplete,
   } = useWizardState();
 
-  const { groupQuote, quoteLoading } = useGroupQuote(event, registrants, ageLabels);
+  const { groupQuote, quoteLoading, quoteError } = useGroupQuote(event, registrants, ageLabels);
   const dup = useDuplicateCheck(event.id);
 
   // ─── Submit ───
@@ -562,7 +562,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
               </>
             ) : (
               <p className="text-sm text-muted-foreground text-center">
-                {quoteLoading ? dict.common.calculating : dict.wizard.addDetailsToSee}
+                {quoteLoading ? dict.common.calculating : quoteError ? quoteError : dict.wizard.addDetailsToSee}
               </p>
             )}
           </CardContent>

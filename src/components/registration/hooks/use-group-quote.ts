@@ -55,6 +55,7 @@ export function syntheticDob(representativeAge: number, eventStartDate: string):
 export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels: AgeLabels) {
   const [groupQuote, setGroupQuote] = useState<GroupQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
   const quoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchGroupQuote = useCallback(async () => {
@@ -68,10 +69,12 @@ export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels
 
     if (validRegistrants.length === 0) {
       setGroupQuote(null);
+      setQuoteError(null);
       return;
     }
 
     setQuoteLoading(true);
+    setQuoteError(null);
     try {
       const res = await fetch("/api/pricing/quote-group", {
         method: "POST",
@@ -92,9 +95,11 @@ export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels
       if (res.ok) {
         const data = await res.json();
         setGroupQuote(data);
+      } else {
+        setQuoteError("Unable to calculate pricing. Please try again.");
       }
     } catch {
-      // Silently fail
+      setQuoteError("Network error. Pricing may be unavailable.");
     } finally {
       setQuoteLoading(false);
     }
@@ -109,5 +114,5 @@ export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels
     };
   }, [fetchGroupQuote]);
 
-  return { groupQuote, quoteLoading };
+  return { groupQuote, quoteLoading, quoteError };
 }
