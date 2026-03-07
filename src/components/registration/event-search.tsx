@@ -61,13 +61,13 @@ export function EventSearch({ events }: Props) {
   const statusConfig = {
     upcoming: {
       label: dict.events.upcoming,
-      dotColor: "bg-brand-teal",
+      dotColor: "bg-white",
       pillClass: "bg-brand-teal/90 text-white border border-brand-teal",
       hasPulse: true,
     },
     ongoing: {
       label: dict.events.happeningNow,
-      dotColor: "bg-brand-green",
+      dotColor: "bg-white",
       pillClass: "bg-brand-green/90 text-white border border-brand-green",
       hasPulse: true,
     },

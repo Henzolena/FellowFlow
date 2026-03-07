@@ -65,8 +65,8 @@ export default async function Home() {
                 <div className="absolute top-4 left-4">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-teal/90 text-white border border-brand-teal backdrop-blur-sm px-3 py-1 text-[11px] font-semibold uppercase tracking-wider shadow-sm">
                     <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-teal opacity-60" />
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-teal" />
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
                     </span>
                     {dict.events.upcoming}
                   </span>
