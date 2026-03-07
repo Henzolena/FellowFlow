@@ -17,6 +17,7 @@ type CreateSessionOpts = {
   log: Logger;
   registrationId: string;
   groupId?: string;
+  eventId?: string;
   customerEmail: string;
   lineItems: SessionLineItem[];
   amount: number;
@@ -71,7 +72,7 @@ export async function createAndPersistSession(opts: CreateSessionOpts): Promise<
   | { ok: true; sessionId: string; url: string | null }
   | { ok: false; status: number; error: string }
 > {
-  const { supabase, log, registrationId, groupId, customerEmail, lineItems, amount, successUrl, cancelUrl } = opts;
+  const { supabase, log, registrationId, groupId, eventId, customerEmail, lineItems, amount, successUrl, cancelUrl } = opts;
 
   const idempotencyKey = groupId ? `group_${groupId}` : `reg_${registrationId}`;
   const stripe = getStripe();
@@ -81,6 +82,7 @@ export async function createAndPersistSession(opts: CreateSessionOpts): Promise<
     idempotency_key: idempotencyKey,
   };
   if (groupId) metadata.group_id = groupId;
+  if (eventId) metadata.event_id = eventId;
 
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],

@@ -217,6 +217,72 @@ export type LodgingAssignment = {
 export type RoomWithBeds = Room & { beds: Bed[] };
 export type MotelWithRooms = Motel & { rooms: RoomWithBeds[] };
 
+/* ── Service Check-In System ──────────────────────────────────────── */
+
+export type ServiceCategory = 'main_service' | 'meal' | 'custom';
+export type MealType = 'breakfast' | 'lunch' | 'dinner';
+export type EntitlementStatus = 'allowed' | 'blocked' | 'waived' | 'paid_extra';
+export type ScanResult = 'approved' | 'denied' | 'duplicate' | 'not_entitled' | 'blocked';
+
+export type ServiceCatalogItem = {
+  id: string;
+  event_id: string;
+  service_name: string;
+  service_code: string;
+  service_category: ServiceCategory;
+  meal_type: MealType | null;
+  service_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  is_active: boolean;
+  scan_limit_per_attendee: number;
+  requires_payment: boolean;
+  notes: string | null;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ServiceEntitlement = {
+  id: string;
+  registration_id: string;
+  service_id: string;
+  status: EntitlementStatus;
+  quantity_allowed: number;
+  quantity_used: number;
+  granted_by: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ServiceUsageLog = {
+  id: string;
+  registration_id: string;
+  service_id: string;
+  scanned_by: string | null;
+  scanned_at: string;
+  result: ScanResult;
+  reason: string | null;
+  station_label: string | null;
+  created_at: string;
+};
+
+export type ServiceEntitlementWithService = ServiceEntitlement & {
+  service_catalog: ServiceCatalogItem;
+};
+
+export type ServiceUsageLogWithDetails = ServiceUsageLog & {
+  service_catalog: ServiceCatalogItem;
+  registrations?: {
+    first_name: string;
+    last_name: string;
+    public_confirmation_code: string;
+  };
+};
+
+/* ── Composite types ─────────────────────────────────────────────── */
+
 export type EventWithPricing = Event & {
   pricing_config: PricingConfig[] | PricingConfig | null;
 };

@@ -104,6 +104,7 @@ async function handleSoloPayment(
     supabase,
     log,
     registrationId,
+    eventId: registration.event_id,
     customerEmail: registration.email,
     amount: recomputed.amount,
     lineItems: [
@@ -208,6 +209,7 @@ async function handleGroupPayment(
     log,
     registrationId: primaryReg.id,
     groupId,
+    eventId: primaryReg.event_id,
     customerEmail: primaryReg.email,
     amount: grandTotal,
     lineItems,

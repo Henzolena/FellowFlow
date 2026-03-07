@@ -5,6 +5,7 @@ import { verifyWebhookEvent } from "@/lib/services/webhook-verifier";
 import { reconcilePayment, expirePayment } from "@/lib/services/payment-reconciler";
 import { confirmSoloRegistration, confirmGroupRegistrations } from "@/lib/services/registration-confirmer";
 import { dispatchSoloConfirmation, dispatchGroupConfirmation } from "@/lib/services/notification-dispatcher";
+import { generateEntitlements, generateGroupEntitlements } from "@/lib/services/entitlement-generator";
 import Stripe from "stripe";
 
 /* ------------------------------------------------------------------ */
@@ -55,17 +56,30 @@ export async function POST(request: NextRequest) {
         const result = await reconcilePayment(supabase, session, stripeEventId, log);
         if (result.action !== "confirmed") break;
 
-        // 3b. Confirm registrations
+        // 3b. Confirm registrations + generate entitlements + notify
+        const eventId = session.metadata?.event_id;
         if (groupId) {
           await confirmGroupRegistrations(supabase, groupId, log);
           log.info("Group confirmed", { groupId, stripeEventId });
-          // 3c. Send group notification (fire-and-forget)
+          // 3c. Generate service entitlements (fire-and-forget)
+          if (eventId) {
+            generateGroupEntitlements(supabase, groupId, eventId, log).catch((e) =>
+              log.error("Entitlement generation failed", { groupId, error: String(e) })
+            );
+          }
+          // 3d. Send group notification (fire-and-forget)
           dispatchGroupConfirmation(supabase, groupId, log);
         } else {
           const registrationId = session.metadata?.registration_id;
           if (registrationId) {
             await confirmSoloRegistration(supabase, registrationId, log);
-            // 3c. Send solo notification (fire-and-forget)
+            // 3c. Generate service entitlements (fire-and-forget)
+            if (eventId) {
+              generateEntitlements(supabase, registrationId, eventId, log).catch((e) =>
+                log.error("Entitlement generation failed", { registrationId, error: String(e) })
+              );
+            }
+            // 3d. Send solo notification (fire-and-forget)
             dispatchSoloConfirmation(supabase, registrationId, log);
           }
         }

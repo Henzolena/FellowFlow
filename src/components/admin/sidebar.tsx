@@ -21,6 +21,8 @@ import {
   Menu,
   Hotel,
   ScanLine,
+  Utensils,
+  ScanSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
@@ -36,6 +38,8 @@ const navItems: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/registrations", label: "Registrations", icon: Users },
   { href: "/admin/check-in", label: "Check-In", icon: ScanLine },
+  { href: "/admin/services", label: "Services", icon: Utensils },
+  { href: "/admin/service-scanner", label: "Service Scanner", icon: ScanSearch },
   { href: "/admin/motels", label: "Motels", icon: Hotel },
   { href: "/admin/settings", label: "Event Settings", icon: Settings },
   { href: "/admin/users", label: "Admin Management", icon: ShieldCheck, superAdminOnly: true },
