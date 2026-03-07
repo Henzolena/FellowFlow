@@ -80,6 +80,27 @@ const WRISTBAND_COLORS: Record<string, string> = {
   Purple: "bg-purple-500",
 };
 
+// Cooldown between QR scans — prevents rapid-fire duplicate reads.
+// 2s is the industry standard for event check-in (gives staff time to read result).
+const SCAN_COOLDOWN_MS = 2000;
+
+/** Extract a confirmation code from a raw QR decode (may be a URL or plain code). */
+function extractCodeFromQR(raw: string): string {
+  try {
+    const url = new URL(raw);
+    // Receipt URLs: /register/receipt/{confirmationCode}?ln=...
+    const segments = url.pathname.split("/").filter(Boolean);
+    const receiptIdx = segments.indexOf("receipt");
+    if (receiptIdx >= 0 && segments[receiptIdx + 1]) {
+      return decodeURIComponent(segments[receiptIdx + 1]);
+    }
+    // Fallback: ?code= query param
+    const codeParam = url.searchParams.get("code");
+    if (codeParam) return codeParam;
+  } catch { /* not a URL — use raw value */ }
+  return raw;
+}
+
 export default function CheckInPage() {
   const [events, setEvents] = useState<ActiveEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>("");
@@ -90,8 +111,10 @@ export default function CheckInPage() {
   const [lastResult, setLastResult] = useState<CheckInResult | null>(null);
   const [stats, setStats] = useState<CheckInStats | null>(null);
   const [scannerActive, setScannerActive] = useState(false);
+  const [cooldownActive, setCooldownActive] = useState(false);
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrRef = useRef<unknown>(null);
+  const cooldownRef = useRef(false);
 
   // Fetch events
   useEffect(() => {
@@ -191,16 +214,22 @@ export default function CheckInPage() {
       try {
         await s.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
+          { fps: 5, qrbox: { width: 250, height: 250 } },
           (decodedText: string) => {
-            // Extract confirmation code from URL or use raw code
-            let code = decodedText;
-            try {
-              const url = new URL(decodedText);
-              const codeParam = url.searchParams.get("code");
-              if (codeParam) code = codeParam;
-            } catch { /* raw code */ }
+            // Enforce cooldown — ignore rapid-fire decodes
+            if (cooldownRef.current) return;
+            const code = extractCodeFromQR(decodedText);
+            if (!code.trim()) return;
+
+            // Enter cooldown immediately
+            cooldownRef.current = true;
+            setCooldownActive(true);
             handleCheckIn(code, "qr_scan");
+
+            setTimeout(() => {
+              cooldownRef.current = false;
+              setCooldownActive(false);
+            }, SCAN_COOLDOWN_MS);
           },
           () => { /* ignore scan failures */ }
         );
@@ -328,12 +357,12 @@ export default function CheckInPage() {
           </div>
 
           {mode === "scanner" ? (
-            <Card className="shadow-brand-sm overflow-hidden">
+            <Card className="shadow-brand-sm overflow-hidden relative">
               <CardContent className="p-0">
                 <div
                   id="qr-reader"
                   ref={scannerRef}
-                  className="w-full aspect-square max-h-[400px]"
+                  className="w-full aspect-square max-h-[250px] sm:max-h-[350px]"
                 />
                 {!scannerActive && (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
@@ -345,6 +374,15 @@ export default function CheckInPage() {
                   </div>
                 )}
               </CardContent>
+              {/* Cooldown progress bar */}
+              {cooldownActive && (
+                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-muted/30 overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-r-full"
+                    style={{ animation: `scan-cooldown ${SCAN_COOLDOWN_MS}ms linear forwards` }}
+                  />
+                </div>
+              )}
             </Card>
           ) : (
             <Card className="shadow-brand-sm">
@@ -390,9 +428,9 @@ export default function CheckInPage() {
 
         {/* Right Column: Wristband breakdown + recent */}
         <div className="space-y-4">
-          {/* Wristband Breakdown */}
+          {/* Wristband Breakdown — hidden on mobile to save space for scan workflow */}
           {stats && Object.keys(stats.byAccessTier).length > 0 && (
-            <Card className="shadow-brand-sm">
+            <Card className="shadow-brand-sm hidden lg:block">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Wristband Breakdown</CardTitle>
               </CardHeader>
@@ -419,7 +457,7 @@ export default function CheckInPage() {
                 <CardTitle className="text-base">Recent Check-ins</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                <div className="space-y-2 max-h-[250px] lg:max-h-[400px] overflow-y-auto">
                   {stats.recentCheckIns.map((ci) => (
                     <div
                       key={ci.id}

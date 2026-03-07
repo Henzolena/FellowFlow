@@ -66,6 +66,24 @@ type ScanResultData = {
   usage?: { quantityUsed: number; quantityAllowed: number };
 };
 
+// Cooldown between QR scans — prevents rapid-fire duplicate reads.
+const SCAN_COOLDOWN_MS = 2000;
+
+/** Extract a confirmation code from a raw QR decode (may be a URL or plain code). */
+function extractCodeFromQR(raw: string): string {
+  try {
+    const url = new URL(raw);
+    const segments = url.pathname.split("/").filter(Boolean);
+    const receiptIdx = segments.indexOf("receipt");
+    if (receiptIdx >= 0 && segments[receiptIdx + 1]) {
+      return decodeURIComponent(segments[receiptIdx + 1]);
+    }
+    const codeParam = url.searchParams.get("code");
+    if (codeParam) return codeParam;
+  } catch { /* not a URL */ }
+  return raw;
+}
+
 type ServiceStats = {
   serviceId: string;
   totalRegistered: number;
@@ -91,9 +109,11 @@ export default function ServiceScannerPage() {
   const [scanResult, setScanResult] = useState<ScanResultData | null>(null);
   const [stats, setStats] = useState<ServiceStats | null>(null);
   const [loadingServices, setLoadingServices] = useState(true);
+  const [cooldownActive, setCooldownActive] = useState(false);
   const codeInputRef = useRef<HTMLInputElement>(null);
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrScannerRef = useRef<unknown>(null);
+  const cooldownRef = useRef(false);
 
   // Load events
   useEffect(() => {
@@ -168,9 +188,21 @@ export default function ServiceScannerPage() {
       try {
         await scanner!.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
+          { fps: 5, qrbox: { width: 250, height: 250 } },
           (decodedText: string) => {
-            handleScan(decodedText);
+            // Enforce cooldown — ignore rapid-fire decodes
+            if (cooldownRef.current) return;
+            const code = extractCodeFromQR(decodedText);
+            if (!code.trim()) return;
+
+            cooldownRef.current = true;
+            setCooldownActive(true);
+            handleScan(code);
+
+            setTimeout(() => {
+              cooldownRef.current = false;
+              setCooldownActive(false);
+            }, SCAN_COOLDOWN_MS);
           }
         );
       } catch (err) {
@@ -325,8 +357,17 @@ export default function ServiceScannerPage() {
             </div>
 
             {scanMode === "camera" ? (
-              <div className="rounded-xl border overflow-hidden bg-black">
-                <div id="service-scanner-region" ref={scannerRef} className="w-full" />
+              <div className="rounded-xl border overflow-hidden bg-black relative">
+                <div id="service-scanner-region" ref={scannerRef} className="w-full max-h-[250px] sm:max-h-[350px] overflow-hidden" />
+                {/* Cooldown progress bar */}
+                {cooldownActive && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-muted/30 overflow-hidden z-10">
+                    <div
+                      className="h-full bg-green-500 rounded-r-full"
+                      style={{ animation: `scan-cooldown ${SCAN_COOLDOWN_MS}ms linear forwards` }}
+                    />
+                  </div>
+                )}
               </div>
             ) : (
               <form onSubmit={handleManualSubmit} className="flex gap-2">
@@ -362,7 +403,7 @@ export default function ServiceScannerPage() {
                   <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
               </div>
-              <div className="max-h-96 overflow-y-auto divide-y">
+              <div className="max-h-60 lg:max-h-96 overflow-y-auto divide-y">
                 {stats?.recentScans && stats.recentScans.length > 0 ? (
                   stats.recentScans.map((scan) => (
                     <div key={scan.id} className="px-4 py-2.5 flex items-center justify-between">
