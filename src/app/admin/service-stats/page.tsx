@@ -133,7 +133,7 @@ export default function ServiceStatsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
             <BarChart3 className="h-6 w-6" /> Service Dashboard
           </h1>
           <p className="text-sm text-muted-foreground">Live service usage — auto-refreshes every 15s</p>
@@ -141,7 +141,7 @@ export default function ServiceStatsPage() {
         <div className="flex items-center gap-2">
           {events.length > 1 && (
             <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Select event" />
               </SelectTrigger>
               <SelectContent>
@@ -208,7 +208,7 @@ export default function ServiceStatsPage() {
                   const dateStats = mealStatsByDate[date];
                   return (
                     <div key={date} className="rounded-xl border overflow-hidden">
-                      <div className="bg-amber-50 px-4 py-2.5 border-b border-amber-200 flex items-center justify-between">
+                      <div className="bg-amber-50 px-3 sm:px-4 py-2.5 border-b border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                         <div className="flex items-center gap-2 text-sm font-semibold">
                           <Clock className="h-4 w-4 text-amber-600" />
                           {date === "undated" ? "No Date" : formatDate(date)}

@@ -61,7 +61,7 @@ export function HeroSection() {
   const parallaxY = (mousePos.y - 0.5) * 12;
 
   return (
-    <section ref={containerRef} className="relative overflow-hidden min-h-[90vh] flex items-center">
+    <section ref={containerRef} className="relative overflow-hidden min-h-[80vh] sm:min-h-[90vh] flex items-center">
       {/* === Background layers === */}
 
       {/* Base gradient mesh */}
@@ -117,7 +117,7 @@ export function HeroSection() {
             {/* Headline */}
             <div className="animate-in fade-in slide-in-from-bottom-3 duration-700" style={{ animationDelay: "100ms", animationFillMode: "both" }}>
               <h1 className="relative">
-                <span className="block text-[2.75rem] sm:text-6xl lg:text-7xl xl:text-[5rem] font-black tracking-[-0.02em] leading-[0.95] mb-3">
+                <span className="block text-[2rem] xs:text-[2.75rem] sm:text-6xl lg:text-7xl xl:text-[5rem] font-black tracking-[-0.02em] leading-[0.95] mb-3">
                   <span className="relative inline-block">
                     {dict.hero.headline1}
                     <svg className="absolute -bottom-2 left-0 w-full h-3 text-brand-cyan/20" viewBox="0 0 200 12" preserveAspectRatio="none">
@@ -125,10 +125,10 @@ export function HeroSection() {
                     </svg>
                   </span>
                 </span>
-                <span className="block text-[2.75rem] sm:text-6xl lg:text-7xl xl:text-[5rem] font-black tracking-[-0.02em] leading-[0.95]">
+                <span className="block text-[2rem] xs:text-[2.75rem] sm:text-6xl lg:text-7xl xl:text-[5rem] font-black tracking-[-0.02em] leading-[0.95]">
                   {dict.hero.headline2}
                 </span>
-                <span className="block text-[3rem] sm:text-[4rem] lg:text-[5rem] xl:text-[5.5rem] font-black tracking-[-0.03em] leading-[0.9] mt-4 hero-gradient-text-enhanced">
+                <span className="block text-[2.25rem] xs:text-[3rem] sm:text-[4rem] lg:text-[5rem] xl:text-[5.5rem] font-black tracking-[-0.03em] leading-[0.9] mt-2 sm:mt-4 hero-gradient-text-enhanced">
                   {dict.hero.headline3}
                 </span>
               </h1>
@@ -136,7 +136,7 @@ export function HeroSection() {
 
             {/* Subheadline */}
             <div className="animate-in fade-in slide-in-from-bottom-3 duration-700" style={{ animationDelay: "250ms", animationFillMode: "both" }}>
-              <p className="text-lg sm:text-xl leading-relaxed text-foreground/70 max-w-xl mx-auto lg:mx-0 font-medium">
+              <p className="text-base sm:text-lg md:text-xl leading-relaxed text-foreground/70 max-w-xl mx-auto lg:mx-0 font-medium">
                 {dict.hero.subheadline}{" "}
                 <span className="relative inline-block">
                   <span className="relative z-10 text-foreground font-semibold">{dict.hero.under2Minutes}</span>

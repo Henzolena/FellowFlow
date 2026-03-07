@@ -226,10 +226,10 @@ export default function RegistrationDetailPage({
 
       {/* ── Confirmation Code Banner ── */}
       <Card className="shadow-brand-sm border-primary/20 bg-primary/[0.03]">
-        <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5">
+        <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 sm:p-5">
           <div className="text-center sm:text-left">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Confirmation Code</p>
-            <p className="text-2xl sm:text-3xl font-extrabold tracking-widest font-mono text-primary">
+            <p className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-wider sm:tracking-widest font-mono text-primary break-all">
               {data.public_confirmation_code}
             </p>
           </div>

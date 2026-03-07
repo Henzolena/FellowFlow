@@ -174,18 +174,18 @@ function ReviewContent() {
             {/* Registrants */}
             {registrations.map((reg) => (
               <div key={reg.id} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <p className="font-semibold">
+                <div className="flex flex-wrap items-center justify-between gap-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <p className="font-semibold truncate">
                       {reg.first_name} {reg.last_name}
                     </p>
-                    <Badge variant="secondary" className="capitalize text-xs">
+                    <Badge variant="secondary" className="capitalize text-xs shrink-0">
                       {reg.category}
                     </Badge>
                   </div>
                   {isGroup && (
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-medium shrink-0">
                       ${Number(reg.computed_amount).toFixed(2)}
                     </span>
                   )}
@@ -232,7 +232,7 @@ function ReviewContent() {
             ) : (
               <div className="rounded-xl border border-border bg-muted/50 p-6 text-center">
                 <p className="text-sm text-muted-foreground mb-1">{dict.common.amountDue}</p>
-                <p className="text-4xl font-bold text-brand-amber-foreground">
+                <p className="text-3xl sm:text-4xl font-bold text-brand-amber-foreground">
                   ${soloAmount.toFixed(2)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">

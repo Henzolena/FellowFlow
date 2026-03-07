@@ -228,7 +228,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                   {dict.receipt.confirmationIdLabel}
                 </h3>
                 {data.public_confirmation_code && (
-                  <p className="font-mono text-lg font-bold text-foreground">
+                  <p className="font-mono text-base sm:text-lg font-bold text-foreground break-all">
                     {data.public_confirmation_code}
                   </p>
                 )}
@@ -289,7 +289,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                   {groupMembers.map((member: any) => (
                     <div
                       key={member.id}
-                      className="rounded-lg bg-muted/40 p-3 flex items-center justify-between"
+                      className="rounded-lg bg-muted/40 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1"
                     >
                       <div>
                         <p className="text-sm font-medium">
@@ -408,7 +408,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
 
             {/* Actions — hidden when printing */}
             <div className="flex flex-col gap-3 pt-2 print:hidden">
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button variant="outline" className="flex-1" onClick={handlePrint}>
                   <Printer className="mr-2 h-4 w-4" />
                   {dict.receipt.printDownload}

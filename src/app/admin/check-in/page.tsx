@@ -247,7 +247,7 @@ export default function CheckInPage() {
         <div className="flex gap-2">
           {events.length > 1 && (
             <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -262,36 +262,36 @@ export default function CheckInPage() {
 
       {/* Stats Bar */}
       {stats && (
-        <div className="grid gap-4 grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
           <Card className="shadow-brand-sm">
-            <CardContent className="pt-5 pb-4 px-5 flex items-center gap-3">
-              <div className="rounded-lg bg-green-100 dark:bg-green-900/30 p-2.5">
+            <CardContent className="pt-4 pb-3 px-4 sm:pt-5 sm:pb-4 sm:px-5 flex items-center gap-3">
+              <div className="rounded-lg bg-green-100 dark:bg-green-900/30 p-2 sm:p-2.5">
                 <UserCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.checkedIn}</p>
+                <p className="text-xl sm:text-2xl font-bold">{stats.checkedIn}</p>
                 <p className="text-xs text-muted-foreground">Checked In</p>
               </div>
             </CardContent>
           </Card>
           <Card className="shadow-brand-sm">
-            <CardContent className="pt-5 pb-4 px-5 flex items-center gap-3">
-              <div className="rounded-lg bg-amber-100 dark:bg-amber-900/30 p-2.5">
+            <CardContent className="pt-4 pb-3 px-4 sm:pt-5 sm:pb-4 sm:px-5 flex items-center gap-3">
+              <div className="rounded-lg bg-amber-100 dark:bg-amber-900/30 p-2 sm:p-2.5">
                 <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.remaining}</p>
+                <p className="text-xl sm:text-2xl font-bold">{stats.remaining}</p>
                 <p className="text-xs text-muted-foreground">Remaining</p>
               </div>
             </CardContent>
           </Card>
           <Card className="shadow-brand-sm">
-            <CardContent className="pt-5 pb-4 px-5 flex items-center gap-3">
-              <div className="rounded-lg bg-muted p-2.5">
+            <CardContent className="pt-4 pb-3 px-4 sm:pt-5 sm:pb-4 sm:px-5 flex items-center gap-3">
+              <div className="rounded-lg bg-muted p-2 sm:p-2.5">
                 <Users className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.totalRegistrations}</p>
+                <p className="text-xl sm:text-2xl font-bold">{stats.totalRegistrations}</p>
                 <p className="text-xs text-muted-foreground">Total Expected</p>
               </div>
             </CardContent>

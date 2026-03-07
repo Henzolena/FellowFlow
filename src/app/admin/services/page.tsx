@@ -212,13 +212,13 @@ export default function ServicesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Service Catalog</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Service Catalog</h1>
           <p className="text-sm text-muted-foreground">Manage check-in services, meals, and custom access points</p>
         </div>
         <div className="flex items-center gap-2">
           {events.length > 1 && (
             <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Select event" />
               </SelectTrigger>
               <SelectContent>
@@ -352,7 +352,7 @@ export default function ServicesPage() {
                   </Select>
                 </div>
               )}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <Label>Date</Label>
                   <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
@@ -417,7 +417,7 @@ export default function ServicesPage() {
                       <CalendarDays className="h-4 w-4" />
                       {date === "undated" ? "No Date" : formatDate(date)}
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 ml-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:ml-6">
                       {dateMeals.map((svc) => (
                         <ServiceCard key={svc.id} svc={svc} onDelete={handleDelete} onToggle={handleToggleActive} categoryIcon={categoryIcon} categoryColor={categoryColor} compact />
                       ))}

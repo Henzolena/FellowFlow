@@ -242,7 +242,7 @@ export default function ServiceScannerPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Service Scanner</h1>
+        <h1 className="text-xl sm:text-2xl font-bold">Service Scanner</h1>
         <p className="text-sm text-muted-foreground">Select a service station, then scan attendee QR codes</p>
       </div>
 
@@ -280,10 +280,10 @@ export default function ServiceScannerPage() {
       {/* Current station banner */}
       {selectedService && (
         <div className="rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-4 text-white">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <p className="text-xs font-medium uppercase tracking-wider opacity-80">Active Station</p>
-              <h2 className="text-xl font-bold">{selectedService.service_name}</h2>
+              <h2 className="text-lg sm:text-xl font-bold">{selectedService.service_name}</h2>
               {selectedService.service_date && (
                 <p className="text-sm opacity-90">
                   {new Date(selectedService.service_date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
@@ -291,15 +291,15 @@ export default function ServiceScannerPage() {
               )}
             </div>
             {stats && (
-              <div className="text-right">
+              <div className="sm:text-right">
                 <div className="flex items-center gap-4">
                   <div>
-                    <p className="text-2xl font-bold">{stats.totalUsed}</p>
+                    <p className="text-xl sm:text-2xl font-bold">{stats.totalUsed}</p>
                     <p className="text-xs opacity-80">Served</p>
                   </div>
                   <div className="h-8 w-px bg-white/30" />
                   <div>
-                    <p className="text-2xl font-bold">{stats.remaining}</p>
+                    <p className="text-xl sm:text-2xl font-bold">{stats.remaining}</p>
                     <p className="text-xs opacity-80">Remaining</p>
                   </div>
                 </div>
@@ -440,7 +440,7 @@ function ScanResultDisplay({ result, config }: { result: ScanResultData; config:
             <h3 className="text-lg font-bold text-foreground">
               {result.registration.firstName} {result.registration.lastName}
             </h3>
-            <Badge variant="outline" className="font-mono text-xs">{result.registration.confirmationCode}</Badge>
+            <Badge variant="outline" className="font-mono text-[10px] sm:text-xs shrink-0 max-w-[140px] truncate">{result.registration.confirmationCode}</Badge>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
             <Badge variant="secondary" className="capitalize">{result.registration.category}</Badge>

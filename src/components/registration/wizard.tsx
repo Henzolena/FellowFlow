@@ -191,7 +191,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
 
                 <div className="space-y-2">
                   <Label>{dict.wizard.ageRange} *</Label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {getAgeRangeOptions(event, ageLabels).map((opt) => {
                       const selected = reg.ageRange === opt.key;
                       const iconMap = {
@@ -559,7 +559,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                     {registrants.map((reg, idx) => {
                       const q = groupQuote?.items?.[idx];
                       return (
-                        <div key={reg.id} className="rounded-lg bg-muted/50 p-4 flex items-center justify-between">
+                        <div key={reg.id} className="rounded-lg bg-muted/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
                             <div className="flex items-center gap-2">
                               <User className="h-4 w-4 text-muted-foreground" />

@@ -125,7 +125,7 @@ export default function MotelsPage() {
         <div className="flex gap-2">
           {events.length > 1 && (
             <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -225,13 +225,13 @@ function StatCard({
 }) {
   return (
     <Card className="shadow-brand-sm">
-      <CardContent className="pt-5 pb-4 px-5">
+      <CardContent className="pt-4 pb-3 px-4 sm:pt-5 sm:pb-4 sm:px-5">
         <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-muted p-2.5">
+          <div className="rounded-lg bg-muted p-2 sm:p-2.5">
             <Icon className="h-4 w-4 text-muted-foreground" />
           </div>
           <div>
-            <p className="text-2xl font-bold">{value}</p>
+            <p className="text-xl sm:text-2xl font-bold">{value}</p>
             <p className="text-xs text-muted-foreground">{label}</p>
             {sub && <p className="text-[10px] text-muted-foreground">{sub}</p>}
           </div>
