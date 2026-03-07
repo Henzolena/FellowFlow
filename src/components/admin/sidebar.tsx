@@ -23,6 +23,7 @@ import {
   ScanLine,
   Utensils,
   ScanSearch,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
@@ -40,6 +41,7 @@ const navItems: NavItem[] = [
   { href: "/admin/check-in", label: "Check-In", icon: ScanLine },
   { href: "/admin/services", label: "Services", icon: Utensils },
   { href: "/admin/service-scanner", label: "Service Scanner", icon: ScanSearch },
+  { href: "/admin/service-stats", label: "Service Stats", icon: BarChart3 },
   { href: "/admin/motels", label: "Motels", icon: Hotel },
   { href: "/admin/settings", label: "Event Settings", icon: Settings },
   { href: "/admin/users", label: "Admin Management", icon: ShieldCheck, superAdminOnly: true },

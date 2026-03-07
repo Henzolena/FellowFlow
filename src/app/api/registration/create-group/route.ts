@@ -5,6 +5,7 @@ import { computeGroupPricing } from "@/lib/pricing/engine";
 import { groupRegistrationSchema } from "@/lib/validations/registration";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendConfirmationEmail, sendGroupReceiptEmail } from "@/lib/email/resend";
+import { generateEntitlements, generateGroupEntitlements } from "@/lib/services/entitlement-generator";
 import { createRequestLogger } from "@/lib/logger";
 import type { Event, PricingConfig } from "@/types/database";
 import { randomUUID } from "crypto";
@@ -191,6 +192,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Failed to create registrations" },
         { status: 500 }
+      );
+    }
+
+    // Generate service entitlements for free registrations (paid ones get entitlements via webhook)
+    if (isFreeGroup) {
+      generateGroupEntitlements(adminClient, groupId, data.eventId, log).catch((e) =>
+        log.error("Free group entitlement generation failed", { groupId, error: String(e) })
       );
     }
 
