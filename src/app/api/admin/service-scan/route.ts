@@ -50,16 +50,6 @@ export async function POST(request: NextRequest) {
     const { data: reg, error: regError } = await query.single<Record<string, unknown>>();
 
     if (regError || !reg) {
-      // Log denied scan
-      await supabase.from("service_usage_logs").insert({
-        registration_id: "00000000-0000-0000-0000-000000000000",
-        service_id: serviceId,
-        scanned_by: auth.userId,
-        result: "denied",
-        reason: `Registration not found for code: ${code}`,
-        station_label: stationLabel || null,
-      }).then(() => {/* fire and forget */});
-
       return NextResponse.json({
         result: "denied",
         reason: "Registration not found",
