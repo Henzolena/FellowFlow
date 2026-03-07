@@ -83,8 +83,8 @@ const WRISTBAND_COLORS: Record<string, string> = {
 };
 
 // Cooldown between QR scans — prevents rapid-fire duplicate reads.
-// 2s is the industry standard for event check-in (gives staff time to read result).
-const SCAN_COOLDOWN_MS = 2000;
+// Reduced to 800ms for faster audio feedback and more responsive scanning.
+const SCAN_COOLDOWN_MS = 800;
 
 /** Extract a confirmation code from a raw QR decode (may be a URL or plain code). */
 function extractCodeFromQR(raw: string): string {
