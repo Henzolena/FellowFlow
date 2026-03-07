@@ -30,6 +30,7 @@ type EventForm = {
     childDailyPrice: number;
     motelStayFree: boolean;
     koteDailyPrice: number;
+    lodgingFee: number;
   };
 };
 
@@ -50,6 +51,7 @@ const emptyForm: EventForm = {
     childDailyPrice: 0,
     motelStayFree: true,
     koteDailyPrice: 10,
+    lodgingFee: 0,
   },
 };
 
@@ -100,6 +102,7 @@ export default function SettingsPage() {
         childDailyPrice: pc ? Number(pc.child_daily_price) : 0,
         motelStayFree: pc?.motel_stay_free ?? true,
         koteDailyPrice: pc ? Number(pc.kote_daily_price) : 10,
+        lodgingFee: pc ? Number(pc.lodging_fee) : 0,
       },
     });
     setEditingId(event.id);
@@ -455,6 +458,30 @@ export default function SettingsPage() {
               <Label>
                 Full conference + motel stay = Free registration
               </Label>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border/60 p-4">
+              <h4 className="font-medium text-blue-600">Lodging</h4>
+              <div className="space-y-2">
+                <Label className="text-xs">Per-Person Lodging Fee</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.pricing.lodgingFee}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      pricing: {
+                        ...f.pricing,
+                        lodgingFee: parseFloat(e.target.value) || 0,
+                      },
+                    }))
+                  }
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Added on top of conference fee for motel guests. Set to 0 to disable.
+                </p>
+              </div>
             </div>
           </div>
 

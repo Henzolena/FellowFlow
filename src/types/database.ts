@@ -58,6 +58,7 @@ export type PricingConfig = {
   child_daily_price: number;
   motel_stay_free: boolean;
   kote_daily_price: number;
+  lodging_fee: number;
   late_surcharge_tiers: SurchargeTier[];
   created_at: string;
   updated_at: string;
@@ -102,6 +103,7 @@ export type Registration = {
   attendance_type: AttendanceType;
   public_confirmation_code: string;
   access_tier: AccessTier | null;
+  completion_token: string | null;
   created_at: string;
   updated_at: string;
   confirmed_at: string | null;
@@ -137,6 +139,59 @@ export type EventImage = {
   mime_type: string | null;
   created_at: string;
 };
+
+export type RoomType = 'standard' | 'double' | 'suite' | 'accessible';
+export type BedType = 'single' | 'double' | 'bunk_top' | 'bunk_bottom' | 'queen' | 'king' | 'floor';
+
+export type Motel = {
+  id: string;
+  event_id: string;
+  name: string;
+  description: string | null;
+  address: string | null;
+  total_rooms: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Room = {
+  id: string;
+  motel_id: string;
+  room_number: string;
+  room_type: RoomType;
+  capacity: number;
+  floor: number | null;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Bed = {
+  id: string;
+  room_id: string;
+  bed_label: string;
+  bed_type: BedType;
+  is_occupied: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LodgingAssignment = {
+  id: string;
+  registration_id: string;
+  bed_id: string;
+  check_in_date: string | null;
+  check_out_date: string | null;
+  assigned_by: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RoomWithBeds = Room & { beds: Bed[] };
+export type MotelWithRooms = Motel & { rooms: RoomWithBeds[] };
 
 export type EventWithPricing = Event & {
   pricing_config: PricingConfig[] | PricingConfig | null;

@@ -63,6 +63,7 @@ export const adminCreateEventSchema = z.object({
       childDailyPrice: z.number().min(0).default(0),
       motelStayFree: z.boolean().default(true),
       koteDailyPrice: z.number().min(0).default(10),
+      lodgingFee: z.number().min(0).default(0),
     })
     .optional(),
 });

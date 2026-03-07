@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
         child_daily_price: v.pricing?.childDailyPrice ?? 0,
         motel_stay_free: v.pricing?.motelStayFree ?? true,
         kote_daily_price: v.pricing?.koteDailyPrice ?? 10,
+        lodging_fee: v.pricing?.lodgingFee ?? 0,
       });
 
     if (pricingError) throw pricingError;
@@ -117,6 +118,7 @@ export async function PUT(request: NextRequest) {
           child_daily_price: v.pricing.childDailyPrice,
           motel_stay_free: v.pricing.motelStayFree ?? true,
           kote_daily_price: v.pricing.koteDailyPrice ?? 10,
+          lodging_fee: v.pricing.lodgingFee ?? 0,
         }, { onConflict: "event_id" });
 
       if (pricingError) throw pricingError;

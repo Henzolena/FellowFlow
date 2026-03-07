@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ShieldCheck,
   Menu,
+  Hotel,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
@@ -33,6 +34,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/registrations", label: "Registrations", icon: Users },
+  { href: "/admin/motels", label: "Motels", icon: Hotel },
   { href: "/admin/settings", label: "Event Settings", icon: Settings },
   { href: "/admin/users", label: "Admin Management", icon: ShieldCheck, superAdminOnly: true },
 ];
