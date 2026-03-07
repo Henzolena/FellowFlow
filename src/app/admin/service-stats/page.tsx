@@ -41,6 +41,7 @@ export default function ServiceStatsPage() {
   const [selectedEventId, setSelectedEventId] = useState("");
   const [services, setServices] = useState<ServiceWithStats[]>([]);
   const [stats, setStats] = useState<StatsMap>({});
+  const [totalRegistered, setTotalRegistered] = useState(0);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
@@ -68,6 +69,7 @@ export default function ServiceStatsPage() {
       const json = await res.json();
       setServices(json.services || []);
       setStats(json.stats || {});
+      setTotalRegistered(json.totalRegistered || 0);
       setLastRefresh(new Date());
     } catch {
       // silently fail
@@ -82,7 +84,6 @@ export default function ServiceStatsPage() {
   }, [loadStats]);
 
   // Compute aggregates
-  const totalEntitled = Object.values(stats).reduce((sum, s) => sum + s.entitled, 0);
   const totalUsed = Object.values(stats).reduce((sum, s) => sum + s.used, 0);
 
   // Group by category
@@ -114,9 +115,9 @@ export default function ServiceStatsPage() {
     return new Date(d + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   }
 
-  function pct(used: number, entitled: number) {
-    if (entitled === 0) return 0;
-    return Math.round((used / entitled) * 100);
+  function pct(used: number, total: number) {
+    if (total === 0) return 0;
+    return Math.round((used / total) * 100);
   }
 
   const categoryIcon = (cat: string) => {
@@ -175,9 +176,9 @@ export default function ServiceStatsPage() {
         <>
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <StatCard icon={<Users className="h-5 w-5 text-blue-600" />} label="Total Entitled" value={totalEntitled} bg="bg-blue-50" />
+            <StatCard icon={<Users className="h-5 w-5 text-blue-600" />} label="Registered" value={totalRegistered} bg="bg-blue-50" />
             <StatCard icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} label="Total Served" value={totalUsed} bg="bg-emerald-50" />
-            <StatCard icon={<TrendingUp className="h-5 w-5 text-amber-600" />} label="Usage Rate" value={`${pct(totalUsed, totalEntitled)}%`} bg="bg-amber-50" />
+            <StatCard icon={<TrendingUp className="h-5 w-5 text-amber-600" />} label="Usage Rate" value={`${pct(totalUsed, totalRegistered)}%`} bg="bg-amber-50" />
             <StatCard icon={<Clock className="h-5 w-5 text-purple-600" />} label="Services" value={services.length} bg="bg-purple-50" />
           </div>
 
@@ -189,7 +190,7 @@ export default function ServiceStatsPage() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {mainServices.map((svc) => (
-                  <ServiceStatBar key={svc.id} svc={svc} stats={stats[svc.id]} icon={categoryIcon(svc.service_category)} />
+                  <ServiceStatBar key={svc.id} svc={svc} stats={stats[svc.id]} totalRegistered={totalRegistered} icon={categoryIcon(svc.service_category)} />
                 ))}
               </div>
             </div>
@@ -215,17 +216,17 @@ export default function ServiceStatsPage() {
                         {dateStats && (
                           <div className="flex items-center gap-3 text-xs">
                             <span className="text-muted-foreground">
-                              <strong className="text-foreground">{dateStats.used}</strong> / {dateStats.entitled} served
+                              <strong className="text-foreground">{dateStats.used}</strong> / {totalRegistered} served
                             </span>
                             <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-xs">
-                              {pct(dateStats.used, dateStats.entitled)}%
+                              {pct(dateStats.used, totalRegistered)}%
                             </Badge>
                           </div>
                         )}
                       </div>
                       <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {dateMeals.map((svc) => (
-                          <ServiceStatBar key={svc.id} svc={svc} stats={stats[svc.id]} icon={categoryIcon(svc.service_category)} compact />
+                          <ServiceStatBar key={svc.id} svc={svc} stats={stats[svc.id]} totalRegistered={totalRegistered} icon={categoryIcon(svc.service_category)} compact />
                         ))}
                       </div>
                     </div>
@@ -242,7 +243,7 @@ export default function ServiceStatsPage() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {customServices.map((svc) => (
-                  <ServiceStatBar key={svc.id} svc={svc} stats={stats[svc.id]} icon={categoryIcon(svc.service_category)} />
+                  <ServiceStatBar key={svc.id} svc={svc} stats={stats[svc.id]} totalRegistered={totalRegistered} icon={categoryIcon(svc.service_category)} />
                 ))}
               </div>
             </div>
@@ -265,18 +266,19 @@ function StatCard({ icon, label, value, bg }: { icon: React.ReactNode; label: st
 function ServiceStatBar({
   svc,
   stats,
+  totalRegistered,
   icon,
   compact,
 }: {
   svc: ServiceWithStats;
   stats?: { entitled: number; used: number };
+  totalRegistered: number;
   icon: React.ReactNode;
   compact?: boolean;
 }) {
-  const entitled = stats?.entitled || 0;
   const used = stats?.used || 0;
-  const remaining = entitled - used;
-  const percentage = entitled > 0 ? Math.round((used / entitled) * 100) : 0;
+  const remaining = Math.max(0, totalRegistered - used);
+  const percentage = totalRegistered > 0 ? Math.round((used / totalRegistered) * 100) : 0;
 
   const barColor =
     percentage >= 90 ? "bg-red-500" : percentage >= 70 ? "bg-amber-500" : "bg-emerald-500";
@@ -292,7 +294,7 @@ function ServiceStatBar({
         </div>
         <div className="text-right shrink-0">
           <span className="text-lg font-bold">{used}</span>
-          <span className="text-xs text-muted-foreground"> / {entitled}</span>
+          <span className="text-xs text-muted-foreground"> / {totalRegistered}</span>
         </div>
       </div>
       {/* Progress bar */}

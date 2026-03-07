@@ -189,6 +189,13 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
 
+    // Get total confirmed registrations for the event (used for "remaining" calc)
+    const { count: totalRegistered } = await supabase
+      .from("registrations")
+      .select("*", { count: "exact", head: true })
+      .eq("event_id", eventId)
+      .eq("status", "confirmed");
+
     if (serviceId) {
       // Stats for a specific service
       const [
@@ -214,11 +221,15 @@ export async function GET(request: NextRequest) {
           .limit(30),
       ]);
 
+      const served = totalUsed || 0;
+      const registered = totalRegistered || 0;
+
       return NextResponse.json({
         serviceId,
+        totalRegistered: registered,
         totalEntitled: totalEntitled || 0,
-        totalUsed: totalUsed || 0,
-        remaining: (totalEntitled || 0) - (totalUsed || 0),
+        totalUsed: served,
+        remaining: Math.max(0, registered - served),
         recentScans: recentScans || [],
       });
     }
@@ -258,6 +269,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       services,
       stats,
+      totalRegistered: totalRegistered || 0,
     });
   } catch (error) {
     console.error("Service scan stats error:", error);

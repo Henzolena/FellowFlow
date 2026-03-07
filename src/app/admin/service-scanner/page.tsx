@@ -68,6 +68,7 @@ type ScanResultData = {
 
 type ServiceStats = {
   serviceId: string;
+  totalRegistered: number;
   totalEntitled: number;
   totalUsed: number;
   remaining: number;
