@@ -123,7 +123,7 @@ export async function generateRegistrationBadgePDF(
   let y = height;
 
   // ── Color-coded header (by access tier) ──
-  page.drawRectangle({ x: 0, y: y - 95, width, height: 95, color: HEADER_COLOR });
+  page.drawRectangle({ x: 0, y: y - 110, width, height: 110, color: HEADER_COLOR });
 
   y -= 30;
   const eventTitle = badge.eventName || "Conference Registration";
@@ -148,7 +148,7 @@ export async function generateRegistrationBadgePDF(
   page.drawText(tierLabel, { x: (width - tierLabelW) / 2, y: y - 1, size: 9, font: fontBold, color: HEADER_COLOR });
 
   // ── Attendee name ──
-  y -= 36;
+  y -= 46;
   const fullName = `${badge.firstName} ${badge.lastName}`;
   const nameSize = fullName.length > 24 ? 20 : 24;
   const nameWidth = fontBold.widthOfTextAtSize(fullName, nameSize);
