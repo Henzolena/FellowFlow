@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { getStatusBadge, getSourceBadge, getCategoryBadge, getAccessTierBadge } from "@/lib/badge-colors";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -69,19 +70,7 @@ type PaginatedResponse = {
   totalPages: number;
 };
 
-const statusColors: Record<string, string> = {
-  confirmed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-  cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  refunded: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
-  draft: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
-  invited: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
-};
-
-const sourceLabels: Record<string, { label: string; className: string }> = {
-  admin_prefill: { label: "Pre-fill", className: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400" },
-  admin_direct: { label: "Admin", className: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" },
-};
+// Badge colors now come from centralized @/lib/badge-colors
 
 export default function RegistrationsPage() {
   return (
@@ -233,6 +222,8 @@ function RegistrationsContent() {
                   <TableHead className="hidden sm:table-cell">Email</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="hidden lg:table-cell">Category</TableHead>
+                  <TableHead className="hidden lg:table-cell">Access</TableHead>
                   <TableHead className="hidden md:table-cell">Source</TableHead>
                   <TableHead className="hidden md:table-cell">Date</TableHead>
                   <TableHead className="w-10" />
@@ -261,21 +252,29 @@ function RegistrationsContent() {
                     </TableCell>
                     <TableCell>
                       <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                          statusColors[reg.status] || "bg-gray-100 text-gray-700"
-                        }`}
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadge(reg.status).tw}`}
                       >
-                        {reg.status}
+                        {getStatusBadge(reg.status).label}
                       </span>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {sourceLabels[reg.registration_source] ? (
-                        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${sourceLabels[reg.registration_source].className}`}>
-                          {sourceLabels[reg.registration_source].label}
+                    <TableCell className="hidden lg:table-cell">
+                      {reg.category && (
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${getCategoryBadge(reg.category).tw}`}>
+                          {getCategoryBadge(reg.category).label}
                         </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Self</span>
                       )}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {reg.access_tier && (
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${getAccessTierBadge(reg.access_tier).tw}`}>
+                          {getAccessTierBadge(reg.access_tier).label}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getSourceBadge(reg.registration_source).tw}`}>
+                        {getSourceBadge(reg.registration_source).label}
+                      </span>
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                       {format(parseISO(reg.created_at), "MMM d, yyyy")}

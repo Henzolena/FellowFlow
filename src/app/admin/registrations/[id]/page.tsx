@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { getStatusBadge, getCategoryBadge, getAccessTierBadge, getAttendanceBadge } from "@/lib/badge-colors";
 import { Separator } from "@/components/ui/separator";
 import {
   Loader2,
@@ -120,14 +121,7 @@ type DetailData = {
   email_logs: EmailLogRecord[];
 };
 
-const statusColors: Record<string, string> = {
-  confirmed: "bg-green-100 text-green-800 border-green-200",
-  pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  cancelled: "bg-red-100 text-red-800 border-red-200",
-  refunded: "bg-gray-100 text-gray-700 border-gray-200",
-  draft: "bg-blue-100 text-blue-800 border-blue-200",
-  invited: "bg-purple-100 text-purple-800 border-purple-200",
-};
+// Badge colors now come from centralized @/lib/badge-colors
 
 function attendanceLabel(type: string): string {
   switch (type) {
@@ -218,9 +212,19 @@ export default function RegistrationDetailPage({
               Checked In
             </Badge>
           )}
-          <Badge className={statusColors[data.status] || "bg-gray-100 text-gray-700"}>
-            {data.status.toUpperCase()}
+          <Badge className={getStatusBadge(data.status).tw}>
+            {getStatusBadge(data.status).label}
           </Badge>
+          {data.category && (
+            <Badge variant="outline" className={getCategoryBadge(data.category).tw}>
+              {getCategoryBadge(data.category).label}
+            </Badge>
+          )}
+          {data.access_tier && (
+            <Badge variant="outline" className={getAccessTierBadge(data.access_tier).tw}>
+              {getAccessTierBadge(data.access_tier).label}
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -291,7 +295,7 @@ export default function RegistrationDetailPage({
             {data.is_full_duration && (
               <Row label="Motel Stay" value={data.is_staying_in_motel ? "Yes" : "No"} />
             )}
-            <Row label="Access Tier" value={data.access_tier || "—"} />
+            <Row label="Access Tier" value={data.access_tier ? getAccessTierBadge(data.access_tier).label : "—"} />
           </CardContent>
         </Card>
 

@@ -219,6 +219,9 @@ export async function POST(request: NextRequest) {
             isFree: true,
             registrationId: r.id,
             explanationDetail: r.explanation_detail,
+            category: r.category,
+            accessTier: r.access_tier,
+            attendanceType: r.attendance_type,
           });
           log.info("Free solo confirmation email sent", { registrationId: r.id });
           await adminClient.from("email_logs").insert({
@@ -244,6 +247,8 @@ export async function POST(request: NextRequest) {
               ageAtEvent: r.age_at_event,
               amount: Number(r.computed_amount),
               attendance: attendanceLabel(r),
+              attendanceType: r.attendance_type,
+              accessTier: r.access_tier,
             })),
             subtotal: groupPricing.subtotal,
             surcharge: groupPricing.surcharge,

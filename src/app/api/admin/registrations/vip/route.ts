@@ -132,6 +132,7 @@ export async function POST(request: NextRequest) {
           explanationDetail: "VIP — Complimentary Access",
           attendanceType: "full_conference",
           category: "adult",
+          accessTier: "VIP",
           gender: v.gender,
           city: v.city,
           churchName,

@@ -15,6 +15,12 @@ import type { ExplanationCode } from "@/types/database";
 import Link from "next/link";
 import { useTranslation } from "@/lib/i18n/context";
 import { QRCodeDisplay } from "@/components/registration/qr-code";
+import {
+  getCategoryBadge,
+  getAccessTierBadge,
+  getStatusBadge,
+  getAttendanceBadge,
+} from "@/lib/badge-colors";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -214,11 +220,28 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
               <p className="text-sm text-muted-foreground">{eventData.name}</p>
             )}
             <Badge
-              variant={data.status === "confirmed" ? "default" : "secondary"}
-              className="mx-auto"
+              variant="outline"
+              className={`mx-auto ${getStatusBadge(data.status).tw}`}
             >
-              {data.status.toUpperCase()}
+              {getStatusBadge(data.status).label}
             </Badge>
+            <div className="flex flex-wrap justify-center gap-1.5 mt-2">
+              {data.category && (
+                <Badge variant="outline" className={getAccessTierBadge(data.access_tier).tw}>
+                  {getAccessTierBadge(data.access_tier).label}
+                </Badge>
+              )}
+              {data.category && (
+                <Badge variant="outline" className={getCategoryBadge(data.category).tw}>
+                  {getCategoryBadge(data.category).label}
+                </Badge>
+              )}
+              {data.attendance_type && (
+                <Badge variant="outline" className={getAttendanceBadge(data.attendance_type).tw}>
+                  {getAttendanceBadge(data.attendance_type).label}
+                </Badge>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Confirmation Code + QR */}
@@ -289,20 +312,24 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                   {groupMembers.map((member: any) => (
                     <div
                       key={member.id}
-                      className="rounded-lg bg-muted/40 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1"
+                      className="rounded-lg bg-muted/40 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
                     >
-                      <div>
+                      <div className="space-y-1">
                         <p className="text-sm font-medium">
                           {member.first_name} {member.last_name}
                         </p>
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {member.category} · Age {member.age_at_event} ·{" "}
-                          {member.is_full_duration
-                            ? dict.common.fullConference
-                            : member.is_staying_in_motel
-                            ? dict.common.partialMotel
-                            : `${member.num_days} ${dict.wizard.nDays}`}
-                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${getCategoryBadge(member.category).tw}`}>
+                            {getCategoryBadge(member.category).label}
+                          </span>
+                          <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${getAttendanceBadge(member.attendance_type).tw}`}>
+                            {member.is_full_duration
+                              ? dict.common.fullConference
+                              : member.is_staying_in_motel
+                              ? dict.common.partialMotel
+                              : `${member.num_days} ${dict.wizard.nDays}`}
+                          </span>
+                        </div>
                       </div>
                       <p className="text-sm font-semibold">
                         {Number(member.computed_amount) === 0

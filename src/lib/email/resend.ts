@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { generateRegistrationBadgePDF, type BadgeData } from "@/lib/pdf/registration-badge";
+import { getCategoryBadge, getAccessTierBadge, getAttendanceBadge, emailBadgePill } from "@/lib/badge-colors";
 
 let resendClient: Resend | null = null;
 
@@ -100,6 +101,7 @@ export type ConfirmationEmailParams = {
   explanationDetail: string | null;
   attendanceType?: string;
   category?: string;
+  accessTier?: string;
   gender?: string | null;
   city?: string | null;
   churchName?: string | null;
@@ -123,6 +125,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
     explanationDetail,
     attendanceType,
     category,
+    accessTier,
     gender,
     city,
     churchName,
@@ -149,6 +152,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
         eventEndDate,
         category,
         attendanceType,
+        accessTier,
         gender,
         city,
         churchName,
@@ -209,6 +213,15 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
       <p style="${S.amountValue}">${amountDisplay}</p>
     </td></tr></table>
 
+    <!-- Badge Pills -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin:0 0 20px;"><tr><td>
+      ${category ? emailBadgePill(getCategoryBadge(category).label, getCategoryBadge(category).hex, getCategoryBadge(category).bg) : ""}
+      &nbsp;
+      ${attendanceType ? emailBadgePill(getAttendanceBadge(attendanceType).label, getAttendanceBadge(attendanceType).hex, getAttendanceBadge(attendanceType).bg) : ""}
+      &nbsp;
+      ${accessTier ? emailBadgePill(getAccessTierBadge(accessTier).label, getAccessTierBadge(accessTier).hex, getAccessTierBadge(accessTier).bg) : ""}
+    </td></tr></table>
+
     <!-- Details -->
     <p style="${S.sectionTitle}">Registration Details</p>
     <table width="100%" cellpadding="0" cellspacing="0" style="${S.detailBox}"><tr><td style="${S.detailPad}">
@@ -266,6 +279,8 @@ export type GroupMember = {
   ageAtEvent: number;
   amount: number;
   attendance: string;
+  attendanceType?: string;
+  accessTier?: string;
   confirmationCode?: string;
   gender?: string | null;
   city?: string | null;
@@ -315,13 +330,19 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
 
   const memberRows = members
     .map(
-      (m, i) => `
+      (m, i) => {
+        const catBadge = getCategoryBadge(m.category);
+        return `
       <tr>
         <td style="padding:12px 16px;${i < members.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}">
-          <div style="font-size:14px;font-weight:700;color:#18181b;margin:0 0 2px;">${m.firstName} ${m.lastName}</div>
+          <div style="font-size:14px;font-weight:700;color:#18181b;margin:0 0 4px;">${m.firstName} ${m.lastName}</div>
+          <div style="margin:0 0 4px;">
+            ${emailBadgePill(catBadge.label, catBadge.hex, catBadge.bg)}
+            &nbsp;
+            ${emailBadgePill(m.attendance, "#475569", "#f1f5f9")}
+          </div>
           <div style="font-size:12px;color:#64748b;">
-            ${categoryLabel(m.category)} · ${m.attendance}
-            ${m.gender ? ` · ${m.gender.charAt(0).toUpperCase() + m.gender.slice(1)}` : ""}
+            ${m.gender ? `${m.gender.charAt(0).toUpperCase() + m.gender.slice(1)}` : ""}
             ${m.city ? ` · ${m.city}` : ""}
           </div>
           ${m.churchName ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">⛪ ${m.churchName}</div>` : ""}
@@ -330,7 +351,8 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
         <td style="padding:12px 16px;text-align:right;vertical-align:top;font-size:15px;font-weight:700;color:${m.amount === 0 ? "#16a34a" : "#18181b"};${i < members.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}">
           ${m.amount === 0 ? "FREE" : `$${m.amount.toFixed(2)}`}
         </td>
-      </tr>`
+      </tr>`;
+      }
     )
     .join("");
 
@@ -355,7 +377,8 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
         eventStartDate,
         eventEndDate,
         category: m.category,
-        attendanceType: m.attendance,
+        attendanceType: m.attendanceType || m.attendance,
+        accessTier: m.accessTier,
         gender: m.gender,
         city: m.city,
         churchName: m.churchName,

@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       .from("registrations")
       .select(
         "id, first_name, last_name, email, computed_amount, explanation_detail, " +
-        "group_id, event_id, category, age_at_event, is_full_duration, is_staying_in_motel, " +
+        "group_id, event_id, category, access_tier, age_at_event, is_full_duration, is_staying_in_motel, " +
         "num_days, date_of_birth, attendance_type, public_confirmation_code, " +
         "gender, city, church_id, church_name_custom, " +
         "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)"
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       const { data: siblings } = await supabase
         .from("registrations")
         .select(
-          "id, first_name, last_name, email, computed_amount, category, age_at_event, " +
+          "id, first_name, last_name, email, computed_amount, category, access_tier, age_at_event, " +
           "is_full_duration, is_staying_in_motel, num_days, date_of_birth, " +
           "attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom"
         )
@@ -132,6 +132,8 @@ export async function POST(request: NextRequest) {
               ageAtEvent: r.age_at_event as number,
               amount: Number(r.computed_amount),
               attendance: at === "full_conference" ? "Full Conference" : at === "kote" ? "KOTE" : `${r.num_days || "?"} Day(s)`,
+              attendanceType: r.attendance_type as string | undefined,
+              accessTier: r.access_tier as string | undefined,
               confirmationCode: r.public_confirmation_code as string | undefined,
               gender: r.gender as string | null,
               city: r.city as string | null,
@@ -181,6 +183,7 @@ export async function POST(request: NextRequest) {
       explanationDetail: data.explanation_detail as string | null,
       attendanceType: data.attendance_type as string | undefined,
       category: data.category as string | undefined,
+      accessTier: data.access_tier as string | undefined,
       gender: data.gender as string | null,
       city: data.city as string | null,
       churchName,

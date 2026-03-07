@@ -140,6 +140,9 @@ export async function POST(request: NextRequest) {
         isFree: true,
         registrationId: registration.id,
         explanationDetail: pricingResult.explanationDetail,
+        category: registration.category,
+        accessTier: registration.access_tier,
+        attendanceType: registration.attendance_type,
       }).catch(() => {}); // fire-and-forget
     }
 

@@ -20,7 +20,7 @@ export async function dispatchSoloConfirmation(
       .from("registrations")
       .select(
         "first_name, last_name, email, computed_amount, explanation_detail, event_id, " +
-        "category, attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, " +
+        "category, access_tier, attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, " +
         "events(name, start_date, end_date)"
       )
       .eq("id", registrationId)
@@ -55,6 +55,7 @@ export async function dispatchSoloConfirmation(
         explanationDetail: reg.explanation_detail as string | null,
         attendanceType: reg.attendance_type as string | undefined,
         category: reg.category as string | undefined,
+        accessTier: reg.access_tier as string | undefined,
         gender: reg.gender as string | null,
         city: reg.city as string | null,
         churchName,
@@ -125,7 +126,7 @@ export async function dispatchGroupConfirmation(
       .from("registrations")
       .select(
         "id, first_name, last_name, email, computed_amount, explanation_detail, " +
-        "category, age_at_event, is_full_duration, is_staying_in_motel, num_days, " +
+        "category, access_tier, age_at_event, is_full_duration, is_staying_in_motel, num_days, " +
         "date_of_birth, event_id, attendance_type, public_confirmation_code, " +
         "gender, city, church_id, church_name_custom, " +
         "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)"
@@ -168,6 +169,7 @@ export async function dispatchGroupConfirmation(
           explanationDetail: primaryReg.explanation_detail as string | null,
           attendanceType: primaryReg.attendance_type as string | undefined,
           category: primaryReg.category as string | undefined,
+          accessTier: primaryReg.access_tier as string | undefined,
           gender: primaryReg.gender as string | null,
           city: primaryReg.city as string | null,
           churchName,
@@ -266,6 +268,8 @@ export async function dispatchGroupConfirmation(
           ageAtEvent: r.age_at_event as number,
           amount: Number(r.computed_amount),
           attendance: at === "full_conference" ? "Full Conference" : at === "kote" ? "KOTE" : `${r.num_days || "?"} Day(s)`,
+          attendanceType: r.attendance_type as string | undefined,
+          accessTier: r.access_tier as string | undefined,
           confirmationCode: r.public_confirmation_code as string | undefined,
           gender: r.gender as string | null,
           city: r.city as string | null,

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { getAttendanceBadge, getAccessTierBadge } from "@/lib/badge-colors";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -479,8 +480,8 @@ export default function CheckInPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <Badge variant="outline" className="text-[10px] capitalize">
-                          {ci.registrations.attendance_type.replace("_", " ")}
+                        <Badge variant="outline" className={`text-[10px] ${getAttendanceBadge(ci.registrations.attendance_type).tw}`}>
+                          {getAttendanceBadge(ci.registrations.attendance_type).label}
                         </Badge>
                         <p className="text-[10px] text-muted-foreground mt-0.5">
                           {new Date(ci.checked_in_at).toLocaleTimeString()}

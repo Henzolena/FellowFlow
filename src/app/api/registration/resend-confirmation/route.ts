@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       .from("registrations")
       .select(
         "id, first_name, last_name, email, computed_amount, explanation_detail, status, " +
-        "category, attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, " +
+        "category, access_tier, attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, " +
         "events(name, start_date, end_date)"
       )
       .eq("id", registrationId)
@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
       explanationDetail: data.explanation_detail as string | null,
       attendanceType: data.attendance_type as string | undefined,
       category: data.category as string | undefined,
+      accessTier: data.access_tier as string | undefined,
       gender: data.gender as string | null,
       city: data.city as string | null,
       churchName,
