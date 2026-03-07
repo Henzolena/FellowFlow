@@ -63,7 +63,7 @@ export default async function Home() {
                 <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent" />
                 {/* Status badge over image */}
                 <div className="absolute top-4 left-4">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-teal/10 text-brand-teal border border-brand-teal/20 backdrop-blur-sm px-3 py-1 text-[11px] font-semibold uppercase tracking-wider shadow-sm">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-teal/90 text-white border border-brand-teal backdrop-blur-sm px-3 py-1 text-[11px] font-semibold uppercase tracking-wider shadow-sm">
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-teal opacity-60" />
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-teal" />

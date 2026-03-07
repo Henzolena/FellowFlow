@@ -62,13 +62,13 @@ export function EventSearch({ events }: Props) {
     upcoming: {
       label: dict.events.upcoming,
       dotColor: "bg-brand-teal",
-      pillClass: "bg-brand-teal/10 text-brand-teal border border-brand-teal/20",
+      pillClass: "bg-brand-teal/90 text-white border border-brand-teal",
       hasPulse: true,
     },
     ongoing: {
       label: dict.events.happeningNow,
       dotColor: "bg-brand-green",
-      pillClass: "bg-brand-green/10 text-brand-green border border-brand-green/20",
+      pillClass: "bg-brand-green/90 text-white border border-brand-green",
       hasPulse: true,
     },
     past: {
