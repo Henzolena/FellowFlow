@@ -214,7 +214,7 @@ export default function CheckInPage() {
       try {
         await s.start(
           { facingMode: "environment" },
-          { fps: 5, qrbox: { width: 250, height: 250 } },
+          { fps: 5, qrbox: { width: 200, height: 200 } },
           (decodedText: string) => {
             // Enforce cooldown — ignore rapid-fire decodes
             if (cooldownRef.current) return;
@@ -362,7 +362,7 @@ export default function CheckInPage() {
                 <div
                   id="qr-reader"
                   ref={scannerRef}
-                  className="w-full aspect-square max-h-[250px] sm:max-h-[350px]"
+                  className="w-full"
                 />
                 {!scannerActive && (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">

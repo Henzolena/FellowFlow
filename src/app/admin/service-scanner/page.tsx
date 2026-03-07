@@ -188,7 +188,7 @@ export default function ServiceScannerPage() {
       try {
         await scanner!.start(
           { facingMode: "environment" },
-          { fps: 5, qrbox: { width: 250, height: 250 } },
+          { fps: 5, qrbox: { width: 200, height: 200 } },
           (decodedText: string) => {
             // Enforce cooldown — ignore rapid-fire decodes
             if (cooldownRef.current) return;
@@ -358,7 +358,7 @@ export default function ServiceScannerPage() {
 
             {scanMode === "camera" ? (
               <div className="rounded-xl border overflow-hidden bg-black relative">
-                <div id="service-scanner-region" ref={scannerRef} className="w-full max-h-[250px] sm:max-h-[350px] overflow-hidden" />
+                <div id="service-scanner-region" ref={scannerRef} className="w-full" />
                 {/* Cooldown progress bar */}
                 {cooldownActive && (
                   <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-muted/30 overflow-hidden z-10">
