@@ -133,6 +133,7 @@ export type Registration = {
   admin_notes: string | null;
   prefill_token_expires_at: string | null;
   invited_by_admin: string | null;
+  invitation_code: string | null;
   checked_in: boolean;
   checked_in_at: string | null;
   created_at: string;

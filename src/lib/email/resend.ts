@@ -510,6 +510,7 @@ export type PrefillInvitationEmailParams = {
   eventEndDate?: string;
   attendanceType: string;
   completionUrl: string;
+  invitationCode: string;
   adminNotes?: string | null;
   expiresAt?: string | null;
 };
@@ -527,6 +528,7 @@ export async function sendPrefillInvitationEmail(params: PrefillInvitationEmailP
     eventEndDate,
     attendanceType,
     completionUrl,
+    invitationCode,
     expiresAt,
   } = params;
 
@@ -577,6 +579,13 @@ export async function sendPrefillInvitationEmail(params: PrefillInvitationEmailP
         ${detailRow("Event", eventName)}
         ${detailRow("Attendance", attendanceLabel(attendanceType))}
       </table>
+    </td></tr></table>
+
+    <!-- Invitation Code -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="${S.codeBox}"><tr><td>
+      <p style="${S.codeLabel}">Your Invitation Code</p>
+      <p style="${S.codeValue}">${invitationCode}</p>
+      <p style="margin:8px 0 0;color:#6366f1;font-size:12px;">You'll need this code to access your registration form</p>
     </td></tr></table>
 
     <p style="margin:0 0 28px;color:#52525b;font-size:14px;line-height:1.7;">

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
 import { computePricing } from "@/lib/pricing/engine";
 import type { Event, PricingConfig } from "@/types/database";
@@ -7,6 +7,7 @@ import type { Event, PricingConfig } from "@/types/database";
 type RouteParams = { params: Promise<{ token: string }> };
 
 const completeSchema = z.object({
+  invitationCode: z.string().min(1, "Invitation code is required"),
   phone: z.string().optional(),
   gender: z.enum(["male", "female"]).optional(),
   city: z.string().optional(),
@@ -18,11 +19,21 @@ const completeSchema = z.object({
   numDays: z.number().int().min(1).optional(),
 });
 
-// GET /api/registration/complete/[token] — fetch draft/invited registration by completion token
-export async function GET(_request: NextRequest, { params }: RouteParams) {
+// Strip sensitive fields from registration before returning to client
+function sanitizeRegistration(reg: Record<string, unknown>) {
+  const { completion_token, invitation_code, ...safe } = reg;
+  return safe;
+}
+
+// GET /api/registration/complete/[token]?code=XXXXXX — fetch draft/invited registration
+// Uses admin client to bypass RLS (public endpoint for unauthenticated users)
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { token } = await params;
-    const supabase = await createClient();
+    const { searchParams } = new URL(request.url);
+    const code = searchParams.get("code");
+
+    const supabase = createAdminClient();
 
     const { data: reg, error } = await supabase
       .from("registrations")
@@ -46,8 +57,28 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // If registration has an invitation code, verify it
+    if (reg.invitation_code) {
+      if (!code) {
+        // Return minimal info — enough for the UI to show the code prompt
+        return NextResponse.json({
+          requiresCode: true,
+          registration: {
+            first_name: reg.first_name,
+            event_name: (reg.events as Record<string, unknown>)?.name || "Event",
+          },
+        });
+      }
+      if (code.toUpperCase() !== reg.invitation_code.toUpperCase()) {
+        return NextResponse.json(
+          { error: "Invalid invitation code", requiresCode: true },
+          { status: 403 }
+        );
+      }
+    }
+
     return NextResponse.json({
-      registration: reg,
+      registration: sanitizeRegistration(reg),
       event: reg.events,
     });
   } catch (error) {
@@ -57,6 +88,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 }
 
 // POST /api/registration/complete/[token] — complete a draft/invited registration
+// Uses admin client to bypass RLS (public endpoint for unauthenticated users)
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { token } = await params;
@@ -66,7 +98,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // Fetch the registration with event + pricing
     const { data: reg, error: fetchError } = await supabase
@@ -89,6 +121,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         { error: "This invitation link has expired." },
         { status: 410 }
       );
+    }
+
+    // Verify invitation code
+    if (reg.invitation_code) {
+      if (parsed.data.invitationCode.toUpperCase() !== reg.invitation_code.toUpperCase()) {
+        return NextResponse.json(
+          { error: "Invalid invitation code" },
+          { status: 403 }
+        );
+      }
     }
 
     const v = parsed.data;
@@ -136,6 +178,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       status: computedAmount === 0 ? "confirmed" : "pending",
       confirmed_at: computedAmount === 0 ? new Date().toISOString() : null,
       completion_token: null, // Consume the token
+      invitation_code: null, // Consume the invitation code
       date_of_birth: dateOfBirth,
       age_at_event: ageAtEvent,
       category,
@@ -170,7 +213,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (updateError) throw updateError;
 
-    return NextResponse.json({ registration: updated });
+    return NextResponse.json({ registration: sanitizeRegistration(updated as Record<string, unknown>) });
   } catch (error) {
     console.error("Complete registration error:", error);
     return NextResponse.json({ error: "Failed to complete registration" }, { status: 500 });

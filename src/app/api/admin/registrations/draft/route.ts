@@ -38,6 +38,9 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const completionToken = uuidv4();
 
+    // Generate 6-digit invitation code for security
+    const invitationCode = String(Math.floor(100000 + Math.random() * 900000));
+
     // Fetch admin profile for invited_by_admin
     const { data: adminProfile } = await supabase
       .from("profiles")
@@ -92,6 +95,7 @@ export async function POST(request: NextRequest) {
         public_confirmation_code: publicCode,
         access_tier: accessTier,
         completion_token: completionToken,
+        invitation_code: invitationCode,
         registration_source: "admin_prefill",
         admin_notes: v.notes || null,
         prefill_token_expires_at: expiresAt.toISOString(),
@@ -118,6 +122,7 @@ export async function POST(request: NextRequest) {
           eventEndDate: event.end_date,
           attendanceType: v.attendanceType,
           completionUrl,
+          invitationCode,
           adminNotes: v.notes,
           expiresAt: expiresAt.toISOString(),
         });
@@ -131,6 +136,7 @@ export async function POST(request: NextRequest) {
       registration: data,
       completionToken,
       completionUrl,
+      invitationCode,
       emailSent,
     }, { status: 201 });
   } catch (error) {

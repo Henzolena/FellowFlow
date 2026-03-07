@@ -341,7 +341,7 @@ function PrefillDialog({
   onSuccess: () => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ completionUrl: string; emailSent: boolean } | null>(null);
+  const [result, setResult] = useState<{ completionUrl: string; invitationCode: string; emailSent: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const [eventId, setEventId] = useState("");
@@ -408,7 +408,7 @@ function PrefillDialog({
         return;
       }
       const data = await res.json();
-      setResult({ completionUrl: data.completionUrl, emailSent: data.emailSent });
+      setResult({ completionUrl: data.completionUrl, invitationCode: data.invitationCode, emailSent: data.emailSent });
       onSuccess();
     } catch {
       setError("Something went wrong.");
@@ -454,6 +454,12 @@ function PrefillDialog({
                   <Mail className="h-4 w-4" /> Invitation email sent
                 </p>
               )}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Invitation Code</Label>
+              <div className="flex items-center justify-center py-2">
+                <span className="text-2xl font-bold font-mono tracking-widest text-violet-700 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30 px-4 py-2 rounded-lg border-2 border-dashed border-violet-300 dark:border-violet-700">{result.invitationCode}</span>
+              </div>
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Completion Link</Label>
