@@ -155,7 +155,7 @@ export async function generateRegistrationBadgePDF(
   page.drawText(fullName, { x: (width - nameWidth) / 2, y, size: nameSize, font: fontBold, color: DARK });
 
   // ── Category + Attendance pills ──
-  y -= 26;
+  y -= 36;
   const catLabel = catInfo.label.toUpperCase();
   const attLabel = attInfo.label.toUpperCase();
   const catPillW = fontBold.widthOfTextAtSize(catLabel, 8) + 20;
@@ -169,7 +169,7 @@ export async function generateRegistrationBadgePDF(
   drawPill(page, pillX, y, attLabel, fontBold, 8, ATT_TEXT, ATT_BG);
 
   // ── Details box ──
-  y -= 28;
+  y -= 38;
   const boxX = 30;
   const boxW = width - 60;
 
@@ -208,7 +208,7 @@ export async function generateRegistrationBadgePDF(
     const qrImage = await doc.embedPng(qrPng);
     const qrSize = 130;
     page.drawImage(qrImage, { x: (width - qrSize) / 2, y: y - qrSize, width: qrSize, height: qrSize });
-    y -= qrSize + 8;
+    y -= qrSize + 16;
   } catch {
     y -= 10;
   }
@@ -218,7 +218,7 @@ export async function generateRegistrationBadgePDF(
   const codeWidth = fontBold.widthOfTextAtSize(badge.confirmationCode, codeSize);
   page.drawText(badge.confirmationCode, { x: (width - codeWidth) / 2, y, size: codeSize, font: fontBold, color: DARK });
 
-  y -= 8;
+  y -= 16;
   const codeLabel = "Confirmation Code — Show this at check-in";
   const codeLabelWidth = fontRegular.widthOfTextAtSize(codeLabel, 8);
   page.drawText(codeLabel, { x: (width - codeLabelWidth) / 2, y, size: 8, font: fontRegular, color: GRAY });
@@ -231,7 +231,7 @@ export async function generateRegistrationBadgePDF(
     const barW = 220;
     const barH = 45;
     page.drawImage(barImage, { x: (width - barW) / 2, y: y - barH, width: barW, height: barH });
-    y -= barH + 10;
+    y -= barH + 20;
   } catch {
     // If barcode fails, skip
   }
