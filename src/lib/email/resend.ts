@@ -499,6 +499,129 @@ export type AdminNotificationEmailParams = {
   registeredAt: string;
 };
 
+/* ── Pre-fill invitation email ──────────────────────────────────── */
+
+export type PrefillInvitationEmailParams = {
+  to: string;
+  firstName: string;
+  lastName: string;
+  eventName: string;
+  eventStartDate?: string;
+  eventEndDate?: string;
+  attendanceType: string;
+  completionUrl: string;
+  adminNotes?: string | null;
+  expiresAt?: string | null;
+};
+
+export async function sendPrefillInvitationEmail(params: PrefillInvitationEmailParams) {
+  const resend = getResend();
+  if (!resend) return;
+
+  const {
+    to,
+    firstName,
+    lastName,
+    eventName,
+    eventStartDate,
+    eventEndDate,
+    attendanceType,
+    completionUrl,
+    expiresAt,
+  } = params;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const fullUrl = `${appUrl}${completionUrl}`;
+  const dateRange = eventStartDate && eventEndDate
+    ? `${formatDate(eventStartDate)} — ${formatDate(eventEndDate)}`
+    : null;
+  const expiryNote = expiresAt
+    ? `This link expires on ${new Date(expiresAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.`
+    : "";
+
+  try {
+    const { data: sendResult, error: sendError } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject: `Complete Your Registration — ${eventName}`,
+      html: `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="${S.body}">
+<table width="100%" cellpadding="0" cellspacing="0" style="${S.wrapper}"><tr><td align="center">
+<table cellpadding="0" cellspacing="0" style="${S.card}">
+
+  <!-- Header -->
+  <tr><td style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#a855f7 100%);padding:40px 40px 36px;text-align:center;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+      <div style="display:inline-block;background:rgba(255,255,255,0.2);border-radius:50%;padding:12px;margin:0 0 16px;">
+        <img src="https://img.icons8.com/fluency/48/mail.png" width="32" height="32" alt="" style="display:block;" />
+      </div>
+    </td></tr></table>
+    <h1 style="${S.h1}">You're Invited!</h1>
+    <p style="${S.headerSub}">${eventName}</p>
+    ${dateRange ? `<p style="${S.headerSub}">${dateRange}</p>` : ""}
+  </td></tr>
+
+  <!-- Body -->
+  <tr><td style="${S.bodyPad}">
+    <p style="${S.greeting}">Hello ${firstName}! 👋</p>
+    <p style="${S.intro}">You have been pre-registered for <strong>${eventName}</strong>. Please click the button below to complete your registration and make any required payment.</p>
+
+    <!-- Pre-filled Details -->
+    <p style="${S.sectionTitle}">Your Pre-filled Details</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="${S.detailBox}"><tr><td style="${S.detailPad}">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        ${detailRow("Name", `${firstName} ${lastName}`)}
+        ${detailRow("Event", eventName)}
+        ${detailRow("Attendance", attendanceLabel(attendanceType))}
+      </table>
+    </td></tr></table>
+
+    <p style="margin:0 0 28px;color:#52525b;font-size:14px;line-height:1.7;">
+      You'll be able to add your phone number, select your church, and complete any remaining details. ${expiryNote}
+    </p>
+
+    <!-- CTA -->
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:4px 0 8px;">
+      <a href="${fullUrl}" style="${S.cta}">Complete Registration &rarr;</a>
+    </td></tr></table>
+
+    <p style="margin:20px 0 0;color:#94a3b8;font-size:12px;text-align:center;line-height:1.5;">
+      If the button doesn't work, copy this link:<br>
+      <a href="${fullUrl}" style="color:#6366f1;word-break:break-all;">${fullUrl}</a>
+    </p>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="${S.footer}">
+    <p style="${S.footerText}">
+      <span style="${S.footerBold}">FellowFlow</span> — Conference Registration<br>
+      Questions? Reply to this email.
+    </p>
+  </td></tr>
+
+</table>
+</td></tr></table>
+</body>
+</html>`.trim(),
+    });
+
+    if (sendError) {
+      console.error(`❌ Resend API error for prefill invitation to ${to}:`, sendError);
+      throw new Error(sendError.message || "Resend API error");
+    }
+
+    console.log(`📧 Pre-fill invitation email sent to ${to} (id: ${sendResult?.id})`);
+  } catch (error) {
+    console.error("Failed to send prefill invitation email:", error);
+    throw error;
+  }
+}
+
+/* ── Admin notification email ──────────────────────────────────── */
+
 const SA = {
   header: 'background:linear-gradient(135deg,#1e293b 0%,#334155 100%);padding:32px 40px 28px;text-align:center;',
   h1: 'margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.3px;',

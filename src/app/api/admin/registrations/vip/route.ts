@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/admin-guard";
 import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
-import { sendPrefillInvitationEmail } from "@/lib/email/resend";
+import { generateEntitlements } from "@/lib/services/entitlement-generator";
+import { sendConfirmationEmail } from "@/lib/email/resend";
+import { createLogger } from "@/lib/logger";
 
-const PREFILL_TOKEN_EXPIRY_DAYS = 7;
-
-const draftSchema = z.object({
+const vipSchema = z.object({
   eventId: z.string().uuid(),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -17,28 +16,26 @@ const draftSchema = z.object({
   city: z.string().optional(),
   churchId: z.string().uuid().optional(),
   churchNameCustom: z.string().optional(),
-  attendanceType: z.enum(["full_conference", "partial", "kote"]).default("full_conference"),
   notes: z.string().optional(),
-  sendEmail: z.boolean().default(false),
+  sendEmail: z.boolean().default(true),
 });
 
-// POST /api/admin/registrations/draft — create a draft/invited registration
+// POST /api/admin/registrations/vip — create a confirmed VIP registration (no payment)
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAdmin();
     if (!auth.authorized) return auth.response;
 
     const body = await request.json();
-    const parsed = draftSchema.safeParse(body);
+    const parsed = vipSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
 
     const v = parsed.data;
     const supabase = await createClient();
-    const completionToken = uuidv4();
 
-    // Fetch admin profile for invited_by_admin
+    // Fetch admin profile
     const { data: adminProfile } = await supabase
       .from("profiles")
       .select("email, full_name")
@@ -46,12 +43,16 @@ export async function POST(request: NextRequest) {
       .single();
     const adminIdentity = adminProfile?.full_name || adminProfile?.email || auth.userId;
 
-    // Fetch event for email content
-    const { data: event } = await supabase
+    // Fetch event details
+    const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("name, start_date, end_date")
+      .select("*")
       .eq("id", v.eventId)
       .single();
+
+    if (eventError || !event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
 
     // Generate public confirmation code
     const { data: codeResult } = await supabase.rpc("generate_public_confirmation_code", {
@@ -59,16 +60,18 @@ export async function POST(request: NextRequest) {
     });
     const publicCode = codeResult || `FF26-${v.firstName.substring(0, 5).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Determine access tier
-    const accessTier = v.attendanceType === "kote" ? "KOTE_ACCESS" : "FULL_ACCESS";
+    // Resolve church name for email
+    let churchName: string | null = null;
+    if (v.churchId) {
+      const { data: church } = await supabase.from("churches").select("name").eq("id", v.churchId).single();
+      churchName = church?.name || null;
+    } else if (v.churchNameCustom) {
+      churchName = v.churchNameCustom;
+    }
 
-    // Token expiry
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + PREFILL_TOKEN_EXPIRY_DAYS);
+    const now = new Date().toISOString();
 
-    const status = v.sendEmail ? "invited" : "draft";
-
-    const { data, error } = await supabase
+    const { data: registration, error: regError } = await supabase
       .from("registrations")
       .insert({
         event_id: v.eventId,
@@ -76,65 +79,75 @@ export async function POST(request: NextRequest) {
         last_name: v.lastName,
         email: v.email,
         phone: v.phone || null,
-        date_of_birth: "1990-01-01",
-        age_at_event: 36,
+        date_of_birth: "1980-01-01",
+        age_at_event: 45,
         category: "adult",
-        is_full_duration: v.attendanceType === "full_conference",
-        attendance_type: v.attendanceType,
+        is_full_duration: true,
+        attendance_type: "full_conference",
         num_days: null,
         computed_amount: 0,
         explanation_code: "FULL_ADULT",
-        status,
+        explanation_detail: "VIP — payment waived by admin",
+        status: "confirmed",
+        confirmed_at: now,
         gender: v.gender || null,
         city: v.city || null,
         church_id: v.churchId || null,
         church_name_custom: v.churchNameCustom || null,
         public_confirmation_code: publicCode,
-        access_tier: accessTier,
-        completion_token: completionToken,
-        registration_source: "admin_prefill",
+        access_tier: "VIP",
+        registration_source: "admin_direct",
+        payment_waived: true,
         admin_notes: v.notes || null,
-        prefill_token_expires_at: expiresAt.toISOString(),
         invited_by_admin: adminIdentity,
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (regError) throw regError;
 
-    // Build completion link
-    const completionUrl = `/register/complete/${completionToken}`;
+    // Generate entitlements (VIP gets full access to all services)
+    const log = createLogger("vip-registration");
+    try {
+      await generateEntitlements(supabase, registration.id, v.eventId, log);
+    } catch (entErr) {
+      console.error("VIP entitlement generation failed (non-fatal):", entErr);
+    }
 
-    // Send invitation email if requested
+    // Send confirmation email
     let emailSent = false;
-    if (v.sendEmail && event) {
+    if (v.sendEmail) {
       try {
-        await sendPrefillInvitationEmail({
+        await sendConfirmationEmail({
           to: v.email,
           firstName: v.firstName,
           lastName: v.lastName,
           eventName: event.name,
           eventStartDate: event.start_date,
           eventEndDate: event.end_date,
-          attendanceType: v.attendanceType,
-          completionUrl,
-          adminNotes: v.notes,
-          expiresAt: expiresAt.toISOString(),
+          amount: 0,
+          isFree: true,
+          registrationId: registration.id,
+          confirmationCode: publicCode,
+          explanationDetail: "VIP — Complimentary Access",
+          attendanceType: "full_conference",
+          category: "adult",
+          gender: v.gender,
+          city: v.city,
+          churchName,
         });
         emailSent = true;
       } catch (emailErr) {
-        console.error("Failed to send prefill invitation email:", emailErr);
+        console.error("VIP confirmation email failed (non-fatal):", emailErr);
       }
     }
 
     return NextResponse.json({
-      registration: data,
-      completionToken,
-      completionUrl,
+      registration,
       emailSent,
     }, { status: 201 });
   } catch (error) {
-    console.error("Create draft registration error:", error);
-    return NextResponse.json({ error: "Failed to create draft registration" }, { status: 500 });
+    console.error("Create VIP registration error:", error);
+    return NextResponse.json({ error: "Failed to create VIP registration" }, { status: 500 });
   }
 }

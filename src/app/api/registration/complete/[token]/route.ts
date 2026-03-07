@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
+import { computePricing } from "@/lib/pricing/engine";
+import type { Event, PricingConfig } from "@/types/database";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
@@ -10,6 +12,10 @@ const completeSchema = z.object({
   city: z.string().optional(),
   churchId: z.string().uuid().optional(),
   churchNameCustom: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  attendanceType: z.enum(["full_conference", "partial", "kote"]).optional(),
+  isStayingInMotel: z.boolean().optional(),
+  numDays: z.number().int().min(1).optional(),
 });
 
 // GET /api/registration/complete/[token] — fetch draft/invited registration by completion token
@@ -20,7 +26,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
     const { data: reg, error } = await supabase
       .from("registrations")
-      .select("*, events(*)")
+      .select("*, events(*, pricing_config(*))")
       .eq("completion_token", token)
       .in("status", ["draft", "invited"])
       .single();
@@ -29,6 +35,14 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { error: "Registration not found or already completed" },
         { status: 404 }
+      );
+    }
+
+    // Check token expiry
+    if (reg.prefill_token_expires_at && new Date(reg.prefill_token_expires_at) < new Date()) {
+      return NextResponse.json(
+        { error: "This invitation link has expired. Please contact the admin for a new link." },
+        { status: 410 }
       );
     }
 
@@ -49,12 +63,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const parsed = completeSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
 
     const supabase = await createClient();
 
-    // Fetch the registration
+    // Fetch the registration with event + pricing
     const { data: reg, error: fetchError } = await supabase
       .from("registrations")
       .select("*, events(*, pricing_config(*))")
@@ -69,20 +83,80 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // Check token expiry
+    if (reg.prefill_token_expires_at && new Date(reg.prefill_token_expires_at) < new Date()) {
+      return NextResponse.json(
+        { error: "This invitation link has expired." },
+        { status: 410 }
+      );
+    }
+
+    const v = parsed.data;
+    const event = reg.events as unknown as Event & { pricing_config: PricingConfig[] };
+    const pricing = Array.isArray(event.pricing_config) ? event.pricing_config[0] : event.pricing_config;
+
+    // Determine final values (user input overrides admin pre-fill where provided)
+    const dateOfBirth = v.dateOfBirth || reg.date_of_birth;
+    const attendanceType = v.attendanceType || reg.attendance_type;
+    const isFullDuration = attendanceType === "full_conference";
+    const isStayingInMotel = v.isStayingInMotel ?? reg.is_staying_in_motel ?? false;
+    const numDays = v.numDays ?? reg.num_days;
+
+    // Recompute pricing with actual user data
+    let computedAmount = 0;
+    let ageAtEvent = reg.age_at_event;
+    let category = reg.category;
+    let explanationCode = reg.explanation_code;
+    let explanationDetail = reg.explanation_detail;
+    let accessTier = reg.access_tier;
+
+    if (pricing) {
+      const pricingResult = computePricing(
+        {
+          dateOfBirth,
+          isFullDuration,
+          isStayingInMotel,
+          numDays: numDays ?? undefined,
+          attendanceType: attendanceType as "full_conference" | "partial" | "kote",
+        },
+        event,
+        pricing
+      );
+
+      computedAmount = pricingResult.amount;
+      ageAtEvent = pricingResult.ageAtEvent;
+      category = pricingResult.category;
+      explanationCode = pricingResult.explanationCode;
+      explanationDetail = pricingResult.explanationDetail;
+      accessTier = attendanceType === "kote" ? "KOTE_ACCESS" : "FULL_ACCESS";
+    }
+
     // Build update payload
     const updates: Record<string, unknown> = {
-      status: "pending",
+      status: computedAmount === 0 ? "confirmed" : "pending",
+      confirmed_at: computedAmount === 0 ? new Date().toISOString() : null,
       completion_token: null, // Consume the token
+      date_of_birth: dateOfBirth,
+      age_at_event: ageAtEvent,
+      category,
+      attendance_type: attendanceType,
+      is_full_duration: isFullDuration,
+      is_staying_in_motel: isStayingInMotel,
+      num_days: numDays,
+      computed_amount: computedAmount,
+      explanation_code: explanationCode,
+      explanation_detail: explanationDetail,
+      access_tier: accessTier,
     };
 
-    if (parsed.data.phone) updates.phone = parsed.data.phone;
-    if (parsed.data.gender) updates.gender = parsed.data.gender;
-    if (parsed.data.city) updates.city = parsed.data.city;
-    if (parsed.data.churchId) {
-      updates.church_id = parsed.data.churchId;
+    if (v.phone) updates.phone = v.phone;
+    if (v.gender) updates.gender = v.gender;
+    if (v.city) updates.city = v.city;
+    if (v.churchId) {
+      updates.church_id = v.churchId;
       updates.church_name_custom = null;
-    } else if (parsed.data.churchNameCustom) {
-      updates.church_name_custom = parsed.data.churchNameCustom;
+    } else if (v.churchNameCustom) {
+      updates.church_name_custom = v.churchNameCustom;
       updates.church_id = null;
     }
 

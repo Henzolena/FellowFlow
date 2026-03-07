@@ -62,6 +62,8 @@ export type Gender = 'male' | 'female';
 
 export type RegistrationStatus = 'draft' | 'invited' | 'pending' | 'confirmed' | 'cancelled' | 'refunded';
 
+export type RegistrationSource = 'self' | 'admin_prefill' | 'admin_direct';
+
 export type SurchargeTier = {
   start_date: string;
   end_date: string;
@@ -126,6 +128,11 @@ export type Registration = {
   public_confirmation_code: string;
   access_tier: AccessTier | null;
   completion_token: string | null;
+  registration_source: RegistrationSource;
+  payment_waived: boolean;
+  admin_notes: string | null;
+  prefill_token_expires_at: string | null;
+  invited_by_admin: string | null;
   checked_in: boolean;
   checked_in_at: string | null;
   created_at: string;
