@@ -108,7 +108,7 @@ function RegistrationsContent() {
 
   useEffect(() => {
     fetch("/api/admin/events").then(r => r.ok ? r.json() : []).then(d => setEvents(Array.isArray(d) ? d : d.events || []));
-    fetch("/api/churches").then(r => r.ok ? r.json() : []).then(d => setChurches(Array.isArray(d) ? d : []));
+    fetch("/api/churches").then(r => r.ok ? r.json() : []).then(d => setChurches(Array.isArray(d) ? d : d.churches || []));
   }, []);
 
   const fetchRegistrations = useCallback(async () => {
