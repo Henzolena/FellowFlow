@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { generateRegistrationBadgePDF, type BadgeData } from "@/lib/pdf/registration-badge";
 
 let resendClient: Resend | null = null;
 
@@ -135,11 +136,42 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
     ? `${formatDate(eventStartDate)} — ${formatDate(eventEndDate)}`
     : null;
 
+  // Generate PDF badge with barcode
+  let pdfAttachment: { filename: string; content: Buffer }[] = [];
+  if (displayCode) {
+    try {
+      const badgeData: BadgeData = {
+        firstName,
+        lastName,
+        confirmationCode: displayCode,
+        eventName,
+        eventStartDate,
+        eventEndDate,
+        category,
+        attendanceType,
+        gender,
+        city,
+        churchName,
+        amount,
+        isFree,
+      };
+      const pdfBytes = await generateRegistrationBadgePDF(badgeData);
+      const safeName = `${firstName}_${lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+      pdfAttachment = [{
+        filename: `Registration_Badge_${safeName}.pdf`,
+        content: Buffer.from(pdfBytes),
+      }];
+    } catch (pdfErr) {
+      console.error("PDF badge generation failed (continuing without attachment):", pdfErr);
+    }
+  }
+
   try {
     const { data: sendResult, error: sendError } = await resend.emails.send({
       from: FROM_ADDRESS,
       to,
       subject: `Registration Confirmed — ${eventName}`,
+      attachments: pdfAttachment.length > 0 ? pdfAttachment : undefined,
       html: `
 <!DOCTYPE html>
 <html lang="en">
@@ -163,7 +195,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
   <!-- Body -->
   <tr><td style="${S.bodyPad}">
     <p style="${S.greeting}">Hello ${firstName}! 👋</p>
-    <p style="${S.intro}">Your registration has been confirmed. Please keep this email — you'll need your confirmation code for check-in.</p>
+    <p style="${S.intro}">Your registration has been confirmed. Please keep this email — you'll need your confirmation code for check-in. Your registration badge is attached as a PDF.</p>
 
     <!-- Confirmation Code -->
     <table width="100%" cellpadding="0" cellspacing="0" style="${S.codeBox}"><tr><td>
@@ -310,11 +342,43 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
         </tr>`
       : "";
 
+  // Generate PDF badges for each member
+  const pdfAttachments: { filename: string; content: Buffer }[] = [];
+  for (const m of members) {
+    if (!m.confirmationCode) continue;
+    try {
+      const badgeData: BadgeData = {
+        firstName: m.firstName,
+        lastName: m.lastName,
+        confirmationCode: m.confirmationCode,
+        eventName,
+        eventStartDate,
+        eventEndDate,
+        category: m.category,
+        attendanceType: m.attendance,
+        gender: m.gender,
+        city: m.city,
+        churchName: m.churchName,
+        amount: m.amount,
+        isFree,
+      };
+      const pdfBytes = await generateRegistrationBadgePDF(badgeData);
+      const safeName = `${m.firstName}_${m.lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+      pdfAttachments.push({
+        filename: `Registration_Badge_${safeName}.pdf`,
+        content: Buffer.from(pdfBytes),
+      });
+    } catch (pdfErr) {
+      console.error(`PDF badge generation failed for ${m.firstName} ${m.lastName}:`, pdfErr);
+    }
+  }
+
   try {
     const { data: sendResult, error: sendError } = await resend.emails.send({
       from: FROM_ADDRESS,
       to,
       subject: `Group Registration Confirmed — ${eventName}`,
+      attachments: pdfAttachments.length > 0 ? pdfAttachments : undefined,
       html: `
 <!DOCTYPE html>
 <html lang="en">
@@ -337,7 +401,7 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
 
   <!-- Body -->
   <tr><td style="${S.bodyPad}">
-    <p style="${S.intro}">Your group registration has been confirmed. Each member's individual confirmation code is listed below — they'll need it at check-in.</p>
+    <p style="${S.intro}">Your group registration has been confirmed. Each member's individual confirmation code is listed below — they'll need it at check-in. Registration badges are attached as PDFs.</p>
 
     ${primaryConfirmationCode ? `
     <!-- Primary Code -->
