@@ -178,10 +178,12 @@ export default function CheckInPage() {
   useEffect(() => {
     if (mode !== "scanner" || !scannerActive) return;
 
-    let scanner: { stop: () => Promise<void>; clear: () => void } | null = null;
+    let scanner: { stop: () => Promise<void>; clear: () => void; getState: () => number } | null = null;
+    let cancelled = false;
 
     async function startScanner() {
       const { Html5Qrcode } = await import("html5-qrcode");
+      if (cancelled) return;
       const s = new Html5Qrcode("qr-reader");
       html5QrRef.current = s;
       scanner = s;
@@ -212,9 +214,15 @@ export default function CheckInPage() {
     startScanner();
 
     return () => {
+      cancelled = true;
       if (scanner) {
-        scanner.stop().catch(() => {});
-        scanner.clear();
+        // State 2 = SCANNING in html5-qrcode
+        const isScanning = scanner.getState?.() === 2;
+        if (isScanning) {
+          scanner.stop().then(() => scanner?.clear()).catch(() => {});
+        } else {
+          try { scanner.clear(); } catch { /* already cleared */ }
+        }
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
