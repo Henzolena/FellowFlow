@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, AlertTriangle, Calendar, Users, Building2, ShieldCheck } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, Calendar, Users, Building2, ShieldCheck, Lock } from "lucide-react";
 import type { Registration, Event, Church, PricingConfig } from "@/types/database";
 
 type CompletionData = {
@@ -52,6 +52,9 @@ export default function CompletePage({ params }: { params: Promise<{ token: stri
   const [verifyingCode, setVerifyingCode] = useState(false);
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [codeDigits, setCodeDigits] = useState(["", "", "", "", "", ""]);
+
+  // Track which fields were pre-filled by admin (locked for user)
+  const [prefilled, setPrefilled] = useState<Record<string, boolean>>({});
 
   // Form fields
   const [phone, setPhone] = useState("");
@@ -98,16 +101,28 @@ export default function CompletePage({ params }: { params: Promise<{ token: stri
 
   async function loadFullData(regData: CompletionData) {
     setData(regData);
-    if (regData.registration.phone) setPhone(regData.registration.phone);
-    if (regData.registration.gender) setGender(regData.registration.gender);
-    if (regData.registration.city) setCity(regData.registration.city);
-    if (regData.registration.church_id) setChurchId(regData.registration.church_id);
-    if (regData.registration.attendance_type) setAttendanceType(regData.registration.attendance_type);
+    const r = regData.registration;
+
+    // Track which fields the admin pre-filled (these will be locked)
+    const pf: Record<string, boolean> = {};
+    // name + email are always admin-set for prefill registrations
+    pf.name = true;
+    pf.email = true;
+    // attendance_type is always set by admin (defaults to full_conference)
+    if (r.attendance_type) { setAttendanceType(r.attendance_type); pf.attendance = true; }
+    if (r.phone) { setPhone(r.phone); pf.phone = true; }
+    if (r.gender) { setGender(r.gender); pf.gender = true; }
+    if (r.city) { setCity(r.city); pf.city = true; }
+    if (r.church_id) { setChurchId(r.church_id); pf.church = true; }
+    if (r.church_name_custom) { setChurchId("other"); setChurchCustom(r.church_name_custom); pf.church = true; }
+    setPrefilled(pf);
+
+    // Fetch churches for dropdown
     try {
       const churchRes = await fetch("/api/churches");
       if (churchRes.ok) {
         const ch = await churchRes.json();
-        setChurches(Array.isArray(ch) ? ch : []);
+        setChurches(Array.isArray(ch) ? ch : ch.churches || []);
       }
     } catch { /* ignore */ }
   }
@@ -194,21 +209,26 @@ export default function CompletePage({ params }: { params: Promise<{ token: stri
       : undefined;
 
     try {
+      // Only send fields that the user can edit (not admin-prefilled)
+      const payload: Record<string, unknown> = {
+        invitationCode: invitationCode || "000000",
+        dateOfBirth,
+        isStayingInMotel: showMotelField ? isStayingInMotel : undefined,
+        numDays: showPartialFields && numDays ? parseInt(numDays) : undefined,
+      };
+      if (!prefilled.attendance) payload.attendanceType = attendanceType || undefined;
+      if (!prefilled.phone) payload.phone = phone || undefined;
+      if (!prefilled.gender) payload.gender = gender || undefined;
+      if (!prefilled.city) payload.city = city || undefined;
+      if (!prefilled.church) {
+        payload.churchId = churchId && churchId !== "other" ? churchId : undefined;
+        payload.churchNameCustom = churchId === "other" ? churchCustom : undefined;
+      }
+
       const res = await fetch("/api/registration/complete/" + token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          invitationCode: invitationCode || "000000",
-          phone: phone || undefined,
-          gender: gender || undefined,
-          city: city || undefined,
-          churchId: churchId && churchId !== "other" ? churchId : undefined,
-          churchNameCustom: churchId === "other" ? churchCustom : undefined,
-          dateOfBirth,
-          attendanceType: attendanceType || undefined,
-          isStayingInMotel: showMotelField ? isStayingInMotel : undefined,
-          numDays: showPartialFields && numDays ? parseInt(numDays) : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -339,13 +359,56 @@ export default function CompletePage({ params }: { params: Promise<{ token: stri
 
         {/* Pre-filled info banner */}
         <Card className="border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20">
-          <CardContent className="py-4 px-5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400 mb-2">Pre-filled by Admin</p>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">{reg.first_name} {reg.last_name}</Badge>
-              <Badge variant="outline">{reg.email}</Badge>
-              <Badge variant="outline" className="capitalize">{reg.attendance_type.replace("_", " ")}</Badge>
+          <CardContent className="py-4 px-5 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400 flex items-center gap-1.5">
+              <Lock className="h-3 w-3" />
+              Pre-filled by Admin
+            </p>
+            <div className="grid grid-cols-1 gap-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Name</span>
+                <span className="font-medium">{reg.first_name} {reg.last_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Email</span>
+                <span className="font-medium">{reg.email}</span>
+              </div>
+              {prefilled.attendance && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Attendance</span>
+                  <span className="font-medium capitalize">{reg.attendance_type.replace("_", " ")}</span>
+                </div>
+              )}
+              {prefilled.phone && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Phone</span>
+                  <span className="font-medium">{reg.phone}</span>
+                </div>
+              )}
+              {prefilled.gender && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Gender</span>
+                  <span className="font-medium capitalize">{reg.gender}</span>
+                </div>
+              )}
+              {prefilled.city && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">City</span>
+                  <span className="font-medium">{reg.city}</span>
+                </div>
+              )}
+              {prefilled.church && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Church</span>
+                  <span className="font-medium">
+                    {reg.church_name_custom || churches.find(c => c.id === reg.church_id)?.name || "Selected"}
+                  </span>
+                </div>
+              )}
             </div>
+            <p className="text-xs text-violet-500 dark:text-violet-400">
+              These details were set by the admin and cannot be changed. Contact the admin if corrections are needed.
+            </p>
           </CardContent>
         </Card>
 
@@ -357,7 +420,7 @@ export default function CompletePage({ params }: { params: Promise<{ token: stri
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
-            {/* Age Range */}
+            {/* Age Range — always user-editable */}
             <div className="space-y-2">
               <Label className="font-medium">Age Range <span className="text-destructive">*</span></Label>
               <Select value={ageRangeIdx} onValueChange={setAgeRangeIdx}>
@@ -370,23 +433,25 @@ export default function CompletePage({ params }: { params: Promise<{ token: stri
               </Select>
             </div>
 
-            {/* Attendance Type */}
-            <div className="space-y-2">
-              <Label className="font-medium flex items-center gap-1.5">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                Attendance Type
-              </Label>
-              <Select value={attendanceType} onValueChange={setAttendanceType}>
-                <SelectTrigger><SelectValue placeholder="Select attendance type" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="full_conference">Full Conference</SelectItem>
-                  <SelectItem value="partial">Partial Attendance</SelectItem>
-                  <SelectItem value="kote">KOTE / Walk-in</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Attendance Type — locked if admin set it */}
+            {!prefilled.attendance && (
+              <div className="space-y-2">
+                <Label className="font-medium flex items-center gap-1.5">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  Attendance Type
+                </Label>
+                <Select value={attendanceType} onValueChange={setAttendanceType}>
+                  <SelectTrigger><SelectValue placeholder="Select attendance type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="full_conference">Full Conference</SelectItem>
+                    <SelectItem value="partial">Partial Attendance</SelectItem>
+                    <SelectItem value="kote">KOTE / Walk-in</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-            {/* Partial: number of days */}
+            {/* Partial: number of days — always user-editable */}
             {showPartialFields && (
               <div className="space-y-2">
                 <Label className="font-medium">Number of Days</Label>
@@ -401,7 +466,7 @@ export default function CompletePage({ params }: { params: Promise<{ token: stri
               </div>
             )}
 
-            {/* Motel */}
+            {/* Motel — always user-editable */}
             {showMotelField && (
               <div className="space-y-2">
                 <Label className="font-medium flex items-center gap-1.5">
@@ -423,51 +488,59 @@ export default function CompletePage({ params }: { params: Promise<{ token: stri
 
             <hr className="border-border" />
 
-            {/* Personal details */}
+            {/* Personal details — only show fields not pre-filled by admin */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Optional" />
-              </div>
-              <div className="space-y-2">
-                <Label>Gender</Label>
-                <Select value={gender} onValueChange={setGender}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>City</Label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Your city" />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Church</Label>
-              <Select value={churchId} onValueChange={setChurchId}>
-                <SelectTrigger><SelectValue placeholder="Select church" /></SelectTrigger>
-                <SelectContent>
-                  {churches.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}{c.city ? ` (${c.city})` : ""}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              {churchId === "other" && (
-                <Input
-                  value={churchCustom}
-                  onChange={(e) => setChurchCustom(e.target.value)}
-                  placeholder="Church name"
-                  className="mt-2"
-                />
+              {!prefilled.phone && (
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Optional" />
+                </div>
+              )}
+              {!prefilled.gender && (
+                <div className="space-y-2">
+                  <Label>Gender</Label>
+                  <Select value={gender} onValueChange={setGender}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
             </div>
+
+            {!prefilled.city && (
+              <div className="space-y-2">
+                <Label>City</Label>
+                <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Your city" />
+              </div>
+            )}
+
+            {!prefilled.church && (
+              <div className="space-y-2">
+                <Label>Church</Label>
+                <Select value={churchId} onValueChange={setChurchId}>
+                  <SelectTrigger><SelectValue placeholder="Select church" /></SelectTrigger>
+                  <SelectContent>
+                    {churches.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}{c.city ? ` (${c.city})` : ""}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                {churchId === "other" && (
+                  <Input
+                    value={churchCustom}
+                    onChange={(e) => setChurchCustom(e.target.value)}
+                    placeholder="Church name"
+                    className="mt-2"
+                  />
+                )}
+              </div>
+            )}
 
             {error && (
               <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>

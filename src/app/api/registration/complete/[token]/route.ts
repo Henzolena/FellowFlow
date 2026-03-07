@@ -137,9 +137,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const event = reg.events as unknown as Event & { pricing_config: PricingConfig[] };
     const pricing = Array.isArray(event.pricing_config) ? event.pricing_config[0] : event.pricing_config;
 
-    // Determine final values (user input overrides admin pre-fill where provided)
+    // Server-side enforcement: admin-prefilled fields cannot be changed by user.
+    // Only allow user input for fields that were NULL/empty in the admin draft.
+    // attendance_type is always set by admin → always use DB value.
     const dateOfBirth = v.dateOfBirth || reg.date_of_birth;
-    const attendanceType = v.attendanceType || reg.attendance_type;
+    const attendanceType = reg.attendance_type; // Always use admin's value
     const isFullDuration = attendanceType === "full_conference";
     const isStayingInMotel = v.isStayingInMotel ?? reg.is_staying_in_motel ?? false;
     const numDays = v.numDays ?? reg.num_days;
@@ -192,15 +194,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       access_tier: accessTier,
     };
 
-    if (v.phone) updates.phone = v.phone;
-    if (v.gender) updates.gender = v.gender;
-    if (v.city) updates.city = v.city;
-    if (v.churchId) {
-      updates.church_id = v.churchId;
-      updates.church_name_custom = null;
-    } else if (v.churchNameCustom) {
-      updates.church_name_custom = v.churchNameCustom;
-      updates.church_id = null;
+    // Only allow user to set fields that admin left empty
+    if (v.phone && !reg.phone) updates.phone = v.phone;
+    if (v.gender && !reg.gender) updates.gender = v.gender;
+    if (v.city && !reg.city) updates.city = v.city;
+    if (!reg.church_id && !reg.church_name_custom) {
+      if (v.churchId) {
+        updates.church_id = v.churchId;
+        updates.church_name_custom = null;
+      } else if (v.churchNameCustom) {
+        updates.church_name_custom = v.churchNameCustom;
+        updates.church_id = null;
+      }
     }
 
     // Update the registration
