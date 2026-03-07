@@ -115,15 +115,27 @@ export default function ServiceScannerPage() {
   const loadServices = useCallback(async () => {
     if (!selectedEventId) return;
     setLoadingServices(true);
-    const res = await fetch(`/api/admin/services?eventId=${selectedEventId}`);
-    const json = await res.json();
-    const svcs = (json.services || []).filter((s: ServiceOption & { is_active: boolean }) => s.is_active);
-    setServices(svcs);
-    if (svcs.length > 0 && !svcs.find((s: ServiceOption) => s.id === selectedServiceId)) {
-      setSelectedServiceId(svcs[0].id);
+    try {
+      const res = await fetch(`/api/admin/services?eventId=${selectedEventId}`);
+      if (!res.ok) {
+        console.error("Failed to load services:", res.status);
+        setLoadingServices(false);
+        return;
+      }
+      const json = await res.json();
+      const svcs = (json.services || []).filter((s: ServiceOption & { is_active: boolean }) => s.is_active);
+      setServices(svcs);
+      if (svcs.length > 0) {
+        setSelectedServiceId((prev) => {
+          if (prev && svcs.find((s: ServiceOption) => s.id === prev)) return prev;
+          return svcs[0].id;
+        });
+      }
+    } catch (err) {
+      console.error("Load services error:", err);
     }
     setLoadingServices(false);
-  }, [selectedEventId, selectedServiceId]);
+  }, [selectedEventId]);
 
   useEffect(() => {
     loadServices();
