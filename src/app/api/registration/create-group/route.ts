@@ -197,85 +197,78 @@ export async function POST(request: NextRequest) {
 
     // Generate service entitlements for free registrations (paid ones get entitlements via webhook)
     if (isFreeGroup) {
-      generateGroupEntitlements(adminClient, groupId, data.eventId, log).catch((e) =>
-        log.error("Free group entitlement generation failed", { groupId, error: String(e) })
-      );
+      try {
+        await generateGroupEntitlements(adminClient, groupId, data.eventId, log);
+      } catch (e) {
+        log.error("Free group entitlement generation failed", { groupId, error: String(e) });
+      }
     }
 
     // Send confirmation email for free registrations
     if (isFreeGroup) {
-      if (registrations.length === 1) {
-        // Solo registrant — send individual confirmation email
-        const r = registrations[0];
-        sendConfirmationEmail({
-          to: data.email,
-          firstName: r.first_name,
-          lastName: r.last_name,
-          eventName: event.name,
-          amount: Number(r.computed_amount),
-          isFree: true,
-          registrationId: r.id,
-          explanationDetail: r.explanation_detail,
-        }).then(() => {
-          log.info("Free solo confirmation email sent", { registrationId: r.id });
-          adminClient.from("email_logs").insert({
-            recipient: data.email,
-            email_type: "confirmation_free",
-            registration_id: r.id,
-            status: "sent",
-          });
-        }).catch((err) => {
-          log.error("Free solo confirmation email failed", { registrationId: r.id, error: err instanceof Error ? err.message : String(err) });
-          adminClient.from("email_logs").insert({
-            recipient: data.email,
-            email_type: "confirmation_free",
-            registration_id: r.id,
-            status: "failed",
-            error_message: err instanceof Error ? err.message : String(err),
-          });
-        });
-      } else {
-        // Multiple registrants — send consolidated group receipt
-        function attendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null }): string {
-          if (r.is_full_duration) return "Full Conference";
-          if (r.is_staying_in_motel) return "Partial — Motel";
-          return `${r.num_days} Day(s)`;
-        }
-
-        sendGroupReceiptEmail({
-          to: data.email,
-          eventName: event.name,
-          members: registrations.map((r) => ({
+      try {
+        if (registrations.length === 1) {
+          // Solo registrant — send individual confirmation email
+          const r = registrations[0];
+          await sendConfirmationEmail({
+            to: data.email,
             firstName: r.first_name,
             lastName: r.last_name,
-            category: r.category,
-            ageAtEvent: r.age_at_event,
+            eventName: event.name,
             amount: Number(r.computed_amount),
-            attendance: attendanceLabel(r),
-          })),
-          subtotal: groupPricing.subtotal,
-          surcharge: groupPricing.surcharge,
-          surchargeLabel: groupPricing.surchargeLabel,
-          grandTotal: groupPricing.grandTotal,
-          isFree: true,
-          primaryRegistrationId: registrations[0].id,
-        }).then(() => {
+            isFree: true,
+            registrationId: r.id,
+            explanationDetail: r.explanation_detail,
+          });
+          log.info("Free solo confirmation email sent", { registrationId: r.id });
+          await adminClient.from("email_logs").insert({
+            recipient: data.email,
+            email_type: "confirmation_free",
+            registration_id: r.id,
+            status: "sent",
+          });
+        } else {
+          // Multiple registrants — send consolidated group receipt
+          function attendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null }): string {
+            if (r.is_full_duration) return "Full Conference";
+            if (r.is_staying_in_motel) return "Partial — Motel";
+            return `${r.num_days} Day(s)`;
+          }
+
+          await sendGroupReceiptEmail({
+            to: data.email,
+            eventName: event.name,
+            members: registrations.map((r) => ({
+              firstName: r.first_name,
+              lastName: r.last_name,
+              category: r.category,
+              ageAtEvent: r.age_at_event,
+              amount: Number(r.computed_amount),
+              attendance: attendanceLabel(r),
+            })),
+            subtotal: groupPricing.subtotal,
+            surcharge: groupPricing.surcharge,
+            surchargeLabel: groupPricing.surchargeLabel,
+            grandTotal: groupPricing.grandTotal,
+            isFree: true,
+            primaryRegistrationId: registrations[0].id,
+          });
           log.info("Free group receipt email sent", { groupId, memberCount: registrations.length });
-          adminClient.from("email_logs").insert({
+          await adminClient.from("email_logs").insert({
             recipient: data.email,
             email_type: "group_receipt_free",
             group_id: groupId,
             status: "sent",
           });
-        }).catch((err) => {
-          log.error("Free group receipt email failed", { groupId, error: err instanceof Error ? err.message : String(err) });
-          adminClient.from("email_logs").insert({
-            recipient: data.email,
-            email_type: "group_receipt_free",
-            group_id: groupId,
-            status: "failed",
-            error_message: err instanceof Error ? err.message : String(err),
-          });
+        }
+      } catch (err) {
+        log.error("Free registration email failed", { groupId, error: err instanceof Error ? err.message : String(err) });
+        await adminClient.from("email_logs").insert({
+          recipient: data.email,
+          email_type: registrations.length === 1 ? "confirmation_free" : "group_receipt_free",
+          group_id: groupId,
+          status: "failed",
+          error_message: err instanceof Error ? err.message : String(err),
         });
       }
     }

@@ -61,26 +61,30 @@ export async function POST(request: NextRequest) {
         if (groupId) {
           await confirmGroupRegistrations(supabase, groupId, log);
           log.info("Group confirmed", { groupId, stripeEventId });
-          // 3c. Generate service entitlements (fire-and-forget)
+          // 3c. Generate service entitlements
           if (eventId) {
-            generateGroupEntitlements(supabase, groupId, eventId, log).catch((e) =>
-              log.error("Entitlement generation failed", { groupId, error: String(e) })
-            );
+            try {
+              await generateGroupEntitlements(supabase, groupId, eventId, log);
+            } catch (e) {
+              log.error("Entitlement generation failed", { groupId, error: String(e) });
+            }
           }
-          // 3d. Send group notification (fire-and-forget)
-          dispatchGroupConfirmation(supabase, groupId, log);
+          // 3d. Send group notification
+          await dispatchGroupConfirmation(supabase, groupId, log);
         } else {
           const registrationId = session.metadata?.registration_id;
           if (registrationId) {
             await confirmSoloRegistration(supabase, registrationId, log);
-            // 3c. Generate service entitlements (fire-and-forget)
+            // 3c. Generate service entitlements
             if (eventId) {
-              generateEntitlements(supabase, registrationId, eventId, log).catch((e) =>
-                log.error("Entitlement generation failed", { registrationId, error: String(e) })
-              );
+              try {
+                await generateEntitlements(supabase, registrationId, eventId, log);
+              } catch (e) {
+                log.error("Entitlement generation failed", { registrationId, error: String(e) });
+              }
             }
-            // 3d. Send solo notification (fire-and-forget)
-            dispatchSoloConfirmation(supabase, registrationId, log);
+            // 3d. Send solo notification
+            await dispatchSoloConfirmation(supabase, registrationId, log);
           }
         }
         break;
