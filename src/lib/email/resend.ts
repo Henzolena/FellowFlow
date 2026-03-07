@@ -16,15 +16,92 @@ function getResend(): Resend | null {
 
 const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL || "FellowFlow <noreply@fellowflow.com>";
 
-type ConfirmationEmailParams = {
+/* ── Shared styles ─────────────────────────────────────────────────── */
+
+const S = {
+  body: 'margin:0;padding:0;background:#f0f0f5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;',
+  wrapper: 'background:#f0f0f5;padding:40px 16px;',
+  card: 'max-width:600px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);',
+  header: 'background:linear-gradient(135deg,#0ea5e9 0%,#6366f1 50%,#8b5cf6 100%);padding:40px 40px 36px;text-align:center;',
+  h1: 'margin:0;color:#ffffff;font-size:26px;font-weight:800;letter-spacing:-0.3px;',
+  headerSub: 'margin:10px 0 0;color:rgba(255,255,255,0.9);font-size:14px;font-weight:500;',
+  bodyPad: 'padding:36px 40px 28px;',
+  greeting: 'margin:0 0 6px;color:#18181b;font-size:17px;font-weight:600;',
+  intro: 'margin:0 0 28px;color:#52525b;font-size:15px;line-height:1.7;',
+  sectionTitle: 'margin:0 0 12px;color:#18181b;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;',
+  detailBox: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin:0 0 24px;',
+  detailPad: 'padding:20px 24px;',
+  rowLabel: 'padding:7px 0;color:#64748b;font-size:13px;vertical-align:top;width:40%;',
+  rowValue: 'padding:7px 0;color:#18181b;font-size:13px;text-align:right;font-weight:600;',
+  divider: 'padding:10px 0 0;border-top:1px solid #e2e8f0;',
+  codeBox: 'background:linear-gradient(135deg,#f0f9ff,#ede9fe);border:2px dashed #a5b4fc;border-radius:12px;padding:20px;text-align:center;margin:0 0 28px;',
+  codeLabel: 'margin:0 0 6px;color:#6366f1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;',
+  codeValue: 'margin:0;color:#1e1b4b;font-size:22px;font-weight:800;font-family:"SF Mono",Monaco,Consolas,monospace;letter-spacing:1.5px;',
+  amountBox: 'background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #bbf7d0;border-radius:12px;padding:20px;text-align:center;margin:0 0 28px;',
+  amountLabel: 'margin:0 0 4px;color:#16a34a;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;',
+  amountValue: 'margin:0;color:#15803d;font-size:32px;font-weight:800;',
+  cta: 'display:inline-block;background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:10px;font-size:15px;font-weight:700;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(99,102,241,0.35);',
+  footer: 'padding:24px 40px;background:#fafafa;border-top:1px solid #f0f0f0;text-align:center;',
+  footerText: 'margin:0;color:#94a3b8;font-size:12px;line-height:1.6;',
+  footerBold: 'color:#64748b;font-weight:600;',
+} as const;
+
+function detailRow(label: string, value: string | null | undefined): string {
+  if (!value) return "";
+  return `<tr><td style="${S.rowLabel}">${label}</td><td style="${S.rowValue}">${value}</td></tr>`;
+}
+
+function formatDate(dateStr: string): string {
+  try {
+    return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+function attendanceLabel(type: string): string {
+  switch (type) {
+    case "full_conference": return "Full Conference";
+    case "partial": return "Partial Attendance";
+    case "kote": return "KOTE / Walk-in";
+    default: return type;
+  }
+}
+
+function categoryLabel(cat: string): string {
+  switch (cat) {
+    case "adult": return "Adult";
+    case "youth": return "Youth";
+    case "child": return "Child";
+    case "infant": return "Infant";
+    default: return cat;
+  }
+}
+
+/* ── Solo confirmation email ─────────────────────────────────────── */
+
+export type ConfirmationEmailParams = {
   to: string;
   firstName: string;
   lastName: string;
   eventName: string;
+  eventStartDate?: string;
+  eventEndDate?: string;
   amount: number;
   isFree: boolean;
   registrationId: string;
+  confirmationCode?: string;
   explanationDetail: string | null;
+  attendanceType?: string;
+  category?: string;
+  gender?: string | null;
+  city?: string | null;
+  churchName?: string | null;
 };
 
 export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
@@ -36,16 +113,27 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
     firstName,
     lastName,
     eventName,
+    eventStartDate,
+    eventEndDate,
     amount,
     isFree,
     registrationId,
+    confirmationCode,
     explanationDetail,
+    attendanceType,
+    category,
+    gender,
+    city,
+    churchName,
   } = params;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const receiptUrl = `${appUrl}/register/receipt/${registrationId}`;
-
   const amountDisplay = isFree ? "FREE" : `$${Number(amount).toFixed(2)}`;
+  const displayCode = confirmationCode || registrationId;
+  const dateRange = eventStartDate && eventEndDate
+    ? `${formatDate(eventStartDate)} — ${formatDate(eventEndDate)}`
+    : null;
 
   try {
     await resend.emails.send({
@@ -54,117 +142,103 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
       subject: `Registration Confirmed — ${eventName}`,
       html: `
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-          <!-- Header -->
-          <tr>
-            <td style="background:linear-gradient(135deg,#0ea5e9,#6366f1);padding:32px 40px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">Registration Confirmed</h1>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding:32px 40px;">
-              <p style="margin:0 0 16px;color:#18181b;font-size:16px;">
-                Hi <strong>${firstName}</strong>,
-              </p>
-              <p style="margin:0 0 24px;color:#3f3f46;font-size:15px;line-height:1.6;">
-                Your registration for <strong>${eventName}</strong> has been confirmed.
-              </p>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="${S.body}">
+<table width="100%" cellpadding="0" cellspacing="0" style="${S.wrapper}"><tr><td align="center">
+<table cellpadding="0" cellspacing="0" style="${S.card}">
 
-              <!-- Details card -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;margin:0 0 24px;">
-                <tr>
-                  <td style="padding:20px;">
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="padding:4px 0;color:#71717a;font-size:13px;">Attendee</td>
-                        <td style="padding:4px 0;color:#18181b;font-size:13px;text-align:right;font-weight:600;">${firstName} ${lastName}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:4px 0;color:#71717a;font-size:13px;">Event</td>
-                        <td style="padding:4px 0;color:#18181b;font-size:13px;text-align:right;font-weight:600;">${eventName}</td>
-                      </tr>
-                      ${explanationDetail ? `
-                      <tr>
-                        <td style="padding:4px 0;color:#71717a;font-size:13px;">Details</td>
-                        <td style="padding:4px 0;color:#18181b;font-size:13px;text-align:right;">${explanationDetail}</td>
-                      </tr>` : ""}
-                      <tr>
-                        <td colspan="2" style="padding:12px 0 0;border-top:1px solid #e4e4e7;"></td>
-                      </tr>
-                      <tr>
-                        <td style="padding:4px 0;color:#71717a;font-size:14px;font-weight:600;">Amount</td>
-                        <td style="padding:4px 0;color:#0ea5e9;font-size:18px;text-align:right;font-weight:700;">${amountDisplay}</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
+  <!-- Header -->
+  <tr><td style="${S.header}">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+      <div style="display:inline-block;background:rgba(255,255,255,0.2);border-radius:50%;padding:12px;margin:0 0 16px;">
+        <img src="https://img.icons8.com/fluency/48/checked--v1.png" width="32" height="32" alt="" style="display:block;" />
+      </div>
+    </td></tr></table>
+    <h1 style="${S.h1}">Registration Confirmed</h1>
+    <p style="${S.headerSub}">${eventName}</p>
+    ${dateRange ? `<p style="${S.headerSub}">${dateRange}</p>` : ""}
+  </td></tr>
 
-              <p style="margin:0 0 8px;color:#71717a;font-size:12px;">Confirmation ID</p>
-              <p style="margin:0 0 24px;color:#3f3f46;font-size:12px;font-family:monospace;word-break:break-all;">${registrationId}</p>
+  <!-- Body -->
+  <tr><td style="${S.bodyPad}">
+    <p style="${S.greeting}">Hello ${firstName}! 👋</p>
+    <p style="${S.intro}">Your registration has been confirmed. Please keep this email — you'll need your confirmation code for check-in.</p>
 
-              <!-- CTA -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="center" style="padding:8px 0 0;">
-                    <a href="${receiptUrl}" style="display:inline-block;background:#0ea5e9;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">
-                      View Receipt
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="padding:20px 40px;background:#fafafa;border-top:1px solid #f0f0f0;text-align:center;">
-              <p style="margin:0;color:#a1a1aa;font-size:12px;">
-                FellowFlow — Conference Registration
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+    <!-- Confirmation Code -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="${S.codeBox}"><tr><td>
+      <p style="${S.codeLabel}">Your Confirmation Code</p>
+      <p style="${S.codeValue}">${displayCode}</p>
+    </td></tr></table>
+
+    <!-- Amount -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="${S.amountBox}"><tr><td>
+      <p style="${S.amountLabel}">Amount ${isFree ? "" : "Paid"}</p>
+      <p style="${S.amountValue}">${amountDisplay}</p>
+    </td></tr></table>
+
+    <!-- Details -->
+    <p style="${S.sectionTitle}">Registration Details</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="${S.detailBox}"><tr><td style="${S.detailPad}">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        ${detailRow("Name", `${firstName} ${lastName}`)}
+        ${detailRow("Event", eventName)}
+        ${detailRow("Attendance", attendanceType ? attendanceLabel(attendanceType) : null)}
+        ${detailRow("Category", category ? categoryLabel(category) : null)}
+        ${detailRow("Gender", gender ? (gender.charAt(0).toUpperCase() + gender.slice(1)) : null)}
+        ${detailRow("City", city)}
+        ${detailRow("Church", churchName)}
+        ${explanationDetail ? detailRow("Pricing", explanationDetail) : ""}
+      </table>
+    </td></tr></table>
+
+    <!-- CTA -->
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:4px 0 8px;">
+      <a href="${receiptUrl}" style="${S.cta}">View Full Receipt &rarr;</a>
+    </td></tr></table>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="${S.footer}">
+    <p style="${S.footerText}">
+      <span style="${S.footerBold}">FellowFlow</span> — Conference Registration<br>
+      Show your confirmation code at the check-in desk.<br>
+      Questions? Reply to this email.
+    </p>
+  </td></tr>
+
+</table>
+</td></tr></table>
 </body>
-</html>
-      `.trim(),
+</html>`.trim(),
     });
 
     console.log(`📧 Confirmation email sent to ${to} for registration ${registrationId}`);
   } catch (error) {
     console.error("Failed to send confirmation email:", error);
-    // Don't throw — email failure should not block the registration flow
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Group receipt email — one email listing all registrants            */
-/* ------------------------------------------------------------------ */
+/* ── Group receipt email ─────────────────────────────────────────── */
 
-type GroupMember = {
+export type GroupMember = {
   firstName: string;
   lastName: string;
   category: string;
   ageAtEvent: number;
   amount: number;
   attendance: string;
+  confirmationCode?: string;
+  gender?: string | null;
+  city?: string | null;
+  churchName?: string | null;
 };
 
-type GroupReceiptEmailParams = {
+export type GroupReceiptEmailParams = {
   to: string;
   eventName: string;
+  eventStartDate?: string;
+  eventEndDate?: string;
   members: GroupMember[];
   subtotal: number;
   surcharge: number;
@@ -172,6 +246,7 @@ type GroupReceiptEmailParams = {
   grandTotal: number;
   isFree: boolean;
   primaryRegistrationId: string;
+  primaryConfirmationCode?: string;
 };
 
 export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
@@ -181,6 +256,8 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
   const {
     to,
     eventName,
+    eventStartDate,
+    eventEndDate,
     members,
     subtotal,
     surcharge,
@@ -188,21 +265,31 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
     grandTotal,
     isFree,
     primaryRegistrationId,
+    primaryConfirmationCode,
   } = params;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const receiptUrl = `${appUrl}/register/receipt/${primaryRegistrationId}`;
   const totalDisplay = isFree ? "FREE" : `$${grandTotal.toFixed(2)}`;
+  const dateRange = eventStartDate && eventEndDate
+    ? `${formatDate(eventStartDate)} — ${formatDate(eventEndDate)}`
+    : null;
 
   const memberRows = members
     .map(
-      (m) => `
+      (m, i) => `
       <tr>
-        <td style="padding:8px 0;color:#18181b;font-size:13px;font-weight:600;border-bottom:1px solid #f0f0f0;">
-          ${m.firstName} ${m.lastName}
-          <br><span style="font-weight:400;color:#71717a;font-size:12px;">${m.category} · Age ${m.ageAtEvent} · ${m.attendance}</span>
+        <td style="padding:12px 16px;${i < members.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}">
+          <div style="font-size:14px;font-weight:700;color:#18181b;margin:0 0 2px;">${m.firstName} ${m.lastName}</div>
+          <div style="font-size:12px;color:#64748b;">
+            ${categoryLabel(m.category)} · Age ${m.ageAtEvent} · ${m.attendance}
+            ${m.gender ? ` · ${m.gender.charAt(0).toUpperCase() + m.gender.slice(1)}` : ""}
+            ${m.city ? ` · ${m.city}` : ""}
+          </div>
+          ${m.churchName ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">⛪ ${m.churchName}</div>` : ""}
+          ${m.confirmationCode ? `<div style="font-size:11px;color:#6366f1;font-family:monospace;font-weight:600;margin-top:4px;">Code: ${m.confirmationCode}</div>` : ""}
         </td>
-        <td style="padding:8px 0;color:#18181b;font-size:13px;text-align:right;font-weight:600;border-bottom:1px solid #f0f0f0;">
+        <td style="padding:12px 16px;text-align:right;vertical-align:top;font-size:15px;font-weight:700;color:${m.amount === 0 ? "#16a34a" : "#18181b"};${i < members.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}">
           ${m.amount === 0 ? "FREE" : `$${m.amount.toFixed(2)}`}
         </td>
       </tr>`
@@ -212,8 +299,8 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
   const surchargeRow =
     surcharge > 0
       ? `<tr>
-          <td style="padding:6px 0;color:#71717a;font-size:13px;">${surchargeLabel || "Late Surcharge"}</td>
-          <td style="padding:6px 0;color:#d97706;font-size:13px;text-align:right;font-weight:600;">+$${surcharge.toFixed(2)}</td>
+          <td style="padding:8px 16px;color:#64748b;font-size:13px;">${surchargeLabel || "Late Surcharge"}</td>
+          <td style="padding:8px 16px;color:#d97706;font-size:14px;text-align:right;font-weight:700;">+$${surcharge.toFixed(2)}</td>
         </tr>`
       : "";
 
@@ -224,97 +311,83 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
       subject: `Group Registration Confirmed — ${eventName}`,
       html: `
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-          <!-- Header -->
-          <tr>
-            <td style="background:linear-gradient(135deg,#0ea5e9,#6366f1);padding:32px 40px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">Group Registration Confirmed</h1>
-              <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">${members.length} registrant${members.length > 1 ? "s" : ""} for ${eventName}</p>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding:32px 40px;">
-              <p style="margin:0 0 24px;color:#3f3f46;font-size:15px;line-height:1.6;">
-                Your group registration has been confirmed. Here is your receipt:
-              </p>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="${S.body}">
+<table width="100%" cellpadding="0" cellspacing="0" style="${S.wrapper}"><tr><td align="center">
+<table cellpadding="0" cellspacing="0" style="${S.card}">
 
-              <!-- Registrants table -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;margin:0 0 16px;">
-                <tr>
-                  <td style="padding:16px 20px;">
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="padding:4px 0 8px;color:#71717a;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Registrant</td>
-                        <td style="padding:4px 0 8px;color:#71717a;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;text-align:right;">Amount</td>
-                      </tr>
-                      ${memberRows}
-                    </table>
-                  </td>
-                </tr>
-              </table>
+  <!-- Header -->
+  <tr><td style="${S.header}">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+      <div style="display:inline-block;background:rgba(255,255,255,0.2);border-radius:50%;padding:12px;margin:0 0 16px;">
+        <img src="https://img.icons8.com/fluency/48/conference-call.png" width="32" height="32" alt="" style="display:block;" />
+      </div>
+    </td></tr></table>
+    <h1 style="${S.h1}">Group Registration Confirmed</h1>
+    <p style="${S.headerSub}">${members.length} registrant${members.length > 1 ? "s" : ""} for ${eventName}</p>
+    ${dateRange ? `<p style="${S.headerSub}">${dateRange}</p>` : ""}
+  </td></tr>
 
-              <!-- Totals -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;margin:0 0 24px;">
-                <tr>
-                  <td style="padding:16px 20px;">
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="padding:6px 0;color:#71717a;font-size:13px;">Subtotal</td>
-                        <td style="padding:6px 0;color:#18181b;font-size:13px;text-align:right;">$${subtotal.toFixed(2)}</td>
-                      </tr>
-                      ${surchargeRow}
-                      <tr>
-                        <td colspan="2" style="padding:8px 0 0;border-top:2px solid #e4e4e7;"></td>
-                      </tr>
-                      <tr>
-                        <td style="padding:4px 0;color:#18181b;font-size:16px;font-weight:700;">Total Paid</td>
-                        <td style="padding:4px 0;color:#0ea5e9;font-size:20px;text-align:right;font-weight:700;">${totalDisplay}</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
+  <!-- Body -->
+  <tr><td style="${S.bodyPad}">
+    <p style="${S.intro}">Your group registration has been confirmed. Each member's individual confirmation code is listed below — they'll need it at check-in.</p>
 
-              <p style="margin:0 0 8px;color:#71717a;font-size:12px;">Confirmation ID</p>
-              <p style="margin:0 0 24px;color:#3f3f46;font-size:12px;font-family:monospace;word-break:break-all;">${primaryRegistrationId}</p>
+    ${primaryConfirmationCode ? `
+    <!-- Primary Code -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="${S.codeBox}"><tr><td>
+      <p style="${S.codeLabel}">Primary Confirmation Code</p>
+      <p style="${S.codeValue}">${primaryConfirmationCode}</p>
+    </td></tr></table>
+    ` : ""}
 
-              <!-- CTA -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="center" style="padding:8px 0 0;">
-                    <a href="${receiptUrl}" style="display:inline-block;background:#0ea5e9;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">
-                      View Full Receipt
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="padding:20px 40px;background:#fafafa;border-top:1px solid #f0f0f0;text-align:center;">
-              <p style="margin:0;color:#a1a1aa;font-size:12px;">
-                FellowFlow — Conference Registration
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+    <!-- Registrants table -->
+    <p style="${S.sectionTitle}">Registrants</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="${S.detailBox}">
+      <tr>
+        <td style="padding:10px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;">
+          <span style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.8px;">Member Details</span>
+        </td>
+        <td style="padding:10px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;text-align:right;">
+          <span style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.8px;">Fee</span>
+        </td>
+      </tr>
+      ${memberRows}
+    </table>
+
+    <!-- Totals -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin:16px 0 28px;">
+      <tr>
+        <td style="padding:8px 16px;color:#64748b;font-size:13px;">Subtotal</td>
+        <td style="padding:8px 16px;color:#18181b;font-size:13px;text-align:right;font-weight:600;">$${subtotal.toFixed(2)}</td>
+      </tr>
+      ${surchargeRow}
+      <tr><td colspan="2" style="padding:0 16px;"><div style="border-top:2px solid #e2e8f0;"></div></td></tr>
+      <tr>
+        <td style="padding:12px 16px;color:#18181b;font-size:17px;font-weight:800;">Total ${isFree ? "" : "Paid"}</td>
+        <td style="padding:12px 16px;text-align:right;font-size:24px;font-weight:800;color:${isFree ? "#16a34a" : "#0ea5e9"};">${totalDisplay}</td>
+      </tr>
+    </table>
+
+    <!-- CTA -->
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:4px 0 8px;">
+      <a href="${receiptUrl}" style="${S.cta}">View Full Receipt &rarr;</a>
+    </td></tr></table>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="${S.footer}">
+    <p style="${S.footerText}">
+      <span style="${S.footerBold}">FellowFlow</span> — Conference Registration<br>
+      Each registrant should present their own confirmation code at check-in.<br>
+      Questions? Reply to this email.
+    </p>
+  </td></tr>
+
+</table>
+</td></tr></table>
 </body>
-</html>
-      `.trim(),
+</html>`.trim(),
     });
 
     console.log(`📧 Group receipt email sent to ${to} for ${members.length} registrants (primary: ${primaryRegistrationId})`);

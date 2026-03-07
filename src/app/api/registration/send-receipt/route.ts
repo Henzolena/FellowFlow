@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
         "id, first_name, last_name, email, computed_amount, explanation_detail, " +
         "group_id, event_id, category, age_at_event, is_full_duration, is_staying_in_motel, " +
         "num_days, date_of_birth, attendance_type, public_confirmation_code, " +
+        "gender, city, church_id, church_name_custom, " +
         "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)"
       )
       .eq(column, confirmationId)
@@ -56,8 +57,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Registration not found." }, { status: 404 });
     }
 
-    const evtData = data.events as unknown as { name: string } | null;
+    const evtData = data.events as unknown as { name: string; start_date: string; end_date: string } | null;
     const groupId = data.group_id as string | null;
+
+    // Resolve church name from church_id or church_name_custom
+    async function resolveChurchName(churchId: string | null, custom: string | null): Promise<string | null> {
+      if (custom) return custom;
+      if (!churchId) return null;
+      const { data: ch } = await supabase.from("churches").select("name").eq("id", churchId).single();
+      return ch?.name || null;
+    }
 
     // ─── Group receipt ───
     if (groupId) {
@@ -65,7 +74,8 @@ export async function POST(request: NextRequest) {
         .from("registrations")
         .select(
           "id, first_name, last_name, email, computed_amount, category, age_at_event, " +
-          "is_full_duration, is_staying_in_motel, num_days, date_of_birth"
+          "is_full_duration, is_staying_in_motel, num_days, date_of_birth, " +
+          "attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom"
         )
         .eq("group_id", groupId)
         .order("created_at", { ascending: true });
@@ -107,29 +117,43 @@ export async function POST(request: NextRequest) {
           grandTotal = subtotal;
         }
 
-        function attendanceLabel(r: Record<string, unknown>): string {
-          if (r.is_full_duration) return "Full Conference";
-          if (r.is_staying_in_motel) return "Partial — Motel";
-          return `${r.num_days} Day(s)`;
-        }
+        // Resolve church names for all members
+        const membersWithChurch = await Promise.all(
+          rows.map(async (r) => {
+            const churchName = await resolveChurchName(
+              r.church_id as string | null,
+              r.church_name_custom as string | null
+            );
+            const at = (r.attendance_type as string) || "full_conference";
+            return {
+              firstName: r.first_name as string,
+              lastName: r.last_name as string,
+              category: r.category as string,
+              ageAtEvent: r.age_at_event as number,
+              amount: Number(r.computed_amount),
+              attendance: at === "full_conference" ? "Full Conference" : at === "kote" ? "KOTE" : `${r.num_days || "?"} Day(s)`,
+              confirmationCode: r.public_confirmation_code as string | undefined,
+              gender: r.gender as string | null,
+              city: r.city as string | null,
+              churchName,
+            };
+          })
+        );
 
+        const primaryRow = rows[0];
         await sendGroupReceiptEmail({
           to: data.email as string,
           eventName: evtData?.name || "Event",
-          members: rows.map((r) => ({
-            firstName: r.first_name as string,
-            lastName: r.last_name as string,
-            category: r.category as string,
-            ageAtEvent: r.age_at_event as number,
-            amount: Number(r.computed_amount),
-            attendance: attendanceLabel(r),
-          })),
+          eventStartDate: evtData?.start_date,
+          eventEndDate: evtData?.end_date,
+          members: membersWithChurch,
           subtotal,
           surcharge,
           surchargeLabel,
           grandTotal,
           isFree: grandTotal === 0,
           primaryRegistrationId: data.id as string,
+          primaryConfirmationCode: primaryRow.public_confirmation_code as string | undefined,
         });
 
         return NextResponse.json({ sent: true });
@@ -138,15 +162,28 @@ export async function POST(request: NextRequest) {
 
     // ─── Solo receipt ───
     const amount = Number(data.computed_amount);
+    const churchName = await resolveChurchName(
+      data.church_id as string | null,
+      data.church_name_custom as string | null
+    );
+
     await sendConfirmationEmail({
       to: data.email as string,
       firstName: data.first_name as string,
       lastName: data.last_name as string,
       eventName: evtData?.name || "Event",
+      eventStartDate: evtData?.start_date,
+      eventEndDate: evtData?.end_date,
       amount,
       isFree: amount === 0,
       registrationId: data.id as string,
+      confirmationCode: data.public_confirmation_code as string | undefined,
       explanationDetail: data.explanation_detail as string | null,
+      attendanceType: data.attendance_type as string | undefined,
+      category: data.category as string | undefined,
+      gender: data.gender as string | null,
+      city: data.city as string | null,
+      churchName,
     });
 
     return NextResponse.json({ sent: true });
