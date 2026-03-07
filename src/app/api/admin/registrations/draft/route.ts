@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         category: "adult",
         is_full_duration: v.attendanceType === "full_conference",
         attendance_type: v.attendanceType,
-        num_days: null,
+        num_days: v.attendanceType === "full_conference" ? null : 1,
         computed_amount: 0,
         explanation_code: "FULL_ADULT",
         status,
