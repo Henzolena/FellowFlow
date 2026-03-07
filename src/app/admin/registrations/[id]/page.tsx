@@ -91,8 +91,6 @@ type DetailData = {
   last_name: string;
   email: string;
   phone: string | null;
-  date_of_birth: string;
-  age_at_event: number;
   category: string;
   gender: string | null;
   city: string | null;
@@ -259,9 +257,7 @@ export default function RegistrationDetailPage({
             <Row label="Full Name" value={`${data.first_name} ${data.last_name}`} />
             <Row label="Email" value={data.email} />
             <Row label="Phone" value={data.phone || "—"} />
-            <Row label="Date of Birth" value={format(parseISO(data.date_of_birth), "MMM d, yyyy")} />
-            <Row label="Age at Event" value={String(data.age_at_event)} />
-            <Row label="Category" value={data.category} capitalize />
+            <Row label="Age Range" value={data.category} capitalize />
             <Row label="Gender" value={data.gender ? data.gender.charAt(0).toUpperCase() + data.gender.slice(1) : "—"} />
             <Row label="City" value={data.city || "—"} />
             <Row label="Church" value={data.church_name_resolved || data.church_name_custom || "—"} />

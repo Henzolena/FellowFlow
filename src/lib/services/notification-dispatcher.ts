@@ -38,34 +38,48 @@ export async function dispatchSoloConfirmation(
       churchName = ch?.name || null;
     }
 
-    await sendConfirmationEmail({
-      to: reg.email as string,
-      firstName: reg.first_name as string,
-      lastName: reg.last_name as string,
-      eventName: evtData?.name || "Event",
-      eventStartDate: evtData?.start_date,
-      eventEndDate: evtData?.end_date,
-      amount: Number(reg.computed_amount),
-      isFree: false,
-      registrationId,
-      confirmationCode: reg.public_confirmation_code as string | undefined,
-      explanationDetail: reg.explanation_detail as string | null,
-      attendanceType: reg.attendance_type as string | undefined,
-      category: reg.category as string | undefined,
-      gender: reg.gender as string | null,
-      city: reg.city as string | null,
-      churchName,
-    });
+    try {
+      await sendConfirmationEmail({
+        to: reg.email as string,
+        firstName: reg.first_name as string,
+        lastName: reg.last_name as string,
+        eventName: evtData?.name || "Event",
+        eventStartDate: evtData?.start_date,
+        eventEndDate: evtData?.end_date,
+        amount: Number(reg.computed_amount),
+        isFree: false,
+        registrationId,
+        confirmationCode: reg.public_confirmation_code as string | undefined,
+        explanationDetail: reg.explanation_detail as string | null,
+        attendanceType: reg.attendance_type as string | undefined,
+        category: reg.category as string | undefined,
+        gender: reg.gender as string | null,
+        city: reg.city as string | null,
+        churchName,
+      });
 
-    log.info("Confirmation email sent", { registrationId });
-    await supabase.from("email_logs").insert({
-      recipient: reg.email as string,
-      email_type: "confirmation_webhook",
-      registration_id: registrationId,
-      status: "sent",
-    });
+      log.info("Confirmation email sent", { registrationId });
+      await supabase.from("email_logs").insert({
+        recipient: reg.email as string,
+        email_type: "confirmation_webhook",
+        registration_id: registrationId,
+        status: "sent",
+      });
+    } catch (err: unknown) {
+      log.error("Confirmation email failed", {
+        registrationId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      await supabase.from("email_logs").insert({
+        recipient: reg.email as string || "unknown",
+        email_type: "confirmation_webhook",
+        registration_id: registrationId,
+        status: "failed",
+        error_message: err instanceof Error ? err.message : String(err),
+      });
+    }
 
-    // Notify admins
+    // Notify admins (independent — fires even if confirmation email failed)
     const at = (reg.attendance_type as string) || "full_conference";
     await dispatchAdminNotification(supabase, {
       eventName: evtData?.name || "Event",
@@ -87,16 +101,9 @@ export async function dispatchSoloConfirmation(
       registeredAt: new Date().toISOString(),
     }, log);
   } catch (err: unknown) {
-    log.error("Confirmation email failed", {
+    log.error("Solo dispatch failed", {
       registrationId,
       error: err instanceof Error ? err.message : String(err),
-    });
-    await supabase.from("email_logs").insert({
-      recipient: "unknown",
-      email_type: "confirmation_webhook",
-      registration_id: registrationId,
-      status: "failed",
-      error_message: err instanceof Error ? err.message : String(err),
     });
   }
 }
@@ -143,33 +150,48 @@ export async function dispatchGroupConfirmation(
 
     if (isSoloInGroup) {
       const churchName = await resolveChurch(primaryReg.church_id, primaryReg.church_name_custom);
-      await sendConfirmationEmail({
-        to: primaryReg.email as string,
-        firstName: primaryReg.first_name as string,
-        lastName: primaryReg.last_name as string,
-        eventName: evtData?.name || "Event",
-        eventStartDate: evtData?.start_date,
-        eventEndDate: evtData?.end_date,
-        amount: Number(primaryReg.computed_amount),
-        isFree: false,
-        registrationId: primaryReg.id as string,
-        confirmationCode: primaryReg.public_confirmation_code as string | undefined,
-        explanationDetail: primaryReg.explanation_detail as string | null,
-        attendanceType: primaryReg.attendance_type as string | undefined,
-        category: primaryReg.category as string | undefined,
-        gender: primaryReg.gender as string | null,
-        city: primaryReg.city as string | null,
-        churchName,
-      });
-      log.info("Solo confirmation email sent (group of 1)", { registrationId: primaryReg.id, groupId });
-      await supabase.from("email_logs").insert({
-        recipient: primaryReg.email as string,
-        email_type: "confirmation_webhook",
-        registration_id: primaryReg.id as string,
-        status: "sent",
-      });
+      try {
+        await sendConfirmationEmail({
+          to: primaryReg.email as string,
+          firstName: primaryReg.first_name as string,
+          lastName: primaryReg.last_name as string,
+          eventName: evtData?.name || "Event",
+          eventStartDate: evtData?.start_date,
+          eventEndDate: evtData?.end_date,
+          amount: Number(primaryReg.computed_amount),
+          isFree: false,
+          registrationId: primaryReg.id as string,
+          confirmationCode: primaryReg.public_confirmation_code as string | undefined,
+          explanationDetail: primaryReg.explanation_detail as string | null,
+          attendanceType: primaryReg.attendance_type as string | undefined,
+          category: primaryReg.category as string | undefined,
+          gender: primaryReg.gender as string | null,
+          city: primaryReg.city as string | null,
+          churchName,
+        });
+        log.info("Solo confirmation email sent (group of 1)", { registrationId: primaryReg.id, groupId });
+        await supabase.from("email_logs").insert({
+          recipient: primaryReg.email as string,
+          email_type: "confirmation_webhook",
+          registration_id: primaryReg.id as string,
+          status: "sent",
+        });
+      } catch (err: unknown) {
+        log.error("Solo-in-group confirmation email failed", {
+          registrationId: primaryReg.id,
+          groupId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        await supabase.from("email_logs").insert({
+          recipient: primaryReg.email as string || "unknown",
+          email_type: "confirmation_webhook",
+          registration_id: primaryReg.id as string,
+          status: "failed",
+          error_message: err instanceof Error ? err.message : String(err),
+        });
+      }
 
-      // Notify admins (solo in group)
+      // Notify admins (independent — fires even if confirmation email failed)
       const soloAt = (primaryReg.attendance_type as string) || "full_conference";
       await dispatchAdminNotification(supabase, {
         eventName: evtData?.name || "Event",
@@ -248,30 +270,44 @@ export async function dispatchGroupConfirmation(
       })
     );
 
-    await sendGroupReceiptEmail({
-      to: primaryReg.email as string,
-      eventName: evtData?.name || "Event",
-      eventStartDate: evtData?.start_date,
-      eventEndDate: evtData?.end_date,
-      members: membersWithDetails,
-      subtotal,
-      surcharge,
-      surchargeLabel,
-      grandTotal,
-      isFree: false,
-      primaryRegistrationId: primaryReg.id as string,
-      primaryConfirmationCode: primaryReg.public_confirmation_code as string | undefined,
-    });
+    try {
+      await sendGroupReceiptEmail({
+        to: primaryReg.email as string,
+        eventName: evtData?.name || "Event",
+        eventStartDate: evtData?.start_date,
+        eventEndDate: evtData?.end_date,
+        members: membersWithDetails,
+        subtotal,
+        surcharge,
+        surchargeLabel,
+        grandTotal,
+        isFree: false,
+        primaryRegistrationId: primaryReg.id as string,
+        primaryConfirmationCode: primaryReg.public_confirmation_code as string | undefined,
+      });
 
-    log.info("Group receipt email sent", { groupId, memberCount: rows.length });
-    await supabase.from("email_logs").insert({
-      recipient: primaryReg.email as string,
-      email_type: "group_receipt_webhook",
-      group_id: groupId,
-      status: "sent",
-    });
+      log.info("Group receipt email sent", { groupId, memberCount: rows.length });
+      await supabase.from("email_logs").insert({
+        recipient: primaryReg.email as string,
+        email_type: "group_receipt_webhook",
+        group_id: groupId,
+        status: "sent",
+      });
+    } catch (err: unknown) {
+      log.error("Group receipt email failed", {
+        groupId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      await supabase.from("email_logs").insert({
+        recipient: primaryReg.email as string || "unknown",
+        email_type: "group_receipt_webhook",
+        group_id: groupId,
+        status: "failed",
+        error_message: err instanceof Error ? err.message : String(err),
+      });
+    }
 
-    // Notify admins (multi-member group)
+    // Notify admins (independent — fires even if group receipt email failed)
     await dispatchAdminNotification(supabase, {
       eventName: evtData?.name || "Event",
       eventStartDate: evtData?.start_date,
@@ -296,13 +332,6 @@ export async function dispatchGroupConfirmation(
     log.error("Group notification dispatch failed", {
       groupId,
       error: err instanceof Error ? err.message : String(err),
-    });
-    await supabase.from("email_logs").insert({
-      recipient: "unknown",
-      email_type: "group_receipt_webhook",
-      group_id: groupId,
-      status: "failed",
-      error_message: err instanceof Error ? err.message : String(err),
     });
   }
 }
@@ -349,9 +378,18 @@ export async function dispatchAdminNotification(
       )
     );
 
-    const failed = results.filter((r) => r.status === "rejected").length;
-    if (failed > 0) {
-      log.warn("Some admin notifications failed", { failed, total: adminEmails.length });
+    const failedResults = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    const failedCount = failedResults.length;
+    const errorMessages = failedResults.map((r) => String(r.reason?.message || r.reason)).join("; ");
+
+    if (failedCount > 0) {
+      log.warn("Some admin notifications failed", {
+        failed: failedCount,
+        total: adminEmails.length,
+        errors: errorMessages,
+      });
+    } else {
+      log.info("All admin notifications sent successfully", { count: adminEmails.length });
     }
 
     // Log one entry for the batch
@@ -360,8 +398,8 @@ export async function dispatchAdminNotification(
       email_type: "admin_notification",
       registration_id: payload.primaryRegistrationId,
       group_id: payload.groupId || null,
-      status: failed === 0 ? "sent" : "partial",
-      error_message: failed > 0 ? `${failed}/${adminEmails.length} failed` : null,
+      status: failedCount === 0 ? "sent" : failedCount === adminEmails.length ? "failed" : "partial",
+      error_message: failedCount > 0 ? `${failedCount}/${adminEmails.length} failed: ${errorMessages}` : null,
     });
   } catch (err) {
     log.error("Admin notification dispatch failed", {

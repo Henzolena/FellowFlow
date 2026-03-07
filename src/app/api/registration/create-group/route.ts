@@ -209,7 +209,6 @@ export async function POST(request: NextRequest) {
     if (isFreeGroup) {
       try {
         if (registrations.length === 1) {
-          // Solo registrant — send individual confirmation email
           const r = registrations[0];
           await sendConfirmationEmail({
             to: data.email,
@@ -229,7 +228,6 @@ export async function POST(request: NextRequest) {
             status: "sent",
           });
         } else {
-          // Multiple registrants — send consolidated group receipt
           function attendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null }): string {
             if (r.is_full_duration) return "Full Conference";
             if (r.is_staying_in_motel) return "Partial — Motel";
@@ -262,35 +260,6 @@ export async function POST(request: NextRequest) {
             status: "sent",
           });
         }
-
-        // Notify admins about the free registration
-        function freeAttendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null; attendance_type?: string }): string {
-          const at = (r as Record<string, unknown>).attendance_type as string | undefined;
-          if (at === "kote") return "KOTE";
-          if (r.is_full_duration) return "Full Conference";
-          return `${r.num_days} Day(s)`;
-        }
-
-        await dispatchAdminNotification(adminClient, {
-          eventName: event.name,
-          eventStartDate: event.start_date,
-          eventEndDate: event.end_date,
-          registrantEmail: data.email,
-          members: registrations.map((r) => ({
-            firstName: r.first_name,
-            lastName: r.last_name,
-            category: r.category,
-            amount: Number(r.computed_amount),
-            attendance: freeAttendanceLabel(r),
-            confirmationCode: r.public_confirmation_code,
-          })),
-          grandTotal: groupPricing.grandTotal,
-          isFree: true,
-          isPaid: false,
-          groupId,
-          primaryRegistrationId: registrations[0].id,
-          registeredAt: new Date().toISOString(),
-        }, log);
       } catch (err) {
         log.error("Free registration email failed", { groupId, error: err instanceof Error ? err.message : String(err) });
         await adminClient.from("email_logs").insert({
@@ -301,6 +270,35 @@ export async function POST(request: NextRequest) {
           error_message: err instanceof Error ? err.message : String(err),
         });
       }
+
+      // Notify admins (independent — fires even if confirmation email failed)
+      function freeAttendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null; attendance_type?: string }): string {
+        const at = (r as Record<string, unknown>).attendance_type as string | undefined;
+        if (at === "kote") return "KOTE";
+        if (r.is_full_duration) return "Full Conference";
+        return `${r.num_days} Day(s)`;
+      }
+
+      await dispatchAdminNotification(adminClient, {
+        eventName: event.name,
+        eventStartDate: event.start_date,
+        eventEndDate: event.end_date,
+        registrantEmail: data.email,
+        members: registrations.map((r) => ({
+          firstName: r.first_name,
+          lastName: r.last_name,
+          category: r.category,
+          amount: Number(r.computed_amount),
+          attendance: freeAttendanceLabel(r),
+          confirmationCode: r.public_confirmation_code,
+        })),
+        grandTotal: groupPricing.grandTotal,
+        isFree: true,
+        isPaid: false,
+        groupId,
+        primaryRegistrationId: registrations[0].id,
+        registeredAt: new Date().toISOString(),
+      }, log);
     }
 
     return NextResponse.json({

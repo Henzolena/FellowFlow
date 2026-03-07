@@ -136,7 +136,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
     : null;
 
   try {
-    await resend.emails.send({
+    const { data: sendResult, error: sendError } = await resend.emails.send({
       from: FROM_ADDRESS,
       to,
       subject: `Registration Confirmed — ${eventName}`,
@@ -213,9 +213,15 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
 </html>`.trim(),
     });
 
-    console.log(`📧 Confirmation email sent to ${to} for registration ${registrationId}`);
+    if (sendError) {
+      console.error(`❌ Resend API error for confirmation to ${to}:`, sendError);
+      throw new Error(sendError.message || "Resend API error");
+    }
+
+    console.log(`📧 Confirmation email sent to ${to} (id: ${sendResult?.id}) for registration ${registrationId}`);
   } catch (error) {
     console.error("Failed to send confirmation email:", error);
+    throw error;
   }
 }
 
@@ -282,7 +288,7 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
         <td style="padding:12px 16px;${i < members.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}">
           <div style="font-size:14px;font-weight:700;color:#18181b;margin:0 0 2px;">${m.firstName} ${m.lastName}</div>
           <div style="font-size:12px;color:#64748b;">
-            ${categoryLabel(m.category)} · Age ${m.ageAtEvent} · ${m.attendance}
+            ${categoryLabel(m.category)} · ${m.attendance}
             ${m.gender ? ` · ${m.gender.charAt(0).toUpperCase() + m.gender.slice(1)}` : ""}
             ${m.city ? ` · ${m.city}` : ""}
           </div>
@@ -305,7 +311,7 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
       : "";
 
   try {
-    await resend.emails.send({
+    const { data: sendResult, error: sendError } = await resend.emails.send({
       from: FROM_ADDRESS,
       to,
       subject: `Group Registration Confirmed — ${eventName}`,
@@ -390,9 +396,15 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
 </html>`.trim(),
     });
 
-    console.log(`📧 Group receipt email sent to ${to} for ${members.length} registrants (primary: ${primaryRegistrationId})`);
+    if (sendError) {
+      console.error(`❌ Resend API error for group receipt to ${to}:`, sendError);
+      throw new Error(sendError.message || "Resend API error");
+    }
+
+    console.log(`📧 Group receipt email sent to ${to} (id: ${sendResult?.id}) for ${members.length} registrants (primary: ${primaryRegistrationId})`);
   } catch (error) {
     console.error("Failed to send group receipt email:", error);
+    throw error;
   }
 }
 
@@ -496,12 +508,11 @@ export async function sendAdminNotificationEmail(params: AdminNotificationEmailP
     });
   } catch { /* keep raw */ }
 
-  try {
-    await resend.emails.send({
-      from: FROM_ADDRESS,
-      to,
-      subject: subjectLine,
-      html: `
+  const { data: sendResult, error: sendError } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to,
+    subject: subjectLine,
+    html: `
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
@@ -567,10 +578,12 @@ export async function sendAdminNotificationEmail(params: AdminNotificationEmailP
 </td></tr></table>
 </body>
 </html>`.trim(),
-    });
+  });
 
-    console.log(`📧 Admin notification sent to ${to} for registration ${primaryRegistrationId}`);
-  } catch (error) {
-    console.error(`Failed to send admin notification to ${to}:`, error);
+  if (sendError) {
+    console.error(`❌ Resend API error for admin notification to ${to}:`, sendError);
+    throw new Error(sendError.message || "Resend API error");
   }
+
+  console.log(`📧 Admin notification sent to ${to} (id: ${sendResult?.id}) for registration ${primaryRegistrationId}`);
 }
