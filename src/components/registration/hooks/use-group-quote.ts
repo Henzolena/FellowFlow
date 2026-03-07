@@ -42,10 +42,10 @@ export function getAgeRangeOptions(event: Event, labels: AgeLabels) {
   const youth = event.youth_age_threshold;
   const adult = event.adult_age_threshold;
   return [
-    { key: "infant" as const, label: `0–${infant} ${labels.infant}`, representativeAge: Math.max(0, Math.floor(infant / 2)) },
-    { key: "child" as const,  label: `${infant + 1}–${youth - 1} ${labels.child}`, representativeAge: Math.floor((infant + 1 + youth - 1) / 2) },
-    { key: "youth" as const,  label: `${youth}–${adult - 1} ${labels.youth}`, representativeAge: Math.floor((youth + adult - 1) / 2) },
-    { key: "adult" as const,  label: `${adult}+ ${labels.adult}`, representativeAge: adult + 10 },
+    { key: "infant" as const, name: labels.infant, range: `0–${infant}`,             label: `0–${infant} ${labels.infant}`, representativeAge: Math.max(0, Math.floor(infant / 2)) },
+    { key: "child" as const,  name: labels.child,  range: `${infant + 1}–${youth - 1}`, label: `${infant + 1}–${youth - 1} ${labels.child}`, representativeAge: Math.floor((infant + 1 + youth - 1) / 2) },
+    { key: "youth" as const,  name: labels.youth,  range: `${youth}–${adult - 1}`,   label: `${youth}–${adult - 1} ${labels.youth}`, representativeAge: Math.floor((youth + adult - 1) / 2) },
+    { key: "adult" as const,  name: labels.adult,  range: `${adult}+`,               label: `${adult}+ ${labels.adult}`, representativeAge: adult + 10 },
   ];
 }
 

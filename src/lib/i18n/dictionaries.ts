@@ -41,7 +41,7 @@ export type Dictionary = {
     steps: string[]; whoIsAttending: string; addEveryoneDesc: string;
     addAnotherPerson: string; firstName: string; lastName: string; ageRange: string;
     selectAgeRange: string; infantLabel: string; childLabel: string; youthLabel: string;
-    adultLabel: string; gender: string; selectGender: string; male: string; female: string;
+    adultLabel: string; yearsAbbr: string; gender: string; selectGender: string; male: string; female: string;
     city: string; church: string; selectChurch: string; otherChurch: string;
     customChurchName: string; attendanceType: string; selectAttendanceType: string;
     fullConference: string; fullConferenceDesc: string; partialAttendance: string;
@@ -210,10 +210,11 @@ const en: Dictionary = {
     lastName: "Last Name",
     ageRange: "Age Range",
     selectAgeRange: "Select age range",
-    infantLabel: "0–{max} years (Infant)",
-    childLabel: "{min}–{max} years (Child)",
-    youthLabel: "{min}–{max} years (Youth)",
-    adultLabel: "{min}+ years (Adult)",
+    infantLabel: "Infant",
+    childLabel: "Child",
+    youthLabel: "Youth",
+    adultLabel: "Adult",
+    yearsAbbr: "yrs",
     gender: "Gender",
     selectGender: "Select gender",
     male: "Male",
@@ -455,10 +456,11 @@ const am: Dictionary = {
     lastName: "የአባት ስም",
     ageRange: "የዕድሜ ክልል",
     selectAgeRange: "የዕድሜ ክልል ይምረጡ",
-    infantLabel: "0–{max} ዓመት (ህፃን)",
-    childLabel: "{min}–{max} ዓመት (ልጅ)",
-    youthLabel: "{min}–{max} ዓመት (ወጣት)",
-    adultLabel: "{min}+ ዓመት (አዋቂ)",
+    infantLabel: "ህፃን",
+    childLabel: "ልጅ",
+    youthLabel: "ወጣት",
+    adultLabel: "አዋቂ",
+    yearsAbbr: "ዓመት",
     gender: "ጾታ",
     selectGender: "ጾታ ይምረጡ",
     male: "ወንድ",

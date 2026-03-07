@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { DuplicateRegistrationDialog } from "./duplicate-dialog";
-import { ArrowLeft, ArrowRight, Loader2, Check, Plus, Trash2, User, Users, Church, MapPin } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Check, Plus, Trash2, User, Users, Church, MapPin, Baby, GraduationCap } from "lucide-react";
 import type { Event, PricingConfig, Church as ChurchType } from "@/types/database";
 import { useTranslation } from "@/lib/i18n/context";
 import { useWizardState, type Registrant, type AttendanceTypeKey, type GenderKey } from "./hooks/use-wizard-state";
@@ -191,21 +191,44 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
 
                 <div className="space-y-2">
                   <Label>{dict.wizard.ageRange} *</Label>
-                  <Select
-                    value={reg.ageRange}
-                    onValueChange={(v) => updateRegistrant(idx, { ageRange: v as AgeRangeKey })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={dict.wizard.selectAgeRange} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getAgeRangeOptions(event, ageLabels).map((opt) => (
-                        <SelectItem key={opt.key} value={opt.key}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-4 gap-2">
+                    {getAgeRangeOptions(event, ageLabels).map((opt) => {
+                      const selected = reg.ageRange === opt.key;
+                      const iconMap = {
+                        infant: <Baby className="h-5 w-5" />,
+                        child: <User className="h-5 w-5" />,
+                        youth: <GraduationCap className="h-5 w-5" />,
+                        adult: <Users className="h-5 w-5" />,
+                      };
+                      return (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => updateRegistrant(idx, { ageRange: opt.key as AgeRangeKey })}
+                          className={`relative flex flex-col items-center gap-1 rounded-xl border-2 px-2 py-3 text-center transition-all ${
+                            selected
+                              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                              : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
+                          }`}
+                        >
+                          <span className={`${selected ? "text-primary" : "text-muted-foreground"}`}>
+                            {iconMap[opt.key]}
+                          </span>
+                          <span className={`text-xs font-semibold leading-tight ${selected ? "text-primary" : "text-foreground"}`}>
+                            {opt.name}
+                          </span>
+                          <span className={`text-[10px] leading-tight ${selected ? "text-primary/70" : "text-muted-foreground"}`}>
+                            {opt.range} {dict.wizard.yearsAbbr}
+                          </span>
+                          {selected && (
+                            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white">
+                              <Check className="h-2.5 w-2.5" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Gender */}
