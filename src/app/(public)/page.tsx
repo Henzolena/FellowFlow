@@ -45,9 +45,9 @@ export default async function Home() {
               <div className="mt-3 mx-auto h-0.5 w-12 brand-gradient rounded-full" />
             </div>
 
-            <article className="group relative mx-auto max-w-2xl rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-brand-lg hover:-translate-y-0.5">
-              {/* Background image / fallback */}
-              <div className="absolute inset-0">
+            <article className="group relative mx-auto max-w-2xl rounded-2xl bg-white border border-border/60 shadow-brand-md hover:shadow-brand-lg overflow-hidden transition-all duration-300 hover:-translate-y-0.5">
+              {/* ── Cover image / fallback banner ── */}
+              <div className="relative h-52 sm:h-64 overflow-hidden">
                 {coverImage ? (
                   <img
                     src={coverImage.url}
@@ -55,21 +55,15 @@ export default async function Home() {
                     className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                   />
                 ) : (
-                  <div className="h-full w-full bg-gradient-to-br from-primary via-primary/90 to-brand-teal/70">
+                  <div className="h-full w-full bg-gradient-to-br from-primary via-primary/85 to-brand-teal/60">
                     <div className="absolute inset-0 hero-dot-grid opacity-[0.06]" />
                   </div>
                 )}
-              </div>
-
-              {/* Multi-layer overlay for readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/15" />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-transparent" />
-
-              {/* Content on top */}
-              <div className="relative z-10 flex flex-col min-h-[400px] sm:min-h-[460px]">
-                {/* Status badge */}
-                <div className="p-5">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white shadow-sm">
+                {/* Subtle bottom fade into white card */}
+                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent" />
+                {/* Status badge over image */}
+                <div className="absolute top-4 left-4">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-teal/10 text-brand-teal border border-brand-teal/20 backdrop-blur-sm px-3 py-1 text-[11px] font-semibold uppercase tracking-wider shadow-sm">
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-teal opacity-60" />
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-teal" />
@@ -77,51 +71,48 @@ export default async function Home() {
                     {dict.events.upcoming}
                   </span>
                 </div>
+              </div>
 
-                {/* Push content to bottom */}
-                <div className="mt-auto" />
+              {/* ── Card body ── */}
+              <div className="p-6 sm:p-8 pt-2">
+                <div className="space-y-2.5 mb-5">
+                  <h3 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight text-foreground">
+                    {event.name}
+                  </h3>
+                  {event.description && (
+                    <p className="text-sm leading-relaxed text-muted-foreground line-clamp-2 max-w-lg">
+                      {event.description}
+                    </p>
+                  )}
+                </div>
 
-                {/* Text content */}
-                <div className="p-6 sm:p-8 pt-0">
-                  <div className="space-y-2.5 mb-5">
-                    <h3 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight text-white drop-shadow-sm">
-                      {event.name}
-                    </h3>
-                    {event.description && (
-                      <p className="text-sm leading-relaxed text-white/70 line-clamp-2 max-w-lg">
-                        {event.description}
-                      </p>
-                    )}
-                  </div>
+                {/* Metadata chips */}
+                <div className="flex flex-wrap items-center gap-2 mb-6">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted/70 border border-border/50 px-2.5 py-1 text-xs font-medium text-foreground/70">
+                    <Calendar className="h-3 w-3 text-brand-teal shrink-0" />
+                    {format(parseISO(event.start_date), "MMM d")} –{" "}
+                    {format(parseISO(event.end_date), "MMM d, yyyy")}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted/70 border border-border/50 px-2.5 py-1 text-xs font-medium text-foreground/70">
+                    <Clock className="h-3 w-3 text-brand-cyan shrink-0" />
+                    {event.duration_days} {dict.common.days}
+                  </span>
+                </div>
 
-                  {/* Metadata chips */}
-                  <div className="flex flex-wrap items-center gap-2 mb-6">
-                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10 px-2.5 py-1 text-xs font-medium text-white/80">
-                      <Calendar className="h-3 w-3 text-brand-teal shrink-0" />
-                      {format(parseISO(event.start_date), "MMM d")} –{" "}
-                      {format(parseISO(event.end_date), "MMM d, yyyy")}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10 px-2.5 py-1 text-xs font-medium text-white/80">
-                      <Clock className="h-3 w-3 text-brand-cyan shrink-0" />
-                      {event.duration_days} {dict.common.days}
-                    </span>
-                  </div>
+                {/* Divider */}
+                <div className="border-t border-border/60 mb-5" />
 
-                  {/* Divider */}
-                  <div className="border-t border-white/15 mb-5" />
-
-                  {/* CTA */}
-                  <div className="flex items-center justify-center">
-                    <Link href={`/register/${event.id}`}>
-                      <Button
-                        size="lg"
-                        className="rounded-full px-8 text-sm font-semibold bg-white text-primary hover:bg-white/90 shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
-                        {dict.home.registerForEvent}
-                        <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
-                      </Button>
-                    </Link>
-                  </div>
+                {/* CTA */}
+                <div className="flex items-center justify-center">
+                  <Link href={`/register/${event.id}`}>
+                    <Button
+                      size="lg"
+                      className="rounded-full px-8 text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      {dict.home.registerForEvent}
+                      <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </article>

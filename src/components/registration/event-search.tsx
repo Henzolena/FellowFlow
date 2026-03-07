@@ -62,19 +62,19 @@ export function EventSearch({ events }: Props) {
     upcoming: {
       label: dict.events.upcoming,
       dotColor: "bg-brand-teal",
-      pillClass: "bg-white/15 text-white border border-white/20",
+      pillClass: "bg-brand-teal/10 text-brand-teal border border-brand-teal/20",
       hasPulse: true,
     },
     ongoing: {
       label: dict.events.happeningNow,
       dotColor: "bg-brand-green",
-      pillClass: "bg-white/15 text-white border border-white/20",
+      pillClass: "bg-brand-green/10 text-brand-green border border-brand-green/20",
       hasPulse: true,
     },
     past: {
       label: dict.events.ended,
       dotColor: "",
-      pillClass: "bg-black/30 text-white/60 border border-white/10",
+      pillClass: "bg-muted text-muted-foreground border border-border",
       hasPulse: false,
     },
   };
@@ -165,12 +165,12 @@ export function EventSearch({ events }: Props) {
             return (
               <article
                 key={event.id}
-                className={`group relative rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-brand-lg hover:-translate-y-0.5 ${
-                  isPastEvent ? "opacity-55" : ""
+                className={`group relative flex flex-col rounded-2xl bg-white border border-border/60 shadow-brand-sm hover:shadow-brand-lg transition-all duration-300 hover:-translate-y-0.5 overflow-hidden ${
+                  isPastEvent ? "opacity-60" : ""
                 }`}
               >
-                {/* ── Background image / fallback ── */}
-                <div className="absolute inset-0">
+                {/* ── Cover image / fallback banner ── */}
+                <div className="relative h-44 sm:h-48 overflow-hidden">
                   {cover ? (
                     <img
                       src={cover.url}
@@ -178,22 +178,16 @@ export function EventSearch({ events }: Props) {
                       className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                     />
                   ) : (
-                    <div className="h-full w-full bg-gradient-to-br from-primary via-primary/90 to-brand-teal/70">
+                    <div className="h-full w-full bg-gradient-to-br from-primary via-primary/85 to-brand-teal/60">
                       <div className="absolute inset-0 hero-dot-grid opacity-[0.06]" />
                     </div>
                   )}
-                </div>
-
-                {/* Multi-layer overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-transparent" />
-
-                {/* ── Content on top ── */}
-                <div className="relative z-10 flex flex-col min-h-[360px] sm:min-h-[380px]">
-                  {/* Status badge */}
-                  <div className="p-4">
+                  {/* Subtle bottom fade into white card */}
+                  <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white to-transparent" />
+                  {/* Status badge over image */}
+                  <div className="absolute top-3 left-3">
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded-full backdrop-blur-md px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${config.pillClass}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider shadow-sm backdrop-blur-sm ${config.pillClass}`}
                     >
                       {config.hasPulse && (
                         <span className="relative flex h-1.5 w-1.5">
@@ -208,89 +202,89 @@ export function EventSearch({ events }: Props) {
                       {config.label}
                     </span>
                   </div>
+                </div>
 
-                  {/* Push content to bottom */}
+                {/* ── Card body ── */}
+                <div className="flex flex-col flex-1 p-5 sm:p-6 pt-2">
+                  {/* Title + Description */}
+                  <div className="space-y-1.5 mb-4">
+                    <h3 className="text-lg sm:text-xl font-bold tracking-tight leading-snug text-foreground line-clamp-2">
+                      {event.name}
+                    </h3>
+                    {event.description && (
+                      <p className="text-[0.8125rem] leading-relaxed text-muted-foreground line-clamp-2">
+                        {event.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Metadata chips */}
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted/70 border border-border/50 px-2.5 py-1 text-xs font-medium text-foreground/70">
+                      <Calendar className="h-3 w-3 text-brand-teal shrink-0" />
+                      {format(parseISO(event.start_date), "MMM d")} –{" "}
+                      {format(parseISO(event.end_date), "MMM d, yyyy")}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted/70 border border-border/50 px-2.5 py-1 text-xs font-medium text-foreground/70">
+                      <Clock className="h-3 w-3 text-brand-cyan shrink-0" />
+                      {event.duration_days} {dict.common.days}
+                    </span>
+                  </div>
+
+                  {/* Push footer to bottom */}
                   <div className="mt-auto" />
 
-                  {/* Text content */}
-                  <div className="p-5 sm:p-6 pt-0">
-                    {/* Title + Description */}
-                    <div className="space-y-1.5 mb-4">
-                      <h3 className="text-lg sm:text-xl font-bold tracking-tight leading-snug text-white drop-shadow-sm line-clamp-2">
-                        {event.name}
-                      </h3>
-                      {event.description && (
-                        <p className="text-[0.8125rem] leading-relaxed text-white/65 line-clamp-2">
-                          {event.description}
-                        </p>
-                      )}
-                    </div>
+                  {/* Divider */}
+                  <div className="border-t border-border/60 mb-4" />
 
-                    {/* Metadata chips */}
-                    <div className="flex flex-wrap items-center gap-2 mb-4">
-                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10 px-2.5 py-1 text-xs font-medium text-white/75">
-                        <Calendar className="h-3 w-3 text-brand-teal shrink-0" />
-                        {format(parseISO(event.start_date), "MMM d")} –{" "}
-                        {format(parseISO(event.end_date), "MMM d, yyyy")}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10 px-2.5 py-1 text-xs font-medium text-white/75">
-                        <Clock className="h-3 w-3 text-brand-cyan shrink-0" />
-                        {event.duration_days} {dict.common.days}
-                      </span>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="border-t border-white/15 mb-4" />
-
-                    {/* Footer: Price + CTA */}
-                    <div className="flex items-end justify-between gap-4">
-                      <div className="min-w-0">
-                        {lowestPrice !== null && (
-                          <div>
-                            {lowestPrice === 0 ? (
-                              <span className="text-lg font-bold text-brand-green">
-                                {dict.common.free}
+                  {/* Footer: Price + CTA */}
+                  <div className="flex items-end justify-between gap-4">
+                    <div className="min-w-0">
+                      {lowestPrice !== null && (
+                        <div>
+                          {lowestPrice === 0 ? (
+                            <span className="text-lg font-bold text-brand-green">
+                              {dict.common.free}
+                            </span>
+                          ) : (
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-xs text-muted-foreground">
+                                {dict.common.from}
                               </span>
-                            ) : (
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-xs text-white/50">
-                                  {dict.common.from}
-                                </span>
-                                <span className="text-xl font-bold tracking-tight text-white">
-                                  ${lowestPrice.toFixed(0)}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <Link
-                          href="/register/receipt"
-                          className="inline-block mt-1 text-[11px] text-white/35 hover:text-white/60 transition-colors"
-                        >
-                          {dict.events.myReceipt}
-                        </Link>
-                      </div>
-                      {!isPastEvent ? (
-                        <Link href={`/register/${event.id}`}>
-                          <Button
-                            size="sm"
-                            className="rounded-full pl-4 pr-3.5 h-9 text-[13px] font-semibold bg-white text-primary hover:bg-white/90 shadow-lg hover:shadow-xl transition-all duration-300"
-                          >
-                            {dict.common.register}
-                            <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
-                          </Button>
-                        </Link>
-                      ) : (
+                              <span className="text-xl font-bold tracking-tight text-foreground">
+                                ${lowestPrice.toFixed(0)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <Link
+                        href="/register/receipt"
+                        className="inline-block mt-1 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                      >
+                        {dict.events.myReceipt}
+                      </Link>
+                    </div>
+                    {!isPastEvent ? (
+                      <Link href={`/register/${event.id}`}>
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="rounded-full px-4 h-9 border-white/20 text-white/60 hover:bg-white/10"
-                          disabled
+                          className="rounded-full pl-4 pr-3.5 h-9 text-[13px] font-semibold shadow-md hover:shadow-lg transition-all duration-300"
                         >
-                          {dict.common.registrationClosed}
+                          {dict.common.register}
+                          <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
                         </Button>
-                      )}
-                    </div>
+                      </Link>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full px-4 h-9"
+                        disabled
+                      >
+                        {dict.common.registrationClosed}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </article>
