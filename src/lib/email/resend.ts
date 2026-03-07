@@ -395,3 +395,182 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
     console.error("Failed to send group receipt email:", error);
   }
 }
+
+/* ── Admin notification email ─────────────────────────────────────── */
+
+export type AdminNotificationMember = {
+  firstName: string;
+  lastName: string;
+  category: string;
+  amount: number;
+  attendance: string;
+  confirmationCode?: string;
+};
+
+export type AdminNotificationEmailParams = {
+  to: string;
+  eventName: string;
+  eventStartDate?: string;
+  eventEndDate?: string;
+  registrantEmail: string;
+  registrantPhone?: string | null;
+  members: AdminNotificationMember[];
+  grandTotal: number;
+  isFree: boolean;
+  isPaid: boolean;
+  groupId?: string | null;
+  primaryRegistrationId: string;
+  registeredAt: string;
+};
+
+const SA = {
+  header: 'background:linear-gradient(135deg,#1e293b 0%,#334155 100%);padding:32px 40px 28px;text-align:center;',
+  h1: 'margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.3px;',
+  headerSub: 'margin:8px 0 0;color:rgba(255,255,255,0.75);font-size:13px;font-weight:500;',
+  alertBox: 'background:linear-gradient(135deg,#eff6ff,#eef2ff);border:1px solid #c7d2fe;border-radius:12px;padding:16px 20px;margin:0 0 24px;',
+  alertText: 'margin:0;color:#4338ca;font-size:14px;font-weight:600;',
+  alertSub: 'margin:4px 0 0;color:#6366f1;font-size:12px;',
+  memberRow: 'padding:12px 16px;border-bottom:1px solid #f1f5f9;',
+  memberName: 'font-size:14px;font-weight:700;color:#18181b;margin:0 0 2px;',
+  memberMeta: 'font-size:12px;color:#64748b;',
+  ctaAdmin: 'display:inline-block;background:linear-gradient(135deg,#1e293b,#475569);color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(30,41,59,0.35);',
+} as const;
+
+export async function sendAdminNotificationEmail(params: AdminNotificationEmailParams) {
+  const resend = getResend();
+  if (!resend) return;
+
+  const {
+    to,
+    eventName,
+    eventStartDate,
+    eventEndDate,
+    registrantEmail,
+    registrantPhone,
+    members,
+    grandTotal,
+    isFree,
+    isPaid,
+    primaryRegistrationId,
+    registeredAt,
+  } = params;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const adminUrl = `${appUrl}/admin/registrations/${primaryRegistrationId}`;
+  const totalDisplay = isFree ? "FREE" : `$${grandTotal.toFixed(2)}`;
+  const paymentStatus = isFree ? "Free" : isPaid ? "Paid via Stripe" : "Pending Payment";
+  const dateRange = eventStartDate && eventEndDate
+    ? `${formatDate(eventStartDate)} — ${formatDate(eventEndDate)}`
+    : null;
+
+  const isGroup = members.length > 1;
+  const subjectLine = isGroup
+    ? `New Group Registration (${members.length}) — ${eventName}`
+    : `New Registration: ${members[0].firstName} ${members[0].lastName} — ${eventName}`;
+
+  const memberRows = members
+    .map(
+      (m, i) => `
+      <tr>
+        <td style="${SA.memberRow}${i === members.length - 1 ? "border-bottom:none;" : ""}">
+          <div style="${SA.memberName}">${m.firstName} ${m.lastName}</div>
+          <div style="${SA.memberMeta}">
+            ${categoryLabel(m.category)} · ${m.attendance} · ${m.amount === 0 ? "FREE" : `$${m.amount.toFixed(2)}`}
+          </div>
+          ${m.confirmationCode ? `<div style="font-size:11px;color:#6366f1;font-family:monospace;font-weight:600;margin-top:2px;">Code: ${m.confirmationCode}</div>` : ""}
+        </td>
+      </tr>`
+    )
+    .join("");
+
+  let formattedTime = registeredAt;
+  try {
+    formattedTime = new Date(registeredAt).toLocaleString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch { /* keep raw */ }
+
+  try {
+    await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject: subjectLine,
+      html: `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="${S.body}">
+<table width="100%" cellpadding="0" cellspacing="0" style="${S.wrapper}"><tr><td align="center">
+<table cellpadding="0" cellspacing="0" style="${S.card}">
+
+  <!-- Header -->
+  <tr><td style="${SA.header}">
+    <h1 style="${SA.h1}">📋 New Registration</h1>
+    <p style="${SA.headerSub}">${eventName}${dateRange ? ` · ${dateRange}` : ""}</p>
+  </td></tr>
+
+  <!-- Body -->
+  <tr><td style="${S.bodyPad}">
+
+    <!-- Alert -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="${SA.alertBox}"><tr><td>
+      <p style="${SA.alertText}">${isGroup ? `${members.length} new registrants` : "1 new registrant"} just registered!</p>
+      <p style="${SA.alertSub}">Payment: ${paymentStatus} · Total: ${totalDisplay}</p>
+    </td></tr></table>
+
+    <!-- Contact -->
+    <p style="${S.sectionTitle}">Contact Information</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="${S.detailBox}"><tr><td style="${S.detailPad}">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        ${detailRow("Email", registrantEmail)}
+        ${detailRow("Phone", registrantPhone || null)}
+        ${detailRow("Registered At", formattedTime)}
+      </table>
+    </td></tr></table>
+
+    <!-- Registrants -->
+    <p style="${S.sectionTitle}">Registrant${isGroup ? "s" : ""}</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="${S.detailBox}">
+      ${memberRows}
+    </table>
+
+    <!-- Total -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin:16px 0 28px;">
+      <tr>
+        <td style="padding:14px 20px;color:#18181b;font-size:16px;font-weight:800;">Total</td>
+        <td style="padding:14px 20px;text-align:right;font-size:20px;font-weight:800;color:${isFree ? "#16a34a" : "#0ea5e9"};">${totalDisplay}</td>
+      </tr>
+    </table>
+
+    <!-- CTA -->
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:4px 0 8px;">
+      <a href="${adminUrl}" style="${SA.ctaAdmin}">View in Admin Panel &rarr;</a>
+    </td></tr></table>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="${S.footer}">
+    <p style="${S.footerText}">
+      <span style="${S.footerBold}">FellowFlow Admin</span><br>
+      You received this because you are an admin of this event.<br>
+      <a href="${appUrl}/admin/registrations" style="color:#6366f1;text-decoration:none;">View all registrations &rarr;</a>
+    </p>
+  </td></tr>
+
+</table>
+</td></tr></table>
+</body>
+</html>`.trim(),
+    });
+
+    console.log(`📧 Admin notification sent to ${to} for registration ${primaryRegistrationId}`);
+  } catch (error) {
+    console.error(`Failed to send admin notification to ${to}:`, error);
+  }
+}

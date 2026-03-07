@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendConfirmationEmail, sendGroupReceiptEmail } from "@/lib/email/resend";
+import { sendConfirmationEmail, sendGroupReceiptEmail, sendAdminNotificationEmail } from "@/lib/email/resend";
+import type { AdminNotificationMember } from "@/lib/email/resend";
 import { computeGroupPricing } from "@/lib/pricing/engine";
 import type { Logger } from "@/lib/logger";
 import type { Registration, Event, PricingConfig } from "@/types/database";
@@ -63,6 +64,28 @@ export async function dispatchSoloConfirmation(
       registration_id: registrationId,
       status: "sent",
     });
+
+    // Notify admins
+    const at = (reg.attendance_type as string) || "full_conference";
+    await dispatchAdminNotification(supabase, {
+      eventName: evtData?.name || "Event",
+      eventStartDate: evtData?.start_date,
+      eventEndDate: evtData?.end_date,
+      registrantEmail: reg.email as string,
+      members: [{
+        firstName: reg.first_name as string,
+        lastName: reg.last_name as string,
+        category: reg.category as string,
+        amount: Number(reg.computed_amount),
+        attendance: at === "full_conference" ? "Full Conference" : at === "kote" ? "KOTE" : "Partial",
+        confirmationCode: reg.public_confirmation_code as string | undefined,
+      }],
+      grandTotal: Number(reg.computed_amount),
+      isFree: Number(reg.computed_amount) === 0,
+      isPaid: true,
+      primaryRegistrationId: registrationId,
+      registeredAt: new Date().toISOString(),
+    }, log);
   } catch (err: unknown) {
     log.error("Confirmation email failed", {
       registrationId,
@@ -145,6 +168,29 @@ export async function dispatchGroupConfirmation(
         registration_id: primaryReg.id as string,
         status: "sent",
       });
+
+      // Notify admins (solo in group)
+      const soloAt = (primaryReg.attendance_type as string) || "full_conference";
+      await dispatchAdminNotification(supabase, {
+        eventName: evtData?.name || "Event",
+        eventStartDate: evtData?.start_date,
+        eventEndDate: evtData?.end_date,
+        registrantEmail: primaryReg.email as string,
+        members: [{
+          firstName: primaryReg.first_name as string,
+          lastName: primaryReg.last_name as string,
+          category: primaryReg.category as string,
+          amount: Number(primaryReg.computed_amount),
+          attendance: soloAt === "full_conference" ? "Full Conference" : soloAt === "kote" ? "KOTE" : "Partial",
+          confirmationCode: primaryReg.public_confirmation_code as string | undefined,
+        }],
+        grandTotal: Number(primaryReg.computed_amount),
+        isFree: Number(primaryReg.computed_amount) === 0,
+        isPaid: true,
+        groupId,
+        primaryRegistrationId: primaryReg.id as string,
+        registeredAt: new Date().toISOString(),
+      }, log);
       return;
     }
 
@@ -224,6 +270,28 @@ export async function dispatchGroupConfirmation(
       group_id: groupId,
       status: "sent",
     });
+
+    // Notify admins (multi-member group)
+    await dispatchAdminNotification(supabase, {
+      eventName: evtData?.name || "Event",
+      eventStartDate: evtData?.start_date,
+      eventEndDate: evtData?.end_date,
+      registrantEmail: primaryReg.email as string,
+      members: membersWithDetails.map((m) => ({
+        firstName: m.firstName,
+        lastName: m.lastName,
+        category: m.category,
+        amount: m.amount,
+        attendance: m.attendance,
+        confirmationCode: m.confirmationCode,
+      })),
+      grandTotal,
+      isFree: grandTotal === 0,
+      isPaid: true,
+      groupId,
+      primaryRegistrationId: primaryReg.id as string,
+      registeredAt: new Date().toISOString(),
+    }, log);
   } catch (err: unknown) {
     log.error("Group notification dispatch failed", {
       groupId,
@@ -235,6 +303,69 @@ export async function dispatchGroupConfirmation(
       group_id: groupId,
       status: "failed",
       error_message: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/* ── Admin notification ──────────────────────────────────────────── */
+
+export async function dispatchAdminNotification(
+  supabase: SupabaseClient,
+  payload: {
+    eventName: string;
+    eventStartDate?: string;
+    eventEndDate?: string;
+    registrantEmail: string;
+    registrantPhone?: string | null;
+    members: AdminNotificationMember[];
+    grandTotal: number;
+    isFree: boolean;
+    isPaid: boolean;
+    groupId?: string | null;
+    primaryRegistrationId: string;
+    registeredAt: string;
+  },
+  log: Logger
+): Promise<void> {
+  try {
+    // Fetch all admin & super_admin emails
+    const { data: admins, error } = await supabase
+      .from("profiles")
+      .select("email")
+      .in("role", ["admin", "super_admin"]);
+
+    if (error || !admins || admins.length === 0) {
+      log.warn("No admin emails found for notification", { error: error?.message });
+      return;
+    }
+
+    const adminEmails = admins.map((a) => a.email).filter(Boolean) as string[];
+    log.info("Sending admin notifications", { count: adminEmails.length, primaryRegistrationId: payload.primaryRegistrationId });
+
+    // Send to each admin in parallel
+    const results = await Promise.allSettled(
+      adminEmails.map((email) =>
+        sendAdminNotificationEmail({ ...payload, to: email })
+      )
+    );
+
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed > 0) {
+      log.warn("Some admin notifications failed", { failed, total: adminEmails.length });
+    }
+
+    // Log one entry for the batch
+    await supabase.from("email_logs").insert({
+      recipient: adminEmails.join(", "),
+      email_type: "admin_notification",
+      registration_id: payload.primaryRegistrationId,
+      group_id: payload.groupId || null,
+      status: failed === 0 ? "sent" : "partial",
+      error_message: failed > 0 ? `${failed}/${adminEmails.length} failed` : null,
+    });
+  } catch (err) {
+    log.error("Admin notification dispatch failed", {
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 }

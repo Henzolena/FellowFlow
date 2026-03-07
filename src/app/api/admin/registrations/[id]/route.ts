@@ -13,25 +13,54 @@ export async function GET(
     const { id } = await params;
     const supabase = await createClient();
 
-    const { data, error } = await supabase
+    const { data: raw, error } = await supabase
       .from("registrations")
-      .select("*, events(name, start_date, end_date, duration_days), payments(*)")
+      .select(
+        "*, " +
+        "events(name, start_date, end_date, duration_days), " +
+        "payments(*), " +
+        "check_ins(*), " +
+        "service_entitlements(*, service_catalog(*)), " +
+        "lodging_assignments(*, beds(*, rooms(*, motels(name))))"
+      )
       .eq("id", id)
-      .single();
+      .single<Record<string, unknown>>();
 
     if (error) throw error;
-    if (!data) {
+    if (!raw) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    // Normalize: ensure payments is always an array
+    // Resolve church name
+    let churchName: string | null = raw.church_name_custom as string | null;
+    if (!churchName && raw.church_id) {
+      const { data: ch } = await supabase
+        .from("churches")
+        .select("name")
+        .eq("id", raw.church_id as string)
+        .single();
+      churchName = ch?.name || null;
+    }
+
+    // Fetch email logs for this registration
+    const { data: emailLogs } = await supabase
+      .from("email_logs")
+      .select("id, email_type, status, error_message, created_at")
+      .or(`registration_id.eq.${id},group_id.eq.${raw.group_id || "00000000-0000-0000-0000-000000000000"}`)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    const toArray = (v: unknown) => (Array.isArray(v) ? v : v ? [v] : []);
+
+    // Normalize arrays
     const normalized = {
-      ...data,
-      payments: Array.isArray(data.payments)
-        ? data.payments
-        : data.payments
-        ? [data.payments]
-        : [],
+      ...raw,
+      church_name_resolved: churchName,
+      payments: toArray(raw.payments),
+      check_ins: toArray(raw.check_ins),
+      service_entitlements: toArray(raw.service_entitlements),
+      lodging_assignments: toArray(raw.lodging_assignments),
+      email_logs: emailLogs || [],
     };
 
     return NextResponse.json(normalized);
