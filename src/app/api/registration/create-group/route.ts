@@ -272,6 +272,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Notify admins (independent — fires even if confirmation email failed)
+      await new Promise((r) => setTimeout(r, 600));
       function freeAttendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null; attendance_type?: string }): string {
         const at = (r as Record<string, unknown>).attendance_type as string | undefined;
         if (at === "kote") return "KOTE";

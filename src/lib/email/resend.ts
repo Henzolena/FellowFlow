@@ -420,7 +420,7 @@ export type AdminNotificationMember = {
 };
 
 export type AdminNotificationEmailParams = {
-  to: string;
+  to: string | string[];
   eventName: string;
   eventStartDate?: string;
   eventEndDate?: string;
@@ -581,9 +581,11 @@ export async function sendAdminNotificationEmail(params: AdminNotificationEmailP
   });
 
   if (sendError) {
-    console.error(`❌ Resend API error for admin notification to ${to}:`, sendError);
+    const recipient = Array.isArray(to) ? to.join(', ') : to;
+    console.error(`❌ Resend API error for admin notification to ${recipient}:`, sendError);
     throw new Error(sendError.message || "Resend API error");
   }
 
-  console.log(`📧 Admin notification sent to ${to} (id: ${sendResult?.id}) for registration ${primaryRegistrationId}`);
+  const recipient = Array.isArray(to) ? to.join(', ') : to;
+  console.log(`📧 Admin notification sent to ${recipient} (id: ${sendResult?.id}) for registration ${primaryRegistrationId}`);
 }

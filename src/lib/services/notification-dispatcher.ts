@@ -5,6 +5,8 @@ import { computeGroupPricing } from "@/lib/pricing/engine";
 import type { Logger } from "@/lib/logger";
 import type { Registration, Event, PricingConfig } from "@/types/database";
 
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 /**
  * Send a solo confirmation email and log the result.
  */
@@ -80,6 +82,7 @@ export async function dispatchSoloConfirmation(
     }
 
     // Notify admins (independent — fires even if confirmation email failed)
+    await delay(600);
     const at = (reg.attendance_type as string) || "full_conference";
     await dispatchAdminNotification(supabase, {
       eventName: evtData?.name || "Event",
@@ -192,6 +195,7 @@ export async function dispatchGroupConfirmation(
       }
 
       // Notify admins (independent — fires even if confirmation email failed)
+      await delay(600);
       const soloAt = (primaryReg.attendance_type as string) || "full_conference";
       await dispatchAdminNotification(supabase, {
         eventName: evtData?.name || "Event",
@@ -308,6 +312,7 @@ export async function dispatchGroupConfirmation(
     }
 
     // Notify admins (independent — fires even if group receipt email failed)
+    await delay(600);
     await dispatchAdminNotification(supabase, {
       eventName: evtData?.name || "Event",
       eventStartDate: evtData?.start_date,
@@ -369,37 +374,18 @@ export async function dispatchAdminNotification(
     }
 
     const adminEmails = admins.map((a) => a.email).filter(Boolean) as string[];
-    log.info("Sending admin notifications", { count: adminEmails.length, primaryRegistrationId: payload.primaryRegistrationId });
+    log.info("Sending admin notification (batched)", { recipients: adminEmails.length, primaryRegistrationId: payload.primaryRegistrationId });
 
-    // Send to each admin in parallel
-    const results = await Promise.allSettled(
-      adminEmails.map((email) =>
-        sendAdminNotificationEmail({ ...payload, to: email })
-      )
-    );
+    // Single API call with all admin emails — avoids Resend 2 req/s rate limit
+    await sendAdminNotificationEmail({ ...payload, to: adminEmails });
 
-    const failedResults = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-    const failedCount = failedResults.length;
-    const errorMessages = failedResults.map((r) => String(r.reason?.message || r.reason)).join("; ");
-
-    if (failedCount > 0) {
-      log.warn("Some admin notifications failed", {
-        failed: failedCount,
-        total: adminEmails.length,
-        errors: errorMessages,
-      });
-    } else {
-      log.info("All admin notifications sent successfully", { count: adminEmails.length });
-    }
-
-    // Log one entry for the batch
+    log.info("Admin notification sent successfully", { recipients: adminEmails.length });
     await supabase.from("email_logs").insert({
       recipient: adminEmails.join(", "),
       email_type: "admin_notification",
       registration_id: payload.primaryRegistrationId,
       group_id: payload.groupId || null,
-      status: failedCount === 0 ? "sent" : failedCount === adminEmails.length ? "failed" : "partial",
-      error_message: failedCount > 0 ? `${failedCount}/${adminEmails.length} failed: ${errorMessages}` : null,
+      status: "sent",
     });
   } catch (err) {
     log.error("Admin notification dispatch failed", {
