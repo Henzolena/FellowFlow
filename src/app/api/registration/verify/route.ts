@@ -12,7 +12,10 @@ const REG_SELECT =
   "id, first_name, last_name, email, phone, date_of_birth, age_at_event, category, " +
   "is_full_duration, is_staying_in_motel, num_days, computed_amount, explanation_code, " +
   "explanation_detail, status, confirmed_at, created_at, group_id, event_id, " +
+  "attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, access_tier, " +
   "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold), payments(*)";
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -39,10 +42,14 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient();
 
+    // Look up by UUID or public confirmation code
+    const isUUID = UUID_REGEX.test(confirmationId);
+    const column = isUUID ? "id" : "public_confirmation_code";
+
     const { data, error } = await supabase
       .from("registrations")
       .select(REG_SELECT)
-      .eq("id", confirmationId)
+      .eq(column, confirmationId)
       .single<Record<string, unknown>>();
 
     if (error || !data) {

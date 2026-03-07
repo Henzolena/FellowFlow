@@ -3,12 +3,19 @@
 import { useState } from "react";
 
 type AgeRangeKey = "infant" | "child" | "youth" | "adult" | "";
+export type AttendanceTypeKey = "full_conference" | "partial" | "kote" | "";
+export type GenderKey = "male" | "female" | "";
 
 export type Registrant = {
   id: string;
   firstName: string;
   lastName: string;
   ageRange: AgeRangeKey;
+  gender: GenderKey;
+  city: string;
+  churchId: string;
+  churchNameCustom: string;
+  attendanceType: AttendanceTypeKey;
   isFullDuration: boolean | null;
   isStayingInMotel: boolean | null;
   numDays: number;
@@ -30,6 +37,11 @@ export function createEmptyRegistrant(): Registrant {
     firstName: "",
     lastName: "",
     ageRange: "",
+    gender: "",
+    city: "",
+    churchId: "",
+    churchNameCustom: "",
+    attendanceType: "",
     isFullDuration: null,
     isStayingInMotel: null,
     numDays: 1,
@@ -38,6 +50,16 @@ export function createEmptyRegistrant(): Registrant {
 
 export function isRegistrantComplete(r: Registrant): boolean {
   if (!r.firstName.trim() || !r.lastName.trim() || !r.ageRange) return false;
+  if (!r.gender) return false;
+  if (!r.attendanceType) return false;
+
+  if (r.attendanceType === "full_conference") {
+    return true;
+  }
+  if (r.attendanceType === "kote") {
+    return r.numDays >= 1;
+  }
+  // partial
   if (r.isFullDuration === null) return false;
   if (!r.isFullDuration) {
     if (r.isStayingInMotel === null) return false;

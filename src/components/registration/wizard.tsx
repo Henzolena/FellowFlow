@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -11,10 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { DuplicateRegistrationDialog } from "./duplicate-dialog";
-import { ArrowLeft, ArrowRight, Loader2, Check, Plus, Trash2, User, Users } from "lucide-react";
-import type { Event, PricingConfig } from "@/types/database";
+import { ArrowLeft, ArrowRight, Loader2, Check, Plus, Trash2, User, Users, Church, MapPin } from "lucide-react";
+import type { Event, PricingConfig, Church as ChurchType } from "@/types/database";
 import { useTranslation } from "@/lib/i18n/context";
-import { useWizardState, type Registrant } from "./hooks/use-wizard-state";
+import { useWizardState, type Registrant, type AttendanceTypeKey, type GenderKey } from "./hooks/use-wizard-state";
 import { useGroupQuote, getAgeRangeOptions, syntheticDob } from "./hooks/use-group-quote";
 import { useDuplicateCheck } from "./hooks/use-duplicate-check";
 
@@ -30,6 +31,15 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
   const { dict } = useTranslation();
   const STEPS = dict.wizard.steps;
   const ageLabels = { infant: dict.wizard.infantLabel, child: dict.wizard.childLabel, youth: dict.wizard.youthLabel, adult: dict.wizard.adultLabel };
+
+  // Fetch churches for dropdown
+  const [churches, setChurches] = useState<ChurchType[]>([]);
+  useEffect(() => {
+    fetch("/api/churches")
+      .then((r) => r.json())
+      .then((d) => setChurches(d.churches ?? []))
+      .catch(() => {});
+  }, []);
 
   const {
     step, setStep, loading, setLoading, error, setError,
@@ -56,13 +66,19 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
           phone: contact.phone || undefined,
           registrants: registrants.map((r) => {
             const opt = getAgeRangeOptions(event, ageLabels).find((o) => o.key === r.ageRange);
+            const attType = r.attendanceType || "full_conference";
             return {
               firstName: r.firstName,
               lastName: r.lastName,
               dateOfBirth: syntheticDob(opt?.representativeAge ?? 25, event.start_date),
-              isFullDuration: r.isFullDuration,
-              isStayingInMotel: !r.isFullDuration ? r.isStayingInMotel : undefined,
-              numDays: !r.isFullDuration && !r.isStayingInMotel ? r.numDays : undefined,
+              gender: r.gender || undefined,
+              city: r.city || undefined,
+              churchId: r.churchId || undefined,
+              churchNameCustom: r.churchNameCustom || undefined,
+              attendanceType: attType,
+              isFullDuration: attType === "full_conference",
+              isStayingInMotel: attType === "partial" ? r.isStayingInMotel : undefined,
+              numDays: attType !== "full_conference" ? r.numDays : undefined,
             };
           }),
         }),
@@ -192,35 +208,106 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   </Select>
                 </div>
 
+                {/* Gender */}
+                <div className="space-y-2">
+                  <Label>{dict.wizard.gender} *</Label>
+                  <Select
+                    value={reg.gender}
+                    onValueChange={(v) => updateRegistrant(idx, { gender: v as GenderKey })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={dict.wizard.selectGender} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">{dict.wizard.male}</SelectItem>
+                      <SelectItem value="female">{dict.wizard.female}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* City + Church row */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>{dict.wizard.city}</Label>
+                    <Input
+                      value={reg.city}
+                      onChange={(e) => updateRegistrant(idx, { city: e.target.value })}
+                      placeholder="Dallas, TX"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{dict.wizard.church}</Label>
+                    <Select
+                      value={reg.churchId || "__other"}
+                      onValueChange={(v) => {
+                        if (v === "__other") {
+                          updateRegistrant(idx, { churchId: "", churchNameCustom: reg.churchNameCustom });
+                        } else {
+                          updateRegistrant(idx, { churchId: v, churchNameCustom: "" });
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={dict.wizard.selectChurch} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {churches.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                        <SelectItem value="__other">{dict.wizard.otherChurch}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {!reg.churchId && (
+                      <Input
+                        value={reg.churchNameCustom}
+                        onChange={(e) => updateRegistrant(idx, { churchNameCustom: e.target.value })}
+                        placeholder={dict.wizard.customChurchName}
+                        className="mt-2"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Attendance Type */}
                 <div className="space-y-3">
-                  <Label>{dict.wizard.attendingFullDuration}</Label>
+                  <Label>{dict.wizard.attendanceType} *</Label>
                   <RadioGroup
-                    value={reg.isFullDuration === null ? "" : reg.isFullDuration ? "yes" : "no"}
-                    onValueChange={(v) =>
+                    value={reg.attendanceType}
+                    onValueChange={(v) => {
+                      const att = v as AttendanceTypeKey;
                       updateRegistrant(idx, {
-                        isFullDuration: v === "yes",
-                        isStayingInMotel: v === "no" ? reg.isStayingInMotel : null,
-                        numDays: v === "no" ? reg.numDays : 1,
-                      })
-                    }
+                        attendanceType: att,
+                        isFullDuration: att === "full_conference" ? true : false,
+                        isStayingInMotel: att === "partial" ? reg.isStayingInMotel : null,
+                        numDays: att !== "full_conference" ? reg.numDays || 1 : 1,
+                      });
+                    }}
                   >
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="yes" id={`full-yes-${idx}`} />
-                      <Label htmlFor={`full-yes-${idx}`} className="font-normal">
-                        {dict.wizard.yesFullConference} ({event.duration_days} {dict.common.days})
+                      <RadioGroupItem value="full_conference" id={`att-full-${idx}`} />
+                      <Label htmlFor={`att-full-${idx}`} className="font-normal">
+                        {dict.wizard.fullConference} ({event.duration_days} {dict.common.days})
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="no" id={`full-no-${idx}`} />
-                      <Label htmlFor={`full-no-${idx}`} className="font-normal">
-                        {dict.wizard.noPartialAttendance}
+                      <RadioGroupItem value="partial" id={`att-partial-${idx}`} />
+                      <Label htmlFor={`att-partial-${idx}`} className="font-normal">
+                        {dict.wizard.partialAttendance}
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="kote" id={`att-kote-${idx}`} />
+                      <Label htmlFor={`att-kote-${idx}`} className="font-normal">
+                        {dict.wizard.koteAttendance}
+                        <span className="ml-1 text-xs text-muted-foreground">{dict.wizard.koteAttendanceDesc}</span>
                       </Label>
                     </div>
                   </RadioGroup>
                 </div>
 
+                {/* Partial sub-fields: motel question + days */}
                 <AnimatePresence>
-                  {reg.isFullDuration === false && (
+                  {reg.attendanceType === "partial" && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
@@ -262,6 +349,35 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                           </Select>
                         </div>
                       )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* KOTE sub-fields: just days */}
+                <AnimatePresence>
+                  {reg.attendanceType === "kote" && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="space-y-2 overflow-hidden"
+                    >
+                      <Label>{dict.wizard.numberOfDays}</Label>
+                      <Select
+                        value={String(reg.numDays)}
+                        onValueChange={(v) => updateRegistrant(idx, { numDays: parseInt(v) })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: event.duration_days }, (_, i) => i + 1).map((d) => (
+                            <SelectItem key={d} value={String(d)}>
+                              {d} {d !== 1 ? dict.common.days : dict.common.day}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -325,7 +441,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   <div>
                     <h2 className="text-lg font-semibold">{dict.wizard.whoIsAttending}</h2>
                     <p className="text-sm text-muted-foreground">
-                      {dict.wizard.addEveryoneDesc.replace("{event}", event.name)}
+                      {dict.wizard.addEveryoneDesc.replace("{eventName}", event.name)}
                     </p>
                   </div>
                   <Badge variant="secondary" className="gap-1">
@@ -432,8 +548,10 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 ml-6">
-                              {reg.isFullDuration
-                                ? dict.common.fullConference
+                              {reg.attendanceType === "full_conference"
+                                ? dict.wizard.fullConference
+                                : reg.attendanceType === "kote"
+                                ? `${dict.wizard.koteAttendance} — ${reg.numDays} ${dict.wizard.nDays}`
                                 : reg.isStayingInMotel
                                 ? dict.common.partialMotel
                                 : `${reg.numDays} ${dict.wizard.nDays}`}

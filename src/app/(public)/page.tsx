@@ -6,12 +6,14 @@ import { format, parseISO } from "date-fns";
 import {
   Users,
   Calendar,
+  Clock,
   CreditCard,
   Shield,
   ArrowRight,
   CheckCircle2,
+  CalendarDays,
 } from "lucide-react";
-import type { EventWithPricing } from "@/types/database";
+import type { EventWithImages } from "@/types/database";
 import { HeroSection } from "@/components/landing/hero-section";
 import { getServerDictionary } from "@/lib/i18n/server";
 
@@ -20,12 +22,13 @@ export default async function Home() {
   const supabase = await createClient();
   const { data: events } = await supabase
     .from("events")
-    .select("*, pricing_config(*)")
+    .select("*, pricing_config(*), event_images(*)")
     .eq("is_active", true)
     .order("start_date", { ascending: true })
     .limit(1);
 
-  const event = events?.[0] as EventWithPricing | undefined;
+  const event = events?.[0] as EventWithImages | undefined;
+  const coverImage = event?.event_images?.find((img) => img.image_type === "cover");
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -35,34 +38,93 @@ export default async function Home() {
 
       {/* Active Event */}
       {event && (
-        <section className="py-16 bg-muted/40">
+        <section className="py-16 sm:py-20 bg-muted/40">
           <div className="mx-auto max-w-7xl px-4">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold">{dict.home.upcomingEvent}</h2>
+            <div className="text-center mb-10">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">{dict.home.upcomingEvent}</h2>
+              <div className="mt-3 mx-auto h-0.5 w-12 brand-gradient rounded-full" />
             </div>
-            <Card className="mx-auto max-w-xl shadow-brand-md brand-gradient-border overflow-hidden">
-              <CardContent className="p-6 text-center space-y-4">
-                <h3 className="text-xl font-bold">{event.name}</h3>
-                {event.description && (
-                  <p className="text-muted-foreground">{event.description}</p>
+
+            <article className="group relative mx-auto max-w-2xl rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-brand-lg hover:-translate-y-0.5">
+              {/* Background image / fallback */}
+              <div className="absolute inset-0">
+                {coverImage ? (
+                  <img
+                    src={coverImage.url}
+                    alt={coverImage.alt_text || event.name}
+                    className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-gradient-to-br from-primary via-primary/90 to-brand-teal/70">
+                    <div className="absolute inset-0 hero-dot-grid opacity-[0.06]" />
+                  </div>
                 )}
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4 text-brand-teal" />
-                  <span>
-                    {format(parseISO(event.start_date), "MMM d")} —{" "}
-                    {format(parseISO(event.end_date), "MMM d, yyyy")}
+              </div>
+
+              {/* Multi-layer overlay for readability */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/15" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-transparent" />
+
+              {/* Content on top */}
+              <div className="relative z-10 flex flex-col min-h-[400px] sm:min-h-[460px]">
+                {/* Status badge */}
+                <div className="p-5">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white shadow-sm">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-teal opacity-60" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-teal" />
+                    </span>
+                    {dict.events.upcoming}
                   </span>
-                  <span className="text-muted-foreground/50">•</span>
-                  <span>{event.duration_days} {dict.common.days}</span>
                 </div>
-                <Link href={`/register/${event.id}`}>
-                  <Button className="mt-2 shadow-brand-sm hover:shadow-brand-md transition-shadow">
-                    {dict.home.registerForEvent}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+
+                {/* Push content to bottom */}
+                <div className="mt-auto" />
+
+                {/* Text content */}
+                <div className="p-6 sm:p-8 pt-0">
+                  <div className="space-y-2.5 mb-5">
+                    <h3 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight text-white drop-shadow-sm">
+                      {event.name}
+                    </h3>
+                    {event.description && (
+                      <p className="text-sm leading-relaxed text-white/70 line-clamp-2 max-w-lg">
+                        {event.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Metadata chips */}
+                  <div className="flex flex-wrap items-center gap-2 mb-6">
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10 px-2.5 py-1 text-xs font-medium text-white/80">
+                      <Calendar className="h-3 w-3 text-brand-teal shrink-0" />
+                      {format(parseISO(event.start_date), "MMM d")} –{" "}
+                      {format(parseISO(event.end_date), "MMM d, yyyy")}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10 px-2.5 py-1 text-xs font-medium text-white/80">
+                      <Clock className="h-3 w-3 text-brand-cyan shrink-0" />
+                      {event.duration_days} {dict.common.days}
+                    </span>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-white/15 mb-5" />
+
+                  {/* CTA */}
+                  <div className="flex items-center justify-center">
+                    <Link href={`/register/${event.id}`}>
+                      <Button
+                        size="lg"
+                        className="rounded-full px-8 text-sm font-semibold bg-white text-primary hover:bg-white/90 shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        {dict.home.registerForEvent}
+                        <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </article>
           </div>
         </section>
       )}

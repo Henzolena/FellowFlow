@@ -23,6 +23,23 @@ export type Event = {
   updated_at: string;
 };
 
+export type Church = {
+  id: string;
+  name: string;
+  city: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AttendanceType = 'full_conference' | 'partial' | 'kote';
+
+export type AccessTier = 'FULL_ACCESS' | 'KOTE_ACCESS' | 'MOTEL_ACCESS' | 'MEAL_ACCESS' | 'STAFF' | 'VIP';
+
+export type Gender = 'male' | 'female';
+
+export type RegistrationStatus = 'draft' | 'invited' | 'pending' | 'confirmed' | 'cancelled' | 'refunded';
+
 export type SurchargeTier = {
   start_date: string;
   end_date: string;
@@ -40,6 +57,7 @@ export type PricingConfig = {
   child_full_price: number;
   child_daily_price: number;
   motel_stay_free: boolean;
+  kote_daily_price: number;
   late_surcharge_tiers: SurchargeTier[];
   created_at: string;
   updated_at: string;
@@ -55,7 +73,8 @@ export type ExplanationCode =
   | "PARTIAL_MOTEL_FREE"
   | "PARTIAL_ADULT"
   | "PARTIAL_YOUTH"
-  | "PARTIAL_CHILD";
+  | "PARTIAL_CHILD"
+  | "KOTE";
 
 export type Registration = {
   id: string;
@@ -75,7 +94,14 @@ export type Registration = {
   computed_amount: number;
   explanation_code: ExplanationCode;
   explanation_detail: string | null;
-  status: "pending" | "confirmed" | "cancelled" | "refunded";
+  status: RegistrationStatus;
+  gender: Gender | null;
+  city: string | null;
+  church_id: string | null;
+  church_name_custom: string | null;
+  attendance_type: AttendanceType;
+  public_confirmation_code: string;
+  access_tier: AccessTier | null;
   created_at: string;
   updated_at: string;
   confirmed_at: string | null;
@@ -99,6 +125,24 @@ export type RegistrationWithPayment = Registration & {
   payments: Payment[];
 };
 
+export type EventImage = {
+  id: string;
+  event_id: string;
+  storage_path: string;
+  url: string;
+  image_type: 'cover' | 'gallery' | 'banner';
+  display_order: number;
+  alt_text: string | null;
+  file_size: number | null;
+  mime_type: string | null;
+  created_at: string;
+};
+
 export type EventWithPricing = Event & {
   pricing_config: PricingConfig[] | PricingConfig | null;
+};
+
+export type EventWithImages = Event & {
+  pricing_config: PricingConfig[] | PricingConfig | null;
+  event_images: EventImage[];
 };

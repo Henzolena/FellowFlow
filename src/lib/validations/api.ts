@@ -40,7 +40,7 @@ export const resendConfirmationSchema = z.object({
 // ─── Send receipt / verify receipt ───
 
 export const receiptLookupSchema = z.object({
-  confirmationId: uuid,
+  confirmationId: z.string().min(1, "Confirmation ID is required"),
   lastName: z.string().min(1, "Last name is required"),
 });
 
@@ -62,6 +62,7 @@ export const adminCreateEventSchema = z.object({
       childFullPrice: z.number().min(0).default(0),
       childDailyPrice: z.number().min(0).default(0),
       motelStayFree: z.boolean().default(true),
+      koteDailyPrice: z.number().min(0).default(10),
     })
     .optional(),
 });

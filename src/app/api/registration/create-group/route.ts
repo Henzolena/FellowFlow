@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
         isFullDuration: r.isFullDuration,
         isStayingInMotel: r.isStayingInMotel,
         numDays: r.isFullDuration ? undefined : r.numDays,
+        attendanceType: r.attendanceType,
         registrationDate: serverRegistrationDate,
       })),
       event,
@@ -122,27 +123,56 @@ export async function POST(request: NextRequest) {
     const groupId = randomUUID();
     const isFreeGroup = groupPricing.grandTotal === 0;
 
+    // Generate confirmation codes via DB function
+    const confirmationCodes: string[] = [];
+    for (const reg of data.registrants) {
+      const { data: codeResult } = await adminClient.rpc("generate_confirmation_code", {
+        p_first_name: reg.firstName,
+        p_event_id: data.eventId,
+      });
+      confirmationCodes.push(codeResult ?? `FF-${reg.firstName.slice(0, 5).toUpperCase()}-${Math.floor(Math.random() * 10000).toString().padStart(4, "0")}`);
+    }
+
+    // Derive attendance_type and access_tier
+    function deriveAttendanceType(reg: typeof data.registrants[number]): string {
+      return reg.attendanceType ?? (reg.isFullDuration ? "full_conference" : "partial");
+    }
+    function deriveAccessTier(attendanceType: string): string {
+      if (attendanceType === "kote") return "KOTE_ACCESS";
+      return "FULL_ACCESS";
+    }
+
     // Create all registrations
-    const registrationRows = data.registrants.map((reg, i) => ({
-      event_id: data.eventId,
-      user_id: user?.id ?? null,
-      group_id: groupId,
-      first_name: reg.firstName,
-      last_name: reg.lastName,
-      email: data.email,
-      phone: data.phone ?? null,
-      date_of_birth: reg.dateOfBirth,
-      age_at_event: groupPricing.items[i].ageAtEvent,
-      category: groupPricing.items[i].category,
-      is_full_duration: reg.isFullDuration,
-      is_staying_in_motel: reg.isStayingInMotel ?? null,
-      num_days: reg.numDays ?? null,
-      computed_amount: groupPricing.items[i].amount,
-      explanation_code: groupPricing.items[i].explanationCode,
-      explanation_detail: groupPricing.items[i].explanationDetail,
-      status: isFreeGroup ? "confirmed" : "pending",
-      confirmed_at: isFreeGroup ? new Date().toISOString() : null,
-    }));
+    const registrationRows = data.registrants.map((reg, i) => {
+      const attType = deriveAttendanceType(reg);
+      return {
+        event_id: data.eventId,
+        user_id: user?.id ?? null,
+        group_id: groupId,
+        first_name: reg.firstName,
+        last_name: reg.lastName,
+        email: data.email,
+        phone: data.phone ?? null,
+        date_of_birth: reg.dateOfBirth,
+        age_at_event: groupPricing.items[i].ageAtEvent,
+        category: groupPricing.items[i].category,
+        is_full_duration: reg.isFullDuration,
+        is_staying_in_motel: reg.isStayingInMotel ?? null,
+        num_days: reg.numDays ?? null,
+        computed_amount: groupPricing.items[i].amount,
+        explanation_code: groupPricing.items[i].explanationCode,
+        explanation_detail: groupPricing.items[i].explanationDetail,
+        status: isFreeGroup ? "confirmed" : "pending",
+        confirmed_at: isFreeGroup ? new Date().toISOString() : null,
+        gender: reg.gender ?? null,
+        city: reg.city ?? null,
+        church_id: reg.churchId ?? null,
+        church_name_custom: reg.churchNameCustom ?? null,
+        attendance_type: attType,
+        public_confirmation_code: confirmationCodes[i],
+        access_tier: deriveAccessTier(attType),
+      };
+    });
 
     const { data: registrations, error: regError } = await adminClient
       .from("registrations")

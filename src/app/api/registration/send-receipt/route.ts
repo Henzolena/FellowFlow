@@ -31,14 +31,20 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient();
 
+    // Look up by UUID or public confirmation code
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isUUID = UUID_REGEX.test(confirmationId);
+    const column = isUUID ? "id" : "public_confirmation_code";
+
     const { data, error } = await supabase
       .from("registrations")
       .select(
         "id, first_name, last_name, email, computed_amount, explanation_detail, " +
         "group_id, event_id, category, age_at_event, is_full_duration, is_staying_in_motel, " +
-        "num_days, date_of_birth, events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)"
+        "num_days, date_of_birth, attendance_type, public_confirmation_code, " +
+        "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)"
       )
-      .eq("id", confirmationId)
+      .eq(column, confirmationId)
       .single<Record<string, unknown>>();
 
     if (error || !data) {

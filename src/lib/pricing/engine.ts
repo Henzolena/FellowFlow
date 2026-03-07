@@ -1,4 +1,4 @@
-import type { AgeCategory, ExplanationCode, Event, PricingConfig, SurchargeTier } from "@/types/database";
+import type { AgeCategory, AttendanceType, ExplanationCode, Event, PricingConfig, SurchargeTier } from "@/types/database";
 import { differenceInYears, parseISO, isWithinInterval } from "date-fns";
 
 export type PricingInput = {
@@ -6,6 +6,7 @@ export type PricingInput = {
   isFullDuration: boolean;
   isStayingInMotel?: boolean;
   numDays?: number;
+  attendanceType?: AttendanceType;
   /** Override for surcharge date calculation (defaults to now) */
   registrationDate?: string;
 };
@@ -84,9 +85,24 @@ export function computePricing(
     };
   }
 
-  // ─── Full duration path ───
-  // Full duration → always pay full price by age category (no motel discount)
-  if (input.isFullDuration) {
+  // Derive attendance type: prefer explicit value, fall back to is_full_duration
+  const attendanceType: AttendanceType = input.attendanceType
+    ?? (input.isFullDuration ? "full_conference" : "partial");
+
+  // ─── KOTE path ───
+  // Walk-in / off-campus: flat daily fee regardless of age category
+  if (attendanceType === "kote") {
+    const numDays = input.numDays ?? 1;
+    const koteRate = Number(pricing.kote_daily_price ?? 10);
+    const baseAmount = koteRate * numDays;
+
+    return applySurcharge(baseAmount, "KOTE", category, ageAtEvent, pricing, input, {
+      detail: `KOTE: ${numDays} day(s) × $${koteRate.toFixed(2)}/day: $${baseAmount.toFixed(2)}`,
+    });
+  }
+
+  // ─── Full conference path ───
+  if (attendanceType === "full_conference") {
     const priceMap: Record<AgeCategory, { price: number; code: ExplanationCode }> = {
       adult: { price: Number(pricing.adult_full_price), code: "FULL_ADULT" },
       youth: { price: Number(pricing.youth_full_price), code: "FULL_YOUTH" },
@@ -99,9 +115,9 @@ export function computePricing(
     });
   }
 
-  // ─── Partial duration path ───
+  // ─── Partial attendance path ───
 
-  // Staying in motel + not full duration → FREE
+  // Legacy: Staying in motel + not full duration → FREE (kept for backward compat)
   if (input.isStayingInMotel && pricing.motel_stay_free) {
     return {
       category,
@@ -115,7 +131,7 @@ export function computePricing(
     };
   }
 
-  // Not staying in motel → daily rate × number of days
+  // Daily rate × number of days
   const numDays = input.numDays ?? 1;
   const dailyMap: Record<AgeCategory, { rate: number; code: ExplanationCode }> = {
     adult: { rate: Number(pricing.adult_daily_price), code: "PARTIAL_ADULT" },
@@ -237,6 +253,7 @@ export function getExplanationLabel(code: ExplanationCode | string): string {
     PARTIAL_ADULT: "Partial Attendance — Adult (per day)",
     PARTIAL_YOUTH: "Partial Attendance — Youth (per day)",
     PARTIAL_CHILD: "Partial Attendance — Child (per day)",
+    KOTE: "KOTE — Walk-in / Off-Campus (per day)",
     // Legacy code — kept for backward compatibility with existing records
     FULL_MOTEL_FREE: "Full Conference + Motel (Free)",
   };

@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, Save, Plus } from "lucide-react";
 import { toast } from "sonner";
 import type { EventWithPricing } from "@/types/database";
+import { EventImageManager } from "@/components/admin/event-image-manager";
 
 type EventForm = {
   id?: string;
@@ -28,6 +29,7 @@ type EventForm = {
     childFullPrice: number;
     childDailyPrice: number;
     motelStayFree: boolean;
+    koteDailyPrice: number;
   };
 };
 
@@ -47,6 +49,7 @@ const emptyForm: EventForm = {
     childFullPrice: 0,
     childDailyPrice: 0,
     motelStayFree: true,
+    koteDailyPrice: 10,
   },
 };
 
@@ -96,6 +99,7 @@ export default function SettingsPage() {
         childFullPrice: pc ? Number(pc.child_full_price) : 0,
         childDailyPrice: pc ? Number(pc.child_daily_price) : 0,
         motelStayFree: pc?.motel_stay_free ?? true,
+        koteDailyPrice: pc ? Number(pc.kote_daily_price) : 10,
       },
     });
     setEditingId(event.id);
@@ -417,6 +421,27 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            <div className="space-y-3 rounded-lg border border-border/60 p-4">
+              <h4 className="font-medium text-orange-600">KOTE (Walk-in)</h4>
+              <div className="space-y-2">
+                <Label className="text-xs">Daily Price</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.pricing.koteDailyPrice}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      pricing: {
+                        ...f.pricing,
+                        koteDailyPrice: parseFloat(e.target.value) || 0,
+                      },
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
             <div className="flex items-center gap-3">
               <Switch
                 checked={form.pricing.motelStayFree}
@@ -452,6 +477,11 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Event Images — only visible when editing an existing event */}
+      {editingId && (
+        <EventImageManager eventId={editingId} />
+      )}
     </div>
   );
 }

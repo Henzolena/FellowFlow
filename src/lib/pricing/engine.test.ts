@@ -40,6 +40,7 @@ function makePricing(overrides: Partial<PricingConfig> = {}): PricingConfig {
     child_full_price: 50,
     child_daily_price: 15,
     motel_stay_free: true,
+    kote_daily_price: 10,
     late_surcharge_tiers: [],
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
@@ -351,6 +352,61 @@ describe("computePricing", () => {
       expect(result.baseAmount).toBe(50); // 2 × $25
       expect(result.surcharge).toBe(10);
       expect(result.amount).toBe(60);
+    });
+  });
+
+  describe("KOTE path", () => {
+    it("charges kote_daily_price × numDays regardless of age", () => {
+      const result = computePricing(
+        { dateOfBirth: "1990-01-01", isFullDuration: false, numDays: 3, attendanceType: "kote", registrationDate: "2026-01-15" },
+        event,
+        pricing
+      );
+      expect(result.amount).toBe(30); // 3 × $10
+      expect(result.baseAmount).toBe(30);
+      expect(result.explanationCode).toBe("KOTE");
+    });
+
+    it("charges $10/day for youth KOTE", () => {
+      const result = computePricing(
+        { dateOfBirth: "2012-01-01", isFullDuration: false, numDays: 2, attendanceType: "kote", registrationDate: "2026-01-15" },
+        event,
+        pricing
+      );
+      expect(result.amount).toBe(20); // 2 × $10
+      expect(result.explanationCode).toBe("KOTE");
+    });
+
+    it("still returns free for infant even with KOTE type", () => {
+      const result = computePricing(
+        { dateOfBirth: "2024-01-01", isFullDuration: false, numDays: 2, attendanceType: "kote" },
+        event,
+        pricing
+      );
+      expect(result.amount).toBe(0);
+      expect(result.explanationCode).toBe("FREE_INFANT");
+    });
+
+    it("applies surcharge to KOTE", () => {
+      const pricingWithSurcharge = makePricing({ late_surcharge_tiers: SURCHARGE_TIERS });
+      const result = computePricing(
+        { dateOfBirth: "1990-01-01", isFullDuration: false, numDays: 2, attendanceType: "kote", registrationDate: "2026-06-10" },
+        event,
+        pricingWithSurcharge
+      );
+      expect(result.baseAmount).toBe(20);
+      expect(result.surcharge).toBe(10);
+      expect(result.amount).toBe(30);
+    });
+
+    it("uses custom kote_daily_price", () => {
+      const customPricing = makePricing({ kote_daily_price: 15 });
+      const result = computePricing(
+        { dateOfBirth: "1990-01-01", isFullDuration: false, numDays: 4, attendanceType: "kote", registrationDate: "2026-01-15" },
+        event,
+        customPricing
+      );
+      expect(result.amount).toBe(60); // 4 × $15
     });
   });
 

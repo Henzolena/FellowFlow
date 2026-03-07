@@ -16,6 +16,7 @@ const quoteGroupSchema = z.object({
       isFullDuration: z.boolean(),
       isStayingInMotel: z.boolean().optional(),
       numDays: z.number().int().min(1).optional(),
+      attendanceType: z.enum(["full_conference", "partial", "kote"]).optional(),
     })
   ).min(1).max(20),
 });
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest) {
         isFullDuration: r.isFullDuration,
         isStayingInMotel: r.isStayingInMotel,
         numDays: r.isFullDuration ? undefined : r.numDays,
+        attendanceType: r.attendanceType,
         registrationDate: serverRegistrationDate,
       })),
       event,

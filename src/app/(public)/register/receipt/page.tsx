@@ -70,7 +70,7 @@ export default function ReceiptLookupPage() {
                 <Label htmlFor="confirmationId">{dict.receipt.confirmationIdLabel}</Label>
                 <Input
                   id="confirmationId"
-                  placeholder="e.g. e02a0681-5cc8-4e65-..."
+                  placeholder="e.g. FF26-HENOK-4821"
                   value={confirmationId}
                   onChange={(e) => setConfirmationId(e.target.value)}
                   className="font-mono text-xs"

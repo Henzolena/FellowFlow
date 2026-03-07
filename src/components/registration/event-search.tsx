@@ -2,10 +2,8 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -13,25 +11,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { format, parseISO, isPast, isFuture, isWithinInterval } from "date-fns";
+import { format, parseISO, isPast, isFuture } from "date-fns";
 import {
   Calendar,
   ArrowRight,
   Clock,
   Search,
   CalendarDays,
-  FileText,
 } from "lucide-react";
-import type { EventWithPricing, PricingConfig } from "@/types/database";
+import type { EventWithImages } from "@/types/database";
 import { useTranslation } from "@/lib/i18n/context";
 
 type Props = {
-  events: EventWithPricing[];
+  events: EventWithImages[];
 };
 
 type TimeFilter = "all" | "upcoming" | "ongoing" | "past";
 
-function getLowestPrice(event: EventWithPricing): number | null {
+function getLowestPrice(event: EventWithImages): number | null {
   const pc = Array.isArray(event.pricing_config)
     ? event.pricing_config[0]
     : event.pricing_config;
@@ -47,7 +44,7 @@ function getLowestPrice(event: EventWithPricing): number | null {
   return prices.length > 0 ? Math.min(...prices) : 0;
 }
 
-function getEventStatus(event: EventWithPricing): "upcoming" | "ongoing" | "past" {
+function getEventStatus(event: EventWithImages): "upcoming" | "ongoing" | "past" {
   const now = new Date();
   const start = parseISO(event.start_date);
   const end = parseISO(event.end_date);
@@ -62,27 +59,38 @@ export function EventSearch({ events }: Props) {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
 
   const statusConfig = {
-    upcoming: { label: dict.events.upcoming, className: "bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20" },
-    ongoing: { label: dict.events.happeningNow, className: "bg-brand-green/10 text-brand-green border-brand-green/20" },
-    past: { label: dict.events.ended, className: "bg-muted text-muted-foreground border-border" },
+    upcoming: {
+      label: dict.events.upcoming,
+      dotColor: "bg-brand-teal",
+      pillClass: "bg-white/15 text-white border border-white/20",
+      hasPulse: true,
+    },
+    ongoing: {
+      label: dict.events.happeningNow,
+      dotColor: "bg-brand-green",
+      pillClass: "bg-white/15 text-white border border-white/20",
+      hasPulse: true,
+    },
+    past: {
+      label: dict.events.ended,
+      dotColor: "",
+      pillClass: "bg-black/30 text-white/60 border border-white/10",
+      hasPulse: false,
+    },
   };
 
   const filtered = useMemo(() => {
     return events.filter((event) => {
-      // Text search
       if (query) {
         const q = query.toLowerCase();
         const matchesName = event.name.toLowerCase().includes(q);
         const matchesDesc = event.description?.toLowerCase().includes(q);
         if (!matchesName && !matchesDesc) return false;
       }
-
-      // Time filter
       if (timeFilter !== "all") {
         const status = getEventStatus(event);
         if (status !== timeFilter) return false;
       }
-
       return true;
     });
   }, [events, query, timeFilter]);
@@ -96,7 +104,7 @@ export function EventSearch({ events }: Props) {
   }, [events]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Search + Filter bar */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
@@ -126,7 +134,7 @@ export function EventSearch({ events }: Props) {
       </div>
 
       {/* Results count */}
-      <p className="text-sm text-muted-foreground">
+      <p className="text-[13px] text-muted-foreground/70 tracking-wide">
         {filtered.length === 0
           ? dict.common.noEventsFound
           : dict.common.showingEvents.replace("{count}", String(filtered.length)).replace("{s}", filtered.length !== 1 ? "s" : "")}
@@ -134,107 +142,158 @@ export function EventSearch({ events }: Props) {
 
       {/* Event cards */}
       {filtered.length === 0 ? (
-        <div className="py-16 text-center">
-          <CalendarDays className="mx-auto h-12 w-12 text-muted-foreground/40 mb-4" />
-          <h3 className="text-lg font-semibold">{dict.common.noEventsFound}</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            {query
-              ? dict.common.searchError
-              : dict.common.noActiveEvents}
+        <div className="py-20 text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/60">
+            <CalendarDays className="h-7 w-7 text-muted-foreground/50" />
+          </div>
+          <h3 className="text-lg font-semibold tracking-tight">{dict.common.noEventsFound}</h3>
+          <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+            {query ? dict.common.searchError : dict.common.noActiveEvents}
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
           {filtered.map((event) => {
             const status = getEventStatus(event);
             const config = statusConfig[status];
             const lowestPrice = getLowestPrice(event);
             const isPastEvent = status === "past";
+            const cover = event.event_images?.find(
+              (img) => img.image_type === "cover"
+            );
 
             return (
-              <Card
+              <article
                 key={event.id}
-                className={`shadow-brand-sm hover:shadow-brand-md transition-shadow overflow-hidden ${
-                  isPastEvent ? "opacity-60" : ""
+                className={`group relative rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-brand-lg hover:-translate-y-0.5 ${
+                  isPastEvent ? "opacity-55" : ""
                 }`}
               >
-                {/* Gradient top accent */}
-                <div className="h-1 brand-gradient" />
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1 min-w-0">
-                      <h3 className="font-semibold text-lg leading-snug truncate">
+                {/* ── Background image / fallback ── */}
+                <div className="absolute inset-0">
+                  {cover ? (
+                    <img
+                      src={cover.url}
+                      alt={cover.alt_text || event.name}
+                      className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-primary via-primary/90 to-brand-teal/70">
+                      <div className="absolute inset-0 hero-dot-grid opacity-[0.06]" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Multi-layer overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-transparent" />
+
+                {/* ── Content on top ── */}
+                <div className="relative z-10 flex flex-col min-h-[360px] sm:min-h-[380px]">
+                  {/* Status badge */}
+                  <div className="p-4">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full backdrop-blur-md px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${config.pillClass}`}
+                    >
+                      {config.hasPulse && (
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span
+                            className={`animate-ping absolute inline-flex h-full w-full rounded-full ${config.dotColor} opacity-60`}
+                          />
+                          <span
+                            className={`relative inline-flex rounded-full h-1.5 w-1.5 ${config.dotColor}`}
+                          />
+                        </span>
+                      )}
+                      {config.label}
+                    </span>
+                  </div>
+
+                  {/* Push content to bottom */}
+                  <div className="mt-auto" />
+
+                  {/* Text content */}
+                  <div className="p-5 sm:p-6 pt-0">
+                    {/* Title + Description */}
+                    <div className="space-y-1.5 mb-4">
+                      <h3 className="text-lg sm:text-xl font-bold tracking-tight leading-snug text-white drop-shadow-sm line-clamp-2">
                         {event.name}
                       </h3>
                       {event.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">
+                        <p className="text-[0.8125rem] leading-relaxed text-white/65 line-clamp-2">
                           {event.description}
                         </p>
                       )}
                     </div>
-                    <Badge
-                      variant="outline"
-                      className={`shrink-0 text-xs ${config.className}`}
-                    >
-                      {config.label}
-                    </Badge>
-                  </div>
 
-                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5 text-brand-teal" />
-                      <span>
+                    {/* Metadata chips */}
+                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10 px-2.5 py-1 text-xs font-medium text-white/75">
+                        <Calendar className="h-3 w-3 text-brand-teal shrink-0" />
                         {format(parseISO(event.start_date), "MMM d")} –{" "}
                         {format(parseISO(event.end_date), "MMM d, yyyy")}
                       </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10 px-2.5 py-1 text-xs font-medium text-white/75">
+                        <Clock className="h-3 w-3 text-brand-cyan shrink-0" />
+                        {event.duration_days} {dict.common.days}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5 text-brand-cyan" />
-                      <span>{event.duration_days} {dict.common.days}</span>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between pt-1">
-                    {lowestPrice !== null && (
-                      <p className="text-sm">
-                        {lowestPrice === 0 ? (
-                          <span className="font-semibold text-brand-green">{dict.common.free_lower}</span>
-                        ) : (
-                          <>
-                            {dict.common.from}{" "}
-                            <span className="font-semibold text-brand-amber-foreground">
-                              ${lowestPrice.toFixed(0)}
-                            </span>
-                          </>
+                    {/* Divider */}
+                    <div className="border-t border-white/15 mb-4" />
+
+                    {/* Footer: Price + CTA */}
+                    <div className="flex items-end justify-between gap-4">
+                      <div className="min-w-0">
+                        {lowestPrice !== null && (
+                          <div>
+                            {lowestPrice === 0 ? (
+                              <span className="text-lg font-bold text-brand-green">
+                                {dict.common.free}
+                              </span>
+                            ) : (
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-xs text-white/50">
+                                  {dict.common.from}
+                                </span>
+                                <span className="text-xl font-bold tracking-tight text-white">
+                                  ${lowestPrice.toFixed(0)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         )}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <Link href="/register/receipt">
-                        <Button size="sm" variant="ghost" className="gap-1.5 text-muted-foreground hover:text-foreground">
-                          <FileText className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">{dict.events.myReceipt}</span>
-                        </Button>
-                      </Link>
+                        <Link
+                          href="/register/receipt"
+                          className="inline-block mt-1 text-[11px] text-white/35 hover:text-white/60 transition-colors"
+                        >
+                          {dict.events.myReceipt}
+                        </Link>
+                      </div>
                       {!isPastEvent ? (
                         <Link href={`/register/${event.id}`}>
                           <Button
                             size="sm"
-                            className="gap-1.5 shadow-brand-sm hover:shadow-brand-md transition-shadow"
+                            className="rounded-full pl-4 pr-3.5 h-9 text-[13px] font-semibold bg-white text-primary hover:bg-white/90 shadow-lg hover:shadow-xl transition-all duration-300"
                           >
                             {dict.common.register}
-                            <ArrowRight className="h-3.5 w-3.5" />
+                            <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
                           </Button>
                         </Link>
                       ) : (
-                        <Button size="sm" variant="outline" disabled>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full px-4 h-9 border-white/20 text-white/60 hover:bg-white/10"
+                          disabled
+                        >
                           {dict.common.registrationClosed}
                         </Button>
                       )}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </article>
             );
           })}
         </div>

@@ -6,11 +6,14 @@ import type { AgeCategory } from "@/types/database";
 
 type AgeRangeKey = "infant" | "child" | "youth" | "adult" | "";
 
+type AttendanceTypeKey = "full_conference" | "partial" | "kote" | "";
+
 type Registrant = {
   id: string;
   firstName: string;
   lastName: string;
   ageRange: AgeRangeKey;
+  attendanceType: AttendanceTypeKey;
   isFullDuration: boolean | null;
   isStayingInMotel: boolean | null;
   numDays: number;
@@ -60,12 +63,16 @@ export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels
 
   const fetchGroupQuote = useCallback(async () => {
     const ageOpts = getAgeRangeOptions(event, ageLabels);
-    const validRegistrants = registrants.filter(
-      (r) =>
-        r.ageRange !== "" &&
+    const validRegistrants = registrants.filter((r) => {
+      if (!r.ageRange || !r.attendanceType) return false;
+      if (r.attendanceType === "full_conference") return true;
+      if (r.attendanceType === "kote") return r.numDays >= 1;
+      // partial
+      return (
         r.isFullDuration !== null &&
         (r.isFullDuration || (r.isStayingInMotel !== null && (r.isStayingInMotel || r.numDays >= 1)))
-    );
+      );
+    });
 
     if (validRegistrants.length === 0) {
       setGroupQuote(null);
@@ -83,11 +90,13 @@ export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels
           eventId: event.id,
           registrants: validRegistrants.map((r) => {
             const opt = ageOpts.find((o: { key: string }) => o.key === r.ageRange);
+            const attType = r.attendanceType || (r.isFullDuration ? "full_conference" : "partial");
             return {
               dateOfBirth: syntheticDob(opt?.representativeAge ?? 25, event.start_date),
-              isFullDuration: r.isFullDuration,
-              isStayingInMotel: r.isStayingInMotel ?? false,
-              numDays: r.isFullDuration ? undefined : r.numDays,
+              isFullDuration: attType === "full_conference",
+              isStayingInMotel: attType === "partial" ? (r.isStayingInMotel ?? false) : false,
+              numDays: attType !== "full_conference" ? r.numDays : undefined,
+              attendanceType: attType,
             };
           }),
         }),

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { RegistrationWizard } from "@/components/registration/wizard";
-import type { EventWithPricing } from "@/types/database";
+import type { EventWithImages } from "@/types/database";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -17,10 +17,10 @@ export default async function RegisterForEventPage({
 
   const { data: event, error } = await supabase
     .from("events")
-    .select("*, pricing_config(*)")
+    .select("*, pricing_config(*), event_images(*)")
     .eq("id", eventId)
     .eq("is_active", true)
-    .single<EventWithPricing>();
+    .single<EventWithImages>();
 
   if (error || !event) {
     notFound();
@@ -48,9 +48,22 @@ export default async function RegisterForEventPage({
     );
   }
 
+  const coverImage = event.event_images?.find((img) => img.image_type === "cover");
+
   return (
     <div className="min-h-screen bg-muted/30">
-      <div className="mx-auto max-w-5xl px-4 py-8 pb-32 lg:pb-8">
+      {/* Cover photo banner */}
+      {coverImage && (
+        <div className="relative h-48 sm:h-64 md:h-72 w-full overflow-hidden">
+          <img
+            src={coverImage.url}
+            alt={coverImage.alt_text || event.name}
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+        </div>
+      )}
+      <div className={`mx-auto max-w-5xl px-4 pb-32 lg:pb-8 ${coverImage ? "-mt-16 relative z-10 pt-0" : "py-8"}`}>
         <Link
           href="/register"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"

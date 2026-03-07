@@ -10,10 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { getExplanationLabel } from "@/lib/pricing/engine";
 import { format, parseISO } from "date-fns";
-import { Printer, Mail, Loader2, Search, ArrowLeft } from "lucide-react";
+import { Printer, Mail, Loader2, Search, ArrowLeft, QrCode } from "lucide-react";
 import type { ExplanationCode } from "@/types/database";
 import Link from "next/link";
 import { useTranslation } from "@/lib/i18n/context";
+import { QRCodeDisplay } from "@/components/registration/qr-code";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -220,12 +221,28 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
             </Badge>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Confirmation ID */}
-            <div className="space-y-1">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {dict.receipt.confirmationIdLabel}
-              </h3>
-              <p className="font-mono text-sm break-all">{data.id}</p>
+            {/* Confirmation Code + QR */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1 flex-1">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {dict.receipt.confirmationIdLabel}
+                </h3>
+                {data.public_confirmation_code && (
+                  <p className="font-mono text-lg font-bold text-foreground">
+                    {data.public_confirmation_code}
+                  </p>
+                )}
+                <p className="font-mono text-[10px] text-muted-foreground break-all">{data.id}</p>
+              </div>
+              {data.public_confirmation_code && (
+                <div className="flex-shrink-0">
+                  <QRCodeDisplay
+                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/register/receipt/${data.public_confirmation_code}?ln=${encodeURIComponent(data.last_name)}`}
+                    size={100}
+                    className="rounded-md"
+                  />
+                </div>
+              )}
             </div>
 
             <Separator />

@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+export const attendanceTypeEnum = z.enum(["full_conference", "partial", "kote"]);
+export const genderEnum = z.enum(["male", "female"]);
+
 export const personalInfoSchema = z.object({
   firstName: z.string().min(1, "First name is required").max(100),
   lastName: z.string().min(1, "Last name is required").max(100),
@@ -27,6 +30,7 @@ export const registrationSchema = personalInfoSchema.merge(
     isFullDuration: z.boolean(),
     isStayingInMotel: z.boolean().optional(),
     numDays: z.number().int().min(1).optional(),
+    attendanceType: attendanceTypeEnum.optional(),
   })
 );
 
@@ -39,9 +43,14 @@ export const groupRegistrantSchema = z.object({
   firstName: z.string().min(1, "First name is required").max(100),
   lastName: z.string().min(1, "Last name is required").max(100),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
+  gender: genderEnum.optional(),
+  city: z.string().max(200).optional(),
+  churchId: z.string().uuid().optional().nullable(),
+  churchNameCustom: z.string().max(200).optional().nullable(),
   isFullDuration: z.boolean(),
   isStayingInMotel: z.boolean().optional(),
   numDays: z.number().int().min(1).optional(),
+  attendanceType: attendanceTypeEnum.optional(),
 });
 
 export const groupRegistrationSchema = z.object({
@@ -71,4 +80,5 @@ export const pricingSchema = z.object({
   childFullPrice: z.number().min(0),
   childDailyPrice: z.number().min(0),
   motelStayFree: z.boolean().default(true),
+  koteDailyPrice: z.number().min(0).default(10),
 });

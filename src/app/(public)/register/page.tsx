@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isPast } from "date-fns";
 import { Calendar, MapPin, ArrowRight, Clock, Users } from "lucide-react";
 import Link from "next/link";
-import type { EventWithPricing, PricingConfig } from "@/types/database";
+import type { EventWithImages } from "@/types/database";
 import { EventSearch } from "@/components/registration/event-search";
 import { getServerDictionary } from "@/lib/i18n/server";
 
@@ -15,11 +15,11 @@ export default async function EventsListingPage() {
 
   const { data: events } = await supabase
     .from("events")
-    .select("*, pricing_config(*)")
+    .select("*, pricing_config(*), event_images(*)")
     .eq("is_active", true)
     .order("start_date", { ascending: true });
 
-  const allEvents = (events || []) as EventWithPricing[];
+  const allEvents = (events || []) as EventWithImages[];
 
   return (
     <div className="min-h-screen bg-muted/30">

@@ -41,7 +41,12 @@ export type Dictionary = {
     steps: string[]; whoIsAttending: string; addEveryoneDesc: string;
     addAnotherPerson: string; firstName: string; lastName: string; ageRange: string;
     selectAgeRange: string; infantLabel: string; childLabel: string; youthLabel: string;
-    adultLabel: string; attendingFullDuration: string; yesFullConference: string;
+    adultLabel: string; gender: string; selectGender: string; male: string; female: string;
+    city: string; church: string; selectChurch: string; otherChurch: string;
+    customChurchName: string; attendanceType: string; selectAttendanceType: string;
+    fullConference: string; fullConferenceDesc: string; partialAttendance: string;
+    partialAttendanceDesc: string; koteAttendance: string; koteAttendanceDesc: string;
+    attendingFullDuration: string; yesFullConference: string;
     noPartialAttendance: string; stayingInMotel: string; numberOfDays: string;
     contactInfo: string; contactDesc: string; emailRequired: string; phoneOptional: string;
     emailHint: string; reviewAndSubmit: string; reviewDesc: string;
@@ -209,6 +214,23 @@ const en: Dictionary = {
     childLabel: "{min}–{max} years (Child)",
     youthLabel: "{min}–{max} years (Youth)",
     adultLabel: "{min}+ years (Adult)",
+    gender: "Gender",
+    selectGender: "Select gender",
+    male: "Male",
+    female: "Female",
+    city: "City (optional)",
+    church: "Church",
+    selectChurch: "Select your church",
+    otherChurch: "Other (specify below)",
+    customChurchName: "Church name",
+    attendanceType: "Attendance Type",
+    selectAttendanceType: "How will you attend?",
+    fullConference: "Full Conference",
+    fullConferenceDesc: "All {days} days",
+    partialAttendance: "Partial Attendance",
+    partialAttendanceDesc: "Select number of days",
+    koteAttendance: "KOTE (Walk-in)",
+    koteAttendanceDesc: "$10/day — off-campus attendee",
     attendingFullDuration: "Attending for the full duration?",
     yesFullConference: "Yes, full conference ({days} days)",
     noPartialAttendance: "No, partial attendance",
@@ -437,6 +459,23 @@ const am: Dictionary = {
     childLabel: "{min}–{max} ዓመት (ልጅ)",
     youthLabel: "{min}–{max} ዓመት (ወጣት)",
     adultLabel: "{min}+ ዓመት (አዋቂ)",
+    gender: "ጾታ",
+    selectGender: "ጾታ ይምረጡ",
+    male: "ወንድ",
+    female: "ሴት",
+    city: "ከተማ (አማራጭ)",
+    church: "ቤተ ክርስቲያን",
+    selectChurch: "ቤተ ክርስቲያንዎን ይምረጡ",
+    otherChurch: "ሌላ (ከታች ይግለጹ)",
+    customChurchName: "የቤተ ክርስቲያን ስም",
+    attendanceType: "የተሳትፎ ዓይነት",
+    selectAttendanceType: "እንዴት ይሳተፋሉ?",
+    fullConference: "ሙሉ ጉባዔ",
+    fullConferenceDesc: "ሁሉም {days} ቀናት",
+    partialAttendance: "ከፊል ተሳትፎ",
+    partialAttendanceDesc: "የቀናት ብዛት ይምረጡ",
+    koteAttendance: "ኮቴ (የእግር ጉዞ)",
+    koteAttendanceDesc: "$10/ቀን — ውጫዊ ተሳታፊ",
     attendingFullDuration: "ሙሉ ጊዜ ይሳተፋሉ?",
     yesFullConference: "አዎ፣ ሙሉ ጉባዔ ({days} ቀናት)",
     noPartialAttendance: "አይ፣ ከፊል ተሳትፎ",
