@@ -19,8 +19,30 @@ export type Event = {
   youth_age_threshold: number;
   infant_age_threshold: number;
   is_active: boolean;
+  wristband_config: WristbandMapping[];
   created_at: string;
   updated_at: string;
+};
+
+export type WristbandMapping = {
+  access_tier: AccessTier;
+  color: string;
+  label: string;
+};
+
+export type CheckInMethod = 'qr_scan' | 'manual' | 'code_entry';
+
+export type CheckIn = {
+  id: string;
+  registration_id: string;
+  event_id: string;
+  checked_in_by: string | null;
+  checked_in_at: string;
+  wristband_color: string | null;
+  access_tier: AccessTier | null;
+  method: CheckInMethod;
+  notes: string | null;
+  created_at: string;
 };
 
 export type Church = {
@@ -104,6 +126,8 @@ export type Registration = {
   public_confirmation_code: string;
   access_tier: AccessTier | null;
   completion_token: string | null;
+  checked_in: boolean;
+  checked_in_at: string | null;
   created_at: string;
   updated_at: string;
   confirmed_at: string | null;

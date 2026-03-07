@@ -23,6 +23,7 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
     youth_age_threshold: 13,
     infant_age_threshold: 3,
     is_active: true,
+    wristband_config: [],
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
