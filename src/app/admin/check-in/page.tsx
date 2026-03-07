@@ -23,6 +23,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useScanAudio } from "@/lib/hooks/use-scan-audio";
 
 type ActiveEvent = { id: string; name: string };
 
@@ -146,6 +147,8 @@ export default function CheckInPage() {
     return () => clearInterval(interval);
   }, [fetchStats]);
 
+  const { playSuccess, playError } = useScanAudio();
+
   async function handleCheckIn(code: string, method: "qr_scan" | "manual" | "code_entry") {
     if (!code.trim() || !selectedEventId || processing) return;
     setProcessing(true);
@@ -162,10 +165,12 @@ export default function CheckInPage() {
 
       if (res.ok && data.success) {
         setLastResult(data);
+        playSuccess();
         toast.success(`Checked in ${data.registration.first_name} ${data.registration.last_name}`);
         fetchStats();
       } else {
         setLastResult(data);
+        playError();
         if (data.alreadyCheckedIn) {
           toast.warning("Already checked in");
         } else {
@@ -174,6 +179,7 @@ export default function CheckInPage() {
       }
     } catch {
       setLastResult({ error: "Network error" });
+      playError();
       toast.error("Network error");
     } finally {
       setProcessing(false);

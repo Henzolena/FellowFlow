@@ -29,6 +29,7 @@ import {
   Clock,
   ShieldAlert,
 } from "lucide-react";
+import { useScanAudio } from "@/lib/hooks/use-scan-audio";
 
 type ServiceOption = {
   id: string;
@@ -228,6 +229,8 @@ export default function ServiceScannerPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanMode, selectedServiceId]);
 
+  const { playSuccess, playError } = useScanAudio();
+
   async function handleScan(code: string) {
     if (!code || !selectedServiceId || !selectedEventId || scanning) return;
     setScanning(true);
@@ -245,9 +248,15 @@ export default function ServiceScannerPage() {
       });
       const json = await res.json();
       setScanResult(json);
+      if (json.result === "approved") {
+        playSuccess();
+      } else {
+        playError();
+      }
       loadStats();
     } catch {
       setScanResult({ result: "denied", reason: "Network error" });
+      playError();
     } finally {
       setScanning(false);
       setManualCode("");
