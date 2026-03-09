@@ -68,6 +68,7 @@ async function generateBarcode(data: string): Promise<Buffer> {
     includetext: true,
     textxalign: "center",
     textsize: 10,
+    textgap: 3,
   });
   return Buffer.from(buf);
 }
