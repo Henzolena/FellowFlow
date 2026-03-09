@@ -123,7 +123,7 @@ export async function generateRegistrationBadgePDF(
   let y = height;
 
   // ── Color-coded header (by access tier) ──
-  page.drawRectangle({ x: 0, y: y - 110, width, height: 110, color: HEADER_COLOR });
+  page.drawRectangle({ x: 0, y: y - 95, width, height: 95, color: HEADER_COLOR });
 
   y -= 30;
   const eventTitle = badge.eventName || "Conference Registration";
