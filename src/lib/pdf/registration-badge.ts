@@ -148,7 +148,7 @@ export async function generateRegistrationBadgePDF(
   page.drawText(tierLabel, { x: (width - tierLabelW) / 2, y: y - 1, size: 9, font: fontBold, color: HEADER_COLOR });
 
   // ── Attendee name ──
-  y -= 46;
+  y -= 56;
   const fullName = `${badge.firstName} ${badge.lastName}`;
   const nameSize = fullName.length > 24 ? 20 : 24;
   const nameWidth = fontBold.widthOfTextAtSize(fullName, nameSize);

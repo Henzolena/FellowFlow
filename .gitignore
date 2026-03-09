@@ -41,6 +41,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# temporary preview files
+/preview
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
