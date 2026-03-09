@@ -231,7 +231,7 @@ export async function generateRegistrationBadgePDF(
     const barW = 220;
     const barH = 45;
     page.drawImage(barImage, { x: (width - barW) / 2, y: y - barH, width: barW, height: barH });
-    y -= barH + 20;
+    y -= barH + 30;
   } catch {
     // If barcode fails, skip
   }
