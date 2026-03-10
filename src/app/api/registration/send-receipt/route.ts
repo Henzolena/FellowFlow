@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       return ch?.name || null;
     }
 
-    // ─── Group receipt ───
+    // ─── Group receipt (only for actual multi-person groups) ───
     if (groupId) {
       const { data: siblings } = await supabase
         .from("registrations")
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
         .order("created_at", { ascending: true });
 
       const rows = siblings as unknown as Record<string, unknown>[];
-      if (rows.length > 0) {
+      if (rows.length > 1) {
         // Compute group pricing for surcharge
         const eventId = data.event_id as string;
         const { data: pricing } = await supabase
@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
               isFullDuration: r.is_full_duration,
               isStayingInMotel: r.is_staying_in_motel ?? undefined,
               numDays: r.num_days ?? undefined,
+              attendanceType: r.attendance_type,
             })),
             { ...eventObj, id: eventId, is_active: true, created_at: "", updated_at: "", description: null } as Event,
             pricing
