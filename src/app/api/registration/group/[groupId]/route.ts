@@ -55,6 +55,7 @@ export async function GET(
           isFullDuration: r.is_full_duration,
           isStayingInMotel: r.is_staying_in_motel ?? undefined,
           numDays: r.num_days ?? undefined,
+          attendanceType: r.attendance_type,
         })),
         {
           ...eventData,
