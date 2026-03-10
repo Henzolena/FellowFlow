@@ -410,7 +410,7 @@ export default function CheckInPage() {
                   <Input
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-                    placeholder="FF26-HENOK-4821"
+                    placeholder="MW26-HR-10927"
                     className="font-mono text-lg"
                     autoFocus
                     disabled={processing}

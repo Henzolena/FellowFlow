@@ -55,10 +55,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate public confirmation code
-    const { data: codeResult } = await supabase.rpc("generate_public_confirmation_code", {
+    const { data: codeResult } = await supabase.rpc("generate_confirmation_code", {
       p_first_name: v.firstName,
+      p_last_name: v.lastName,
+      p_event_id: v.eventId,
     });
-    const publicCode = codeResult || `FF26-${v.firstName.substring(0, 5).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const initials = (v.firstName.charAt(0) + v.lastName.charAt(0)).toUpperCase();
+    const publicCode = codeResult || `MW26-${initials}-${Math.floor(Math.random() * 100000).toString().padStart(5, "0")}`;
 
     // Resolve church name for email
     let churchName: string | null = null;

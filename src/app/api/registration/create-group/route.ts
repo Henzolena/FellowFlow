@@ -130,9 +130,11 @@ export async function POST(request: NextRequest) {
     for (const reg of data.registrants) {
       const { data: codeResult } = await adminClient.rpc("generate_confirmation_code", {
         p_first_name: reg.firstName,
+        p_last_name: reg.lastName,
         p_event_id: data.eventId,
       });
-      confirmationCodes.push(codeResult ?? `FF-${reg.firstName.slice(0, 5).toUpperCase()}-${Math.floor(Math.random() * 10000).toString().padStart(4, "0")}`);
+      const initials = (reg.firstName.charAt(0) + reg.lastName.charAt(0)).toUpperCase();
+      confirmationCodes.push(codeResult ?? `MW26-${initials}-${Math.floor(Math.random() * 100000).toString().padStart(5, "0")}`);
     }
 
     // Derive attendance_type and access_tier
