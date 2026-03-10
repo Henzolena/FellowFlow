@@ -12,7 +12,22 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Netlify build artifacts
+    ".netlify/**",
   ]),
+  // Relax rules for test files
+  {
+    files: ["**/*.test.ts", "**/*.test.tsx", "**/*.integration.test.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  // Disable set-state-in-effect (new React 19 rule — flags valid data-fetching patterns)
+  {
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

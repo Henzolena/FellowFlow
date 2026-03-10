@@ -131,7 +131,7 @@ describe("reconcilePayment", () => {
     const updateFn = vi.fn();
     const insertFn = vi.fn();
 
-    let callCount = 0;
+    const callCount = 0;
 
     const supabase = {
       from: vi.fn().mockImplementation((table: string) => {
