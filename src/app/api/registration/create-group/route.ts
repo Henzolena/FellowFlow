@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
         first_name: reg.firstName,
         last_name: reg.lastName,
         email: data.email,
-        phone: data.phone ?? null,
+        phone: data.phone,
         date_of_birth: reg.dateOfBirth,
         age_at_event: groupPricing.items[i].ageAtEvent,
         category: groupPricing.items[i].category,

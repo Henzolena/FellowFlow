@@ -7,7 +7,7 @@ export const personalInfoSchema = z.object({
   firstName: z.string().min(1, "First name is required").max(100),
   lastName: z.string().min(1, "Last name is required").max(100),
   email: z.string().email("Valid email is required"),
-  phone: z.string().optional(),
+  phone: z.string().min(1, "Phone number is required"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
 });
 
@@ -56,7 +56,7 @@ export const groupRegistrantSchema = z.object({
 export const groupRegistrationSchema = z.object({
   eventId: z.string().uuid("Invalid event ID"),
   email: z.string().email("Valid email is required"),
-  phone: z.string().optional(),
+  phone: z.string().min(1, "Phone number is required"),
   registrants: z.array(groupRegistrantSchema).min(1, "At least one registrant is required").max(20, "Maximum 20 registrants per group"),
 });
 

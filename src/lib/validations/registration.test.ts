@@ -16,20 +16,20 @@ describe("personalInfoSchema", () => {
       firstName: "John",
       lastName: "Doe",
       email: "john@example.com",
+      phone: "+1234567890",
       dateOfBirth: "1990-01-01",
     });
     expect(result.success).toBe(true);
   });
 
-  it("accepts optional phone", () => {
+  it("requires phone", () => {
     const result = personalInfoSchema.safeParse({
       firstName: "John",
       lastName: "Doe",
       email: "john@example.com",
       dateOfBirth: "1990-01-01",
-      phone: "+1234567890",
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
   it("rejects empty firstName", () => {
@@ -37,6 +37,7 @@ describe("personalInfoSchema", () => {
       firstName: "",
       lastName: "Doe",
       email: "john@example.com",
+      phone: "+1234567890",
       dateOfBirth: "1990-01-01",
     });
     expect(result.success).toBe(false);
@@ -47,6 +48,7 @@ describe("personalInfoSchema", () => {
       firstName: "John",
       lastName: "",
       email: "john@example.com",
+      phone: "+1234567890",
       dateOfBirth: "1990-01-01",
     });
     expect(result.success).toBe(false);
@@ -57,6 +59,7 @@ describe("personalInfoSchema", () => {
       firstName: "John",
       lastName: "Doe",
       email: "not-an-email",
+      phone: "+1234567890",
       dateOfBirth: "1990-01-01",
     });
     expect(result.success).toBe(false);
@@ -67,6 +70,7 @@ describe("personalInfoSchema", () => {
       firstName: "John",
       lastName: "Doe",
       email: "john@example.com",
+      phone: "+1234567890",
       dateOfBirth: "",
     });
     expect(result.success).toBe(false);
@@ -77,6 +81,7 @@ describe("personalInfoSchema", () => {
       firstName: "A".repeat(101),
       lastName: "Doe",
       email: "john@example.com",
+      phone: "+1234567890",
       dateOfBirth: "1990-01-01",
     });
     expect(result.success).toBe(false);
@@ -90,6 +95,7 @@ describe("registrationSchema", () => {
     firstName: "John",
     lastName: "Doe",
     email: "john@example.com",
+    phone: "+1234567890",
     dateOfBirth: "1990-01-01",
     eventId: "550e8400-e29b-41d4-a716-446655440000",
     isFullDuration: true,
@@ -187,6 +193,7 @@ describe("groupRegistrationSchema", () => {
   const validGroup = {
     eventId: "550e8400-e29b-41d4-a716-446655440000",
     email: "group@example.com",
+    phone: "+1234567890",
     registrants: [
       { firstName: "John", lastName: "Doe", dateOfBirth: "1990-01-01", isFullDuration: true },
     ],
