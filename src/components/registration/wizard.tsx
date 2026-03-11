@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { DuplicateRegistrationDialog } from "./duplicate-dialog";
-import { ArrowLeft, ArrowRight, Loader2, Check, Plus, Trash2, User, Users, Church, MapPin, Baby, GraduationCap } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Check, Plus, Trash2, User, Users, Church, MapPin, Baby, GraduationCap, Calendar } from "lucide-react";
 import type { Event, PricingConfig, Church as ChurchType } from "@/types/database";
 import { useTranslation } from "@/lib/i18n/context";
 import { useWizardState, type Registrant, type AttendanceTypeKey, type GenderKey } from "./hooks/use-wizard-state";
@@ -25,6 +25,22 @@ type WizardProps = {
   event: Event;
   pricing: PricingConfig;
 };
+
+// Helper to generate day details with dates
+function getDayDetails(eventStartDate: string, dayNumber: number) {
+  const start = new Date(eventStartDate);
+  const targetDate = new Date(start);
+  targetDate.setDate(start.getDate() + dayNumber - 1);
+  
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  return {
+    dayName: dayNames[targetDate.getDay()],
+    monthDay: `${monthNames[targetDate.getMonth()]} ${targetDate.getDate()}`,
+    fullDate: targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+  };
+}
 
 export function RegistrationWizard({ event, pricing }: WizardProps) {
   const router = useRouter();
@@ -327,60 +343,98 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   </RadioGroup>
                 </div>
 
-                {/* Partial sub-fields: just days */}
+                {/* Partial sub-fields: visual day selector */}
                 <AnimatePresence>
                   {reg.attendanceType === "partial" && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="space-y-2 overflow-hidden"
+                      className="space-y-3 overflow-hidden"
                     >
                       <Label>{dict.wizard.numberOfDays}</Label>
-                      <Select
-                        value={String(reg.numDays)}
-                        onValueChange={(v) => updateRegistrant(idx, { numDays: parseInt(v) })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: event.duration_days - 1 }, (_, i) => i + 1).map((d) => (
-                            <SelectItem key={d} value={String(d)}>
-                              {d} {d !== 1 ? dict.common.days : dict.common.day}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {Array.from({ length: event.duration_days - 1 }, (_, i) => i + 1).map((d) => {
+                          const selected = reg.numDays === d;
+                          const dayInfo = getDayDetails(event.start_date, d);
+                          return (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => updateRegistrant(idx, { numDays: d })}
+                              className={`relative flex flex-col items-center gap-1 rounded-lg border-2 px-3 py-3 text-center transition-all ${
+                                selected
+                                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                                  : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
+                              }`}
+                            >
+                              <Calendar className={`h-4 w-4 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+                              <span className={`text-lg font-bold ${selected ? "text-primary" : "text-foreground"}`}>
+                                {d}
+                              </span>
+                              <span className={`text-[10px] font-medium leading-tight ${selected ? "text-primary/70" : "text-muted-foreground"}`}>
+                                {d === 1 ? dict.common.day : dict.common.days}
+                              </span>
+                              <span className={`text-[9px] leading-tight ${selected ? "text-primary/60" : "text-muted-foreground/70"}`}>
+                                {dayInfo.dayName}, {dayInfo.monthDay}
+                              </span>
+                              {selected && (
+                                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white">
+                                  <Check className="h-3 w-3" />
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
 
-                {/* KOTE sub-fields: just days */}
+                {/* KOTE sub-fields: visual day selector */}
                 <AnimatePresence>
                   {reg.attendanceType === "kote" && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="space-y-2 overflow-hidden"
+                      className="space-y-3 overflow-hidden"
                     >
                       <Label>{dict.wizard.numberOfDays}</Label>
-                      <Select
-                        value={String(reg.numDays)}
-                        onValueChange={(v) => updateRegistrant(idx, { numDays: parseInt(v) })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: event.duration_days }, (_, i) => i + 1).map((d) => (
-                            <SelectItem key={d} value={String(d)}>
-                              {d} {d !== 1 ? dict.common.days : dict.common.day}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {Array.from({ length: event.duration_days }, (_, i) => i + 1).map((d) => {
+                          const selected = reg.numDays === d;
+                          const dayInfo = getDayDetails(event.start_date, d);
+                          return (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => updateRegistrant(idx, { numDays: d })}
+                              className={`relative flex flex-col items-center gap-1 rounded-lg border-2 px-3 py-3 text-center transition-all ${
+                                selected
+                                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                                  : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
+                              }`}
+                            >
+                              <Calendar className={`h-4 w-4 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+                              <span className={`text-lg font-bold ${selected ? "text-primary" : "text-foreground"}`}>
+                                {d}
+                              </span>
+                              <span className={`text-[10px] font-medium leading-tight ${selected ? "text-primary/70" : "text-muted-foreground"}`}>
+                                {d === 1 ? dict.common.day : dict.common.days}
+                              </span>
+                              <span className={`text-[9px] leading-tight ${selected ? "text-primary/60" : "text-muted-foreground/70"}`}>
+                                {dayInfo.dayName}, {dayInfo.monthDay}
+                              </span>
+                              {selected && (
+                                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white">
+                                  <Check className="h-3 w-3" />
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
