@@ -27,6 +27,7 @@ import { format, parseISO } from "date-fns";
 import Link from "next/link";
 import type { Event, Church } from "@/types/database";
 import AdminRegisterDialog from "@/components/admin/admin-register-dialog";
+import { createClient } from "@/lib/supabase/client";
 
 type RegistrationRow = {
   id: string;
@@ -106,6 +107,26 @@ function RegistrationsContent() {
   useEffect(() => {
     const debounce = setTimeout(() => fetchRegistrations(), 300);
     return () => clearTimeout(debounce);
+  }, [fetchRegistrations]);
+
+  // Real-time subscription for instant updates
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("registrations-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "registrations" },
+        () => {
+          // Refetch when any registration is inserted, updated, or deleted
+          fetchRegistrations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchRegistrations]);
 
   async function handleExport() {

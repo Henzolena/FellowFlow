@@ -1,52 +1,117 @@
-import { createClient } from "@/lib/supabase/server";
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, DollarSign, CheckCircle2, Clock } from "lucide-react";
+import { Users, DollarSign, CheckCircle2, Clock, Loader2 } from "lucide-react";
 
-export default async function AdminDashboard() {
-  const supabase = await createClient();
+type RecentRegistration = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  category: string;
+  computed_amount: number;
+  status: string;
+  created_at: string;
+  events: { name: string } | null;
+};
 
-  const [
-    { count: totalRegistrations },
-    { count: confirmedRegistrations },
-    { count: pendingRegistrations },
-    { data: revenueData },
-  ] = await Promise.all([
-    supabase.from("registrations").select("*", { count: "exact", head: true }),
-    supabase
-      .from("registrations")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "confirmed"),
-    supabase
-      .from("registrations")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending"),
-    supabase
-      .from("payments")
-      .select("amount")
-      .eq("status", "completed"),
-  ]);
+export default function AdminDashboard() {
+  const [loading, setLoading] = useState(true);
+  const [totalRegistrations, setTotalRegistrations] = useState(0);
+  const [confirmedRegistrations, setConfirmedRegistrations] = useState(0);
+  const [pendingRegistrations, setPendingRegistrations] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [recentRegistrations, setRecentRegistrations] = useState<RecentRegistration[]>([]);
 
-  const totalRevenue = (revenueData || []).reduce(
-    (sum, p) => sum + Number(p.amount),
-    0
-  );
+  const fetchStats = async () => {
+    const supabase = createClient();
+
+    const [
+      { count: total },
+      { count: confirmed },
+      { count: pending },
+      { data: revenueData },
+      { data: recent },
+    ] = await Promise.all([
+      supabase.from("registrations").select("*", { count: "exact", head: true }),
+      supabase
+        .from("registrations")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "confirmed"),
+      supabase
+        .from("registrations")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending"),
+      supabase
+        .from("payments")
+        .select("amount")
+        .eq("status", "completed"),
+      supabase
+        .from("registrations")
+        .select("id, first_name, last_name, email, category, computed_amount, status, created_at, events(name)")
+        .order("created_at", { ascending: false })
+        .limit(5),
+    ]);
+
+    const revenue = (revenueData || []).reduce((sum, p) => sum + Number(p.amount), 0);
+
+    setTotalRegistrations(total ?? 0);
+    setConfirmedRegistrations(confirmed ?? 0);
+    setPendingRegistrations(pending ?? 0);
+    setTotalRevenue(revenue);
+    setRecentRegistrations((recent || []) as unknown as RecentRegistration[]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  // Real-time subscription for instant updates
+  useEffect(() => {
+    const supabase = createClient();
+    const registrationsChannel = supabase
+      .channel("dashboard-registrations")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "registrations" },
+        () => fetchStats()
+      )
+      .subscribe();
+
+    const paymentsChannel = supabase
+      .channel("dashboard-payments")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payments" },
+        () => fetchStats()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(registrationsChannel);
+      supabase.removeChannel(paymentsChannel);
+    };
+  }, []);
 
   const stats = [
     {
       title: "Total Registrations",
-      value: totalRegistrations ?? 0,
+      value: totalRegistrations,
       icon: Users,
       color: "text-brand-cyan",
     },
     {
       title: "Confirmed",
-      value: confirmedRegistrations ?? 0,
+      value: confirmedRegistrations,
       icon: CheckCircle2,
       color: "text-brand-green",
     },
     {
       title: "Pending Payment",
-      value: pendingRegistrations ?? 0,
+      value: pendingRegistrations,
       icon: Clock,
       color: "text-brand-amber",
     },
@@ -58,12 +123,13 @@ export default async function AdminDashboard() {
     },
   ];
 
-  // Recent registrations
-  const { data: recentRegistrations } = await supabase
-    .from("registrations")
-    .select("id, first_name, last_name, email, category, computed_amount, status, created_at, events(name)")
-    .order("created_at", { ascending: false })
-    .limit(5);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -95,7 +161,7 @@ export default async function AdminDashboard() {
           <CardTitle>Recent Registrations</CardTitle>
         </CardHeader>
         <CardContent>
-          {!recentRegistrations?.length ? (
+          {!recentRegistrations.length ? (
             <p className="text-center text-muted-foreground py-8">
               No registrations yet.
             </p>
