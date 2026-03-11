@@ -289,6 +289,108 @@ export type ServiceUsageLogWithDetails = ServiceUsageLog & {
   };
 };
 
+/* ── Venue Documentation System ─────────────────────────────────── */
+
+export type FacilityType = 'hotel' | 'dorm' | 'conference_room' | 'hall' | 'cottage' | 'amenity' | 'other';
+export type RateCategory = 'accommodation' | 'meal' | 'amenity' | 'fee';
+export type MealName = 'breakfast' | 'lunch' | 'dinner';
+
+export type OfficeHours = {
+  day: string;
+  hours: string;
+  note: string | null;
+};
+
+export type Venue = {
+  id: string;
+  event_id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  phone: string | null;
+  fax: string | null;
+  email: string | null;
+  website: string | null;
+  contract_date: string | null;
+  reservation_start: string | null;
+  reservation_end: string | null;
+  arrival_time: string | null;
+  departure_time: string | null;
+  organization_name: string | null;
+  organization_address: string | null;
+  organization_city_state_zip: string | null;
+  organization_phone: string | null;
+  group_name: string | null;
+  group_leader: string | null;
+  group_leader_email: string | null;
+  group_leader_phone: string | null;
+  deposit_total: number;
+  deposit_paid: number;
+  deposit_balance: number;
+  deposit_due_date: string | null;
+  payment_notes: string | null;
+  guaranteed_hotel_rooms: number;
+  guaranteed_dorm_beds: number;
+  total_rooms_reserved: number;
+  office_hours: OfficeHours[];
+  rules: string[];
+  general_info: string[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type VenueFacility = {
+  id: string;
+  venue_id: string;
+  name: string;
+  facility_type: FacilityType;
+  capacity: number | null;
+  capacity_unit: string | null;
+  rate_per_night: number | null;
+  rate_unit: string | null;
+  tables_count: number | null;
+  table_types: string | null;
+  equipment: string[];
+  linens_provided: boolean;
+  notes: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type VenueRate = {
+  id: string;
+  venue_id: string;
+  rate_name: string;
+  rate_category: RateCategory;
+  amount: number;
+  unit: string;
+  age_restriction: string | null;
+  notes: string | null;
+  sort_order: number;
+  created_at: string;
+};
+
+export type VenueMealSchedule = {
+  id: string;
+  venue_id: string;
+  meal_date: string;
+  meal_name: MealName;
+  meal_time: string;
+  expected_count: number;
+  notes: string | null;
+  sort_order: number;
+  created_at: string;
+};
+
+export type VenueWithDetails = Venue & {
+  venue_facilities: VenueFacility[];
+  venue_rates: VenueRate[];
+  venue_meal_schedule: VenueMealSchedule[];
+};
+
 /* ── Composite types ─────────────────────────────────────────────── */
 
 export type EventWithPricing = Event & {
