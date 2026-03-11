@@ -40,9 +40,9 @@ export const CATEGORY_BADGE: Record<CategoryKey, { tw: string; hex: string; bg: 
   },
 };
 
-/* ── Access Tier (FULL_ACCESS / KOTE_ACCESS / VIP) ─────────────────── */
+/* ── Access Tier (FULL_ACCESS / KOTE_ACCESS) ─────────────────────── */
 
-export type AccessTierKey = "FULL_ACCESS" | "KOTE_ACCESS" | "VIP";
+export type AccessTierKey = "FULL_ACCESS" | "KOTE_ACCESS";
 
 export const ACCESS_TIER_BADGE: Record<AccessTierKey, { tw: string; hex: string; bg: string; label: string }> = {
   FULL_ACCESS: {
@@ -56,12 +56,6 @@ export const ACCESS_TIER_BADGE: Record<AccessTierKey, { tw: string; hex: string;
     hex: "#d97706",
     bg: "#fef3c7",
     label: "KOTE",
-  },
-  VIP: {
-    tw: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-    hex: "#7c3aed",
-    bg: "#ede9fe",
-    label: "VIP",
   },
 };
 

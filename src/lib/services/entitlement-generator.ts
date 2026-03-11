@@ -10,7 +10,7 @@ import { selectedDaysToDateStrings } from "@/lib/date-utils";
  * - full_conference → main_service + all meals
  * - partial         → main_service + all meals (for days attending)
  * - kote            → main_service only (no meals by default)
- * - STAFF / VIP     → main_service + all meals
+ * - STAFF           → main_service + all meals + custom
  */
 export async function generateEntitlements(
   supabase: SupabaseClient,
@@ -82,7 +82,7 @@ export async function generateEntitlements(
     // Meals — depends on attendance type, access tier, AND selected days
     if (cat === "meal") {
       // KOTE attendees don't get meals by default
-      if (attendanceType === "kote" && accessTier !== "STAFF" && accessTier !== "VIP") {
+      if (attendanceType === "kote" && accessTier !== "STAFF") {
         continue;
       }
       // Only grant meals for days the registrant is attending
@@ -92,10 +92,10 @@ export async function generateEntitlements(
       continue;
     }
 
-    // Custom services — only STAFF/VIP get custom by default
+    // Custom services — only STAFF get custom by default
     // (admins can manually grant to others)
     if (cat === "custom") {
-      if (accessTier === "STAFF" || accessTier === "VIP") {
+      if (accessTier === "STAFF") {
         entitled.push(svc.id);
       }
       continue;

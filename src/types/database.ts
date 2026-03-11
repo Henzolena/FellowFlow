@@ -56,7 +56,7 @@ export type Church = {
 
 export type AttendanceType = 'full_conference' | 'partial' | 'kote';
 
-export type AccessTier = 'FULL_ACCESS' | 'KOTE_ACCESS' | 'MOTEL_ACCESS' | 'MEAL_ACCESS' | 'STAFF' | 'VIP';
+export type AccessTier = 'FULL_ACCESS' | 'KOTE_ACCESS' | 'MOTEL_ACCESS' | 'MEAL_ACCESS' | 'STAFF';
 
 export type Gender = 'male' | 'female';
 
