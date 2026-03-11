@@ -219,18 +219,18 @@ export default function VenueInfoPage() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
-            <p className="text-xs text-muted-foreground">Dorm Beds</p>
+            <p className="text-xs text-muted-foreground">Dorm Capacity Listed</p>
             <p className="text-2xl font-bold">{totalDormCapacity}</p>
             <p className="text-[11px] text-muted-foreground">
-              Min. guaranteed: {venue.guaranteed_dorm_beds}
+              Min. payment guarantee: {venue.guaranteed_dorm_beds}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
-            <p className="text-xs text-muted-foreground">Total Reserved</p>
+            <p className="text-xs text-muted-foreground">Hotel Rooms Reserved</p>
             <p className="text-2xl font-bold">{venue.total_rooms_reserved}</p>
-            <p className="text-[11px] text-muted-foreground">rooms reserved</p>
+            <p className="text-[11px] text-muted-foreground">per contract Guests section</p>
           </CardContent>
         </Card>
         <Card>
@@ -454,9 +454,9 @@ export default function VenueInfoPage() {
             Facilities & Accommodations
           </CardTitle>
           <CardDescription>
-            {totalHotelCapacity} hotel rooms • {totalDormCapacity} dorm beds (compiled from reservation list) •{" "}
+            {totalHotelCapacity} hotel rooms • {totalDormCapacity} dorm beds (capacity, compiled) •{" "}
             {confRooms.length} conference rooms • {halls.length} halls • {amenities.length} amenities
-            {otherFacilities.length > 0 && ` • ${otherFacilities.length} other campus facilities`}
+            {otherFacilities.length > 0 && ` • ${otherFacilities.length} other campus facilities (from equipment page)`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -480,7 +480,7 @@ export default function VenueInfoPage() {
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
                 <BedDouble className="h-4 w-4 text-amber-600" />
-                Reserved Dormitories & Cottages ({totalDormCapacity} beds, compiled from page 1)
+                Dormitories & Cottages ({totalDormCapacity} beds capacity, compiled from page 1)
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {dorms.map((f) => (
