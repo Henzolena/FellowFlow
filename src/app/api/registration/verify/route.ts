@@ -10,7 +10,7 @@ const RATE_WINDOW_MS = 60_000;
 
 const REG_SELECT =
   "id, first_name, last_name, email, phone, date_of_birth, age_at_event, category, " +
-  "is_full_duration, is_staying_in_motel, num_days, computed_amount, explanation_code, " +
+  "is_full_duration, is_staying_in_motel, num_days, selected_days, computed_amount, explanation_code, " +
   "explanation_detail, status, confirmed_at, created_at, group_id, event_id, " +
   "attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, access_tier, " +
   "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold), payments(*)";
@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
               isFullDuration: r.is_full_duration,
               isStayingInMotel: r.is_staying_in_motel ?? undefined,
               numDays: r.num_days ?? undefined,
+              selectedDays: r.selected_days ?? undefined,
             })),
             { ...eventData, id: eventId, is_active: true, created_at: "", updated_at: "", description: null } as Event,
             pricing

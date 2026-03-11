@@ -410,7 +410,12 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                   </p>
                   {data.explanation_detail && (
                     <p className="text-xs text-muted-foreground">
-                      {data.explanation_detail}
+                      {data.selected_days && data.selected_days.length > 0 && eventData?.start_date
+                        ? data.explanation_detail.replace(
+                            /\d+ day\(s\)/i,
+                            formatSelectedDays(eventData.start_date, data.selected_days)
+                          )
+                        : data.explanation_detail}
                     </p>
                   )}
                 </div>

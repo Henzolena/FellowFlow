@@ -55,6 +55,7 @@ export async function GET(
           isFullDuration: r.is_full_duration,
           isStayingInMotel: r.is_staying_in_motel ?? undefined,
           numDays: r.num_days ?? undefined,
+          selectedDays: r.selected_days ?? undefined,
           attendanceType: r.attendance_type,
         })),
         {
@@ -88,6 +89,7 @@ export async function GET(
     return NextResponse.json({
       registrations: cleanRegistrations,
       pricing: pricingInfo,
+      eventStartDate: eventData?.start_date ?? null,
     });
   } catch (error) {
     console.error("Group fetch error:", error);

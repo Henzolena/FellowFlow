@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
         isFullDuration: r.isFullDuration,
         isStayingInMotel: r.isStayingInMotel,
         numDays: r.isFullDuration ? undefined : r.numDays,
+        selectedDays: r.selectedDays,
         attendanceType: r.attendanceType,
         registrationDate: serverRegistrationDate,
       })),

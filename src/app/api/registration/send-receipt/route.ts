@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
               isFullDuration: r.is_full_duration,
               isStayingInMotel: r.is_staying_in_motel ?? undefined,
               numDays: r.num_days ?? undefined,
+              selectedDays: r.selected_days ?? undefined,
               attendanceType: r.attendance_type,
             })),
             { ...eventObj, id: eventId, is_active: true, created_at: "", updated_at: "", description: null } as Event,

@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
         isFullDuration: data.isFullDuration,
         isStayingInMotel: data.isStayingInMotel,
         numDays: data.numDays,
+        selectedDays: data.selectedDays,
       },
       event,
       pricing

@@ -163,6 +163,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           isFullDuration,
           isStayingInMotel,
           numDays: numDays ?? undefined,
+          selectedDays: selectedDays ?? undefined,
           attendanceType: attendanceType as "full_conference" | "partial" | "kote",
         },
         event,

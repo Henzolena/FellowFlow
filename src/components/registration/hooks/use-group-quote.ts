@@ -94,6 +94,7 @@ export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels
               isFullDuration: attType === "full_conference",
               isStayingInMotel: false,
               numDays: attType !== "full_conference" ? r.selectedDays.length : undefined,
+              selectedDays: attType !== "full_conference" ? r.selectedDays : undefined,
               attendanceType: attType,
             };
           }),

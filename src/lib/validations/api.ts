@@ -21,6 +21,7 @@ export const quoteSchema = z.object({
   isFullDuration: z.boolean(),
   isStayingInMotel: z.boolean().optional(),
   numDays: z.number().int().min(1).optional(),
+  selectedDays: z.array(z.number().int().min(1).max(10)).optional(),
 });
 
 // ─── Duplicate check ───

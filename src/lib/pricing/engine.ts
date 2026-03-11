@@ -1,11 +1,13 @@
 import type { AgeCategory, AttendanceType, ExplanationCode, Event, PricingConfig, SurchargeTier } from "@/types/database";
 import { differenceInYears, parseISO, isWithinInterval } from "date-fns";
+import { formatSelectedDays } from "@/lib/date-utils";
 
 export type PricingInput = {
   dateOfBirth: string;
   isFullDuration: boolean;
   isStayingInMotel?: boolean;
   numDays?: number;
+  selectedDays?: number[];
   attendanceType?: AttendanceType;
   /** Override for surcharge date calculation (defaults to now) */
   registrationDate?: string;
@@ -96,8 +98,11 @@ export function computePricing(
     const koteRate = Number(pricing.kote_daily_price ?? 10);
     const baseAmount = koteRate * numDays;
 
+    const dayLabel = input.selectedDays && input.selectedDays.length > 0
+      ? formatSelectedDays(event.start_date, input.selectedDays)
+      : `${numDays} day(s)`;
     return applySurcharge(baseAmount, "KOTE", category, ageAtEvent, pricing, input, {
-      detail: `KOTE: ${numDays} day(s) × $${koteRate.toFixed(2)}/day: $${baseAmount.toFixed(2)}`,
+      detail: `KOTE: ${dayLabel} × $${koteRate.toFixed(2)}/day: $${baseAmount.toFixed(2)}`,
     });
   }
 
@@ -127,8 +132,11 @@ export function computePricing(
   const { rate, code } = dailyMap[category];
   const baseAmount = rate * numDays;
 
+  const dayLabel = input.selectedDays && input.selectedDays.length > 0
+    ? formatSelectedDays(event.start_date, input.selectedDays)
+    : `${numDays} day(s)`;
   return applySurcharge(baseAmount, code, category, ageAtEvent, pricing, input, {
-    detail: `${numDays} day(s) × $${rate.toFixed(2)}/day (${category}): $${baseAmount.toFixed(2)}`,
+    detail: `${dayLabel} × $${rate.toFixed(2)}/day (${category}): $${baseAmount.toFixed(2)}`,
   });
 }
 

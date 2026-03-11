@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, CreditCard, AlertCircle, User } from "lucide-react";
 import type { Registration } from "@/types/database";
 import { useTranslation } from "@/lib/i18n/context";
+import { formatSelectedDays } from "@/lib/date-utils";
 
 export default function ReviewClient() {
   return (
@@ -31,6 +32,7 @@ function ReviewContent() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [groupPricing, setGroupPricing] = useState<{ subtotal: number; surcharge: number; surchargeLabel: string | null; grandTotal: number } | null>(null);
+  const [eventStartDate, setEventStartDate] = useState<string | null>(null);
 
   // Derived from state (not just URL) so auto-detected groups render correctly
   const isGroup = !!groupPricing || !!groupId;
@@ -47,6 +49,7 @@ function ReviewContent() {
         const data = await res.json();
         setRegistrations(data.registrations);
         setGroupPricing(data.pricing);
+        if (data.eventStartDate) setEventStartDate(data.eventStartDate);
         return true;
       }
       return false;
@@ -63,6 +66,7 @@ function ReviewContent() {
           const res = await fetch(`/api/registration/${registrationId}`);
           if (res.ok) {
             const data = await res.json();
+            if (data.events?.start_date) setEventStartDate(data.events.start_date);
             if (data.group_id) {
               // Auto-detect: this registration belongs to a group
               const ok = await fetchGroup(data.group_id);
@@ -193,6 +197,8 @@ function ReviewContent() {
                 <p className="text-xs text-muted-foreground ml-6">
                   {reg.is_full_duration
                     ? dict.common.fullConference
+                    : reg.selected_days && reg.selected_days.length > 0 && eventStartDate
+                    ? formatSelectedDays(eventStartDate, reg.selected_days)
                     : `${reg.num_days} ${dict.wizard.nDays}`}
                   {reg.is_staying_in_motel && ` + ${dict.review.motelStay}`}
                 </p>

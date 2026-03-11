@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { eventId, dateOfBirth, isFullDuration, isStayingInMotel, numDays } = parsed.data;
+    const { eventId, dateOfBirth, isFullDuration, isStayingInMotel, numDays, selectedDays } = parsed.data;
 
     const supabase = await createClient();
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = computePricing(
-      { dateOfBirth, isFullDuration, isStayingInMotel, numDays },
+      { dateOfBirth, isFullDuration, isStayingInMotel, numDays, selectedDays },
       event,
       pricing
     );

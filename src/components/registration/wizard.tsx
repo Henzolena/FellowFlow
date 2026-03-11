@@ -18,6 +18,7 @@ import { useTranslation } from "@/lib/i18n/context";
 import { useWizardState, type Registrant, type AttendanceTypeKey, type GenderKey } from "./hooks/use-wizard-state";
 import { useGroupQuote, getAgeRangeOptions, syntheticDob } from "./hooks/use-group-quote";
 import { useDuplicateCheck } from "./hooks/use-duplicate-check";
+import { formatSelectedDays } from "@/lib/date-utils";
 
 type AgeRangeKey = "infant" | "child" | "youth" | "adult" | "";
 
@@ -579,9 +580,13 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                               {reg.attendanceType === "full_conference"
                                 ? dict.wizard.fullConference
                                 : reg.attendanceType === "kote"
-                                ? `${dict.wizard.koteAttendance} — ${reg.numDays} ${dict.wizard.nDays}`
+                                ? reg.selectedDays.length > 0
+                                  ? `${dict.wizard.koteAttendance} — ${formatSelectedDays(event.start_date, reg.selectedDays)}`
+                                  : `${dict.wizard.koteAttendance} — ${reg.numDays} ${dict.wizard.nDays}`
                                 : reg.isStayingInMotel
                                 ? dict.common.partialMotel
+                                : reg.selectedDays.length > 0
+                                ? formatSelectedDays(event.start_date, reg.selectedDays)
                                 : `${reg.numDays} ${dict.wizard.nDays}`}
                             </p>
                           </div>
