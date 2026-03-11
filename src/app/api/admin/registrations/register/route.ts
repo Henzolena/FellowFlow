@@ -1,0 +1,232 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/admin-guard";
+import { z } from "zod";
+import { generateEntitlements } from "@/lib/services/entitlement-generator";
+import { sendConfirmationEmail } from "@/lib/email/resend";
+import { createLogger } from "@/lib/logger";
+
+const registerSchema = z.object({
+  eventId: z.string().uuid(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().optional(),
+  gender: z.enum(["male", "female"]).optional(),
+  dateOfBirth: z.string().optional(),
+  city: z.string().optional(),
+  churchId: z.string().uuid().optional(),
+  churchNameCustom: z.string().optional(),
+  attendanceType: z.enum(["full_conference", "partial", "kote"]).default("full_conference"),
+  selectedDays: z.array(z.number().int().min(1).max(10)).optional(),
+  isStayingInMotel: z.boolean().default(false),
+  bedId: z.string().uuid().optional(),
+  notes: z.string().optional(),
+  sendEmail: z.boolean().default(true),
+});
+
+// POST /api/admin/registrations/register — unified admin registration (auto-confirmed, payment waived)
+export async function POST(request: NextRequest) {
+  try {
+    const auth = await requireAdmin();
+    if (!auth.authorized) return auth.response;
+
+    const body = await request.json();
+    const parsed = registerSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
+    }
+
+    const v = parsed.data;
+    const supabase = await createClient();
+
+    // Fetch admin profile
+    const { data: adminProfile } = await supabase
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", auth.userId)
+      .single();
+    const adminIdentity = adminProfile?.full_name || adminProfile?.email || auth.userId;
+
+    // Fetch event details
+    const { data: event, error: eventError } = await supabase
+      .from("events")
+      .select("*")
+      .eq("id", v.eventId)
+      .single();
+
+    if (eventError || !event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    // Compute age category from dateOfBirth or default to adult
+    let dateOfBirth = v.dateOfBirth || "1980-01-01";
+    let ageAtEvent = 45;
+    let category: "adult" | "youth" | "child" = "adult";
+
+    if (v.dateOfBirth) {
+      const eventStart = new Date(event.start_date + "T00:00:00");
+      const dob = new Date(v.dateOfBirth + "T00:00:00");
+      ageAtEvent = Math.floor((eventStart.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+
+      if (ageAtEvent <= (event.infant_age_threshold ?? 3)) {
+        category = "child"; // infants treated as children for DB
+      } else if (ageAtEvent < (event.youth_age_threshold ?? 13)) {
+        category = "child";
+      } else if (ageAtEvent < (event.adult_age_threshold ?? 18)) {
+        category = "youth";
+      } else {
+        category = "adult";
+      }
+    }
+
+    // Determine attendance details
+    const isFullDuration = v.attendanceType === "full_conference";
+    const numDays = isFullDuration ? null : (v.selectedDays?.length ?? 1);
+    const selectedDays = isFullDuration ? null : (v.selectedDays ?? null);
+
+    // Determine access tier
+    let accessTier = "FULL_ACCESS";
+    if (v.attendanceType === "kote") accessTier = "KOTE_ACCESS";
+
+    // Generate public confirmation code
+    const { data: codeResult } = await supabase.rpc("generate_confirmation_code", {
+      p_first_name: v.firstName,
+      p_last_name: v.lastName,
+      p_event_id: v.eventId,
+    });
+    const initials = (v.firstName.charAt(0) + v.lastName.charAt(0)).toUpperCase();
+    const publicCode = codeResult || `MW26-${initials}-${Math.floor(Math.random() * 100000).toString().padStart(5, "0")}`;
+
+    // Resolve church name for email
+    let churchName: string | null = null;
+    if (v.churchId) {
+      const { data: church } = await supabase.from("churches").select("name").eq("id", v.churchId).single();
+      churchName = church?.name || null;
+    } else if (v.churchNameCustom) {
+      churchName = v.churchNameCustom;
+    }
+
+    const now = new Date().toISOString();
+
+    // Validate bed assignment if requested
+    if (v.bedId) {
+      const { data: existingBed } = await supabase
+        .from("lodging_assignments")
+        .select("id")
+        .eq("bed_id", v.bedId)
+        .maybeSingle();
+
+      if (existingBed) {
+        return NextResponse.json({ error: "Selected bed is already assigned to another registrant" }, { status: 409 });
+      }
+    }
+
+    // Create registration
+    const { data: registration, error: regError } = await supabase
+      .from("registrations")
+      .insert({
+        event_id: v.eventId,
+        first_name: v.firstName,
+        last_name: v.lastName,
+        email: v.email,
+        phone: v.phone || null,
+        date_of_birth: dateOfBirth,
+        age_at_event: ageAtEvent,
+        category,
+        is_full_duration: isFullDuration,
+        attendance_type: v.attendanceType,
+        num_days: numDays,
+        selected_days: selectedDays,
+        is_staying_in_motel: v.isStayingInMotel,
+        computed_amount: 0,
+        explanation_code: "FULL_ADULT",
+        explanation_detail: "Complimentary — registered by admin",
+        status: "confirmed",
+        confirmed_at: now,
+        gender: v.gender || null,
+        city: v.city || null,
+        church_id: v.churchId || null,
+        church_name_custom: v.churchNameCustom || null,
+        public_confirmation_code: publicCode,
+        access_tier: accessTier,
+        registration_source: "admin_direct",
+        payment_waived: true,
+        admin_notes: v.notes || null,
+        invited_by_admin: adminIdentity,
+      })
+      .select()
+      .single();
+
+    if (regError) throw regError;
+
+    // Assign bed if provided
+    let lodgingAssigned = false;
+    if (v.bedId) {
+      const { error: lodgingError } = await supabase
+        .from("lodging_assignments")
+        .insert({
+          registration_id: registration.id,
+          bed_id: v.bedId,
+          check_in_date: event.start_date,
+          check_out_date: event.end_date,
+          assigned_by: auth.userId,
+          notes: v.notes ? `Admin registration: ${v.notes}` : "Assigned during admin registration",
+        });
+
+      if (!lodgingError) {
+        await supabase.from("beds").update({ is_occupied: true }).eq("id", v.bedId);
+        lodgingAssigned = true;
+      } else {
+        console.error("Lodging assignment failed (non-fatal):", lodgingError);
+      }
+    }
+
+    // Generate entitlements
+    const log = createLogger("admin-register");
+    try {
+      await generateEntitlements(supabase, registration.id, v.eventId, log);
+    } catch (entErr) {
+      console.error("Entitlement generation failed (non-fatal):", entErr);
+    }
+
+    // Send confirmation email
+    let emailSent = false;
+    if (v.sendEmail) {
+      try {
+        await sendConfirmationEmail({
+          to: v.email,
+          firstName: v.firstName,
+          lastName: v.lastName,
+          eventName: event.name,
+          eventStartDate: event.start_date,
+          eventEndDate: event.end_date,
+          amount: 0,
+          isFree: true,
+          registrationId: registration.id,
+          confirmationCode: publicCode,
+          explanationDetail: "Complimentary — registered by admin",
+          attendanceType: v.attendanceType,
+          category,
+          accessTier,
+          gender: v.gender,
+          city: v.city,
+          churchName,
+          selectedDays: selectedDays ?? undefined,
+        });
+        emailSent = true;
+      } catch (emailErr) {
+        console.error("Confirmation email failed (non-fatal):", emailErr);
+      }
+    }
+
+    return NextResponse.json({
+      registration,
+      emailSent,
+      lodgingAssigned,
+    }, { status: 201 });
+  } catch (error) {
+    console.error("Admin register error:", error);
+    return NextResponse.json({ error: "Failed to create registration" }, { status: 500 });
+  }
+}
