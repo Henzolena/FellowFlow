@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
         is_full_duration: data.isFullDuration,
         is_staying_in_motel: data.isStayingInMotel ?? null,
         num_days: data.numDays ?? null,
+        selected_days: data.selectedDays ?? null,
         computed_amount: pricingResult.amount,
         explanation_code: pricingResult.explanationCode,
         explanation_detail: pricingResult.explanationDetail,

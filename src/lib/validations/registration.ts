@@ -30,6 +30,7 @@ export const registrationSchema = personalInfoSchema.merge(
     isFullDuration: z.boolean(),
     isStayingInMotel: z.boolean().optional(),
     numDays: z.number().int().min(1).optional(),
+    selectedDays: z.array(z.number().int().min(1)).optional(),
     attendanceType: attendanceTypeEnum.optional(),
   })
 );
@@ -50,6 +51,7 @@ export const groupRegistrantSchema = z.object({
   isFullDuration: z.boolean(),
   isStayingInMotel: z.boolean().optional(),
   numDays: z.number().int().min(1).optional(),
+  selectedDays: z.array(z.number().int().min(1)).optional(),
   attendanceType: attendanceTypeEnum.optional(),
 });
 

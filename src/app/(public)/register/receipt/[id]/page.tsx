@@ -15,6 +15,7 @@ import type { ExplanationCode } from "@/types/database";
 import Link from "next/link";
 import { useTranslation } from "@/lib/i18n/context";
 import { QRCodeDisplay } from "@/components/registration/qr-code";
+import { formatSelectedDays } from "@/lib/date-utils";
 import {
   getCategoryBadge,
   getAccessTierBadge,
@@ -325,8 +326,8 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                           <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${getAttendanceBadge(member.attendance_type).tw}`}>
                             {member.is_full_duration
                               ? dict.common.fullConference
-                              : member.is_staying_in_motel
-                              ? dict.common.partialMotel
+                              : member.selected_days && eventData?.start_date
+                              ? formatSelectedDays(eventData.start_date, member.selected_days)
                               : `${member.num_days} ${dict.wizard.nDays}`}
                           </span>
                         </div>
@@ -392,6 +393,8 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                       ? eventData
                         ? `${dict.common.fullConference} (${eventData.duration_days} ${dict.common.days})`
                         : dict.common.fullConference
+                      : data.selected_days && eventData?.start_date
+                      ? formatSelectedDays(eventData.start_date, data.selected_days)
                       : `${data.num_days} ${dict.wizard.nDays}`}
                   </p>
                 </div>

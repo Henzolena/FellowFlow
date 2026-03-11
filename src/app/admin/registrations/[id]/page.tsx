@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getStatusBadge, getCategoryBadge, getAccessTierBadge, getAttendanceBadge } from "@/lib/badge-colors";
+import { formatSelectedDays } from "@/lib/date-utils";
 import { Separator } from "@/components/ui/separator";
 import {
   Loader2,
@@ -105,6 +106,7 @@ type DetailData = {
   is_full_duration: boolean;
   is_staying_in_motel: boolean | null;
   num_days: number | null;
+  selected_days: number[] | null;
   computed_amount: number;
   explanation_code: string;
   explanation_detail: string;
@@ -290,7 +292,13 @@ export default function RegistrationDetailPage({
             <Row label="Attendance Type" value={attendanceLabel(data.attendance_type)} />
             <Row
               label="Duration"
-              value={data.is_full_duration ? `Full Conference (${data.events?.duration_days} days)` : `${data.num_days} Day(s)`}
+              value={
+                data.is_full_duration
+                  ? `Full Conference (${data.events?.duration_days} days)`
+                  : data.selected_days && data.selected_days.length > 0 && data.events?.start_date
+                  ? formatSelectedDays(data.events.start_date, data.selected_days)
+                  : `${data.num_days} Day(s)`
+              }
             />
             {data.is_full_duration && (
               <Row label="Motel Stay" value={data.is_staying_in_motel ? "Yes" : "No"} />

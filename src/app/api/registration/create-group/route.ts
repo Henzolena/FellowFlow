@@ -9,6 +9,7 @@ import { dispatchAdminNotification } from "@/lib/services/notification-dispatche
 import { generateEntitlements, generateGroupEntitlements } from "@/lib/services/entitlement-generator";
 import { createRequestLogger } from "@/lib/logger";
 import type { Event, PricingConfig } from "@/types/database";
+import { formatSelectedDays } from "@/lib/date-utils";
 import { randomUUID } from "crypto";
 
 const RATE_LIMIT = 10;
@@ -163,6 +164,7 @@ export async function POST(request: NextRequest) {
         is_full_duration: reg.isFullDuration,
         is_staying_in_motel: reg.isStayingInMotel ?? null,
         num_days: reg.numDays ?? null,
+        selected_days: reg.selectedDays ?? null,
         computed_amount: groupPricing.items[i].amount,
         explanation_code: groupPricing.items[i].explanationCode,
         explanation_detail: groupPricing.items[i].explanationDetail,
@@ -224,6 +226,7 @@ export async function POST(request: NextRequest) {
             category: r.category,
             accessTier: r.access_tier,
             attendanceType: r.attendance_type,
+            selectedDays: r.selected_days,
           });
           log.info("Free solo confirmation email sent", { registrationId: r.id });
           await adminClient.from("email_logs").insert({
@@ -233,9 +236,12 @@ export async function POST(request: NextRequest) {
             status: "sent",
           });
         } else {
-          function attendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null }): string {
+          function attendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null; selected_days: number[] | null; attendance_type: string }): string {
             if (r.is_full_duration) return "Full Conference";
-            if (r.is_staying_in_motel) return "Partial — Motel";
+            if (r.selected_days && r.selected_days.length > 0 && event?.start_date) {
+              const dayStr = formatSelectedDays(event.start_date, r.selected_days);
+              return r.attendance_type === "kote" ? `KOTE · ${dayStr}` : dayStr;
+            }
             return `${r.num_days} Day(s)`;
           }
 
@@ -251,6 +257,7 @@ export async function POST(request: NextRequest) {
               attendance: attendanceLabel(r),
               attendanceType: r.attendance_type,
               accessTier: r.access_tier,
+              selectedDays: r.selected_days,
             })),
             subtotal: groupPricing.subtotal,
             surcharge: groupPricing.surcharge,

@@ -1,5 +1,6 @@
 import { PDFDocument, rgb, StandardFonts, type RGB, type PDFPage, type PDFFont } from "pdf-lib";
 import { getCategoryBadge, getAccessTierBadge, getAttendanceBadge } from "@/lib/badge-colors";
+import { formatSelectedDays } from "@/lib/date-utils";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const bwipjs = require("bwip-js") as {
   toBuffer(opts: Record<string, unknown>): Promise<Buffer>;
@@ -22,6 +23,7 @@ export type BadgeData = {
   churchName?: string | null;
   amount?: number;
   isFree?: boolean;
+  selectedDays?: number[] | null;
 };
 
 /* ── Helpers ────────────────────────────────────────────────────────── */
@@ -178,6 +180,9 @@ export async function generateRegistrationBadgePDF(
   if (badge.gender) detailLines.push(["Gender", badge.gender.charAt(0).toUpperCase() + badge.gender.slice(1)]);
   if (badge.churchName) detailLines.push(["Church", badge.churchName]);
   if (badge.city) detailLines.push(["City", badge.city]);
+  if (badge.selectedDays && badge.selectedDays.length > 0 && badge.eventStartDate) {
+    detailLines.push(["Days", formatSelectedDays(badge.eventStartDate, badge.selectedDays)]);
+  }
   if (badge.amount !== undefined) {
     detailLines.push(["Amount", badge.isFree ? "FREE" : `$${badge.amount.toFixed(2)}`]);
   }

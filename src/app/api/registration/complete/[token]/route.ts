@@ -17,6 +17,7 @@ const completeSchema = z.object({
   attendanceType: z.enum(["full_conference", "partial", "kote"]).optional(),
   isStayingInMotel: z.boolean().optional(),
   numDays: z.number().int().min(1).optional(),
+  selectedDays: z.array(z.number().int().min(1)).optional(),
 });
 
 // Strip sensitive fields from registration before returning to client
@@ -145,6 +146,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const isFullDuration = attendanceType === "full_conference";
     const isStayingInMotel = v.isStayingInMotel ?? reg.is_staying_in_motel ?? false;
     const numDays = v.numDays ?? reg.num_days;
+    const selectedDays = v.selectedDays ?? reg.selected_days;
 
     // Recompute pricing with actual user data
     let computedAmount = 0;
@@ -188,6 +190,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       is_full_duration: isFullDuration,
       is_staying_in_motel: isStayingInMotel,
       num_days: numDays,
+      selected_days: selectedDays,
       computed_amount: computedAmount,
       explanation_code: explanationCode,
       explanation_detail: explanationDetail,

@@ -4,6 +4,7 @@ import type { AdminNotificationMember } from "@/lib/email/resend";
 import { computeGroupPricing } from "@/lib/pricing/engine";
 import type { Logger } from "@/lib/logger";
 import type { Registration, Event, PricingConfig } from "@/types/database";
+import { formatSelectedDays } from "@/lib/date-utils";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -20,7 +21,7 @@ export async function dispatchSoloConfirmation(
       .from("registrations")
       .select(
         "first_name, last_name, email, computed_amount, explanation_detail, event_id, " +
-        "category, access_tier, attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, " +
+        "category, access_tier, attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, selected_days, " +
         "events(name, start_date, end_date)"
       )
       .eq("id", registrationId)
@@ -59,6 +60,7 @@ export async function dispatchSoloConfirmation(
         gender: reg.gender as string | null,
         city: reg.city as string | null,
         churchName,
+        selectedDays: reg.selected_days as number[] | null,
       });
 
       log.info("Confirmation email sent", { registrationId });
@@ -95,7 +97,11 @@ export async function dispatchSoloConfirmation(
         lastName: reg.last_name as string,
         category: reg.category as string,
         amount: Number(reg.computed_amount),
-        attendance: at === "full_conference" ? "Full Conference" : at === "kote" ? "KOTE" : "Partial",
+        attendance: at === "full_conference"
+          ? "Full Conference"
+          : at === "kote"
+          ? (reg.selected_days && evtData?.start_date ? `KOTE · ${formatSelectedDays(evtData.start_date, reg.selected_days as number[])}` : "KOTE")
+          : (reg.selected_days && evtData?.start_date ? formatSelectedDays(evtData.start_date, reg.selected_days as number[]) : "Partial"),
         confirmationCode: reg.public_confirmation_code as string | undefined,
       }],
       grandTotal: Number(reg.computed_amount),
@@ -126,7 +132,7 @@ export async function dispatchGroupConfirmation(
       .from("registrations")
       .select(
         "id, first_name, last_name, email, computed_amount, explanation_detail, " +
-        "category, access_tier, age_at_event, is_full_duration, is_staying_in_motel, num_days, " +
+        "category, access_tier, age_at_event, is_full_duration, is_staying_in_motel, num_days, selected_days, " +
         "date_of_birth, event_id, attendance_type, public_confirmation_code, " +
         "gender, city, church_id, church_name_custom, " +
         "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)"
@@ -173,6 +179,7 @@ export async function dispatchGroupConfirmation(
           gender: primaryReg.gender as string | null,
           city: primaryReg.city as string | null,
           churchName,
+          selectedDays: primaryReg.selected_days as number[] | null,
         });
         log.info("Solo confirmation email sent (group of 1)", { registrationId: primaryReg.id, groupId });
         await supabase.from("email_logs").insert({
@@ -209,7 +216,11 @@ export async function dispatchGroupConfirmation(
           lastName: primaryReg.last_name as string,
           category: primaryReg.category as string,
           amount: Number(primaryReg.computed_amount),
-          attendance: soloAt === "full_conference" ? "Full Conference" : soloAt === "kote" ? "KOTE" : "Partial",
+          attendance: soloAt === "full_conference"
+            ? "Full Conference"
+            : soloAt === "kote"
+            ? (primaryReg.selected_days && evtData?.start_date ? `KOTE · ${formatSelectedDays(evtData.start_date, primaryReg.selected_days as number[])}` : "KOTE")
+            : (primaryReg.selected_days && evtData?.start_date ? formatSelectedDays(evtData.start_date, primaryReg.selected_days as number[]) : "Partial"),
           confirmationCode: primaryReg.public_confirmation_code as string | undefined,
         }],
         grandTotal: Number(primaryReg.computed_amount),
@@ -268,13 +279,18 @@ export async function dispatchGroupConfirmation(
           category: r.category as string,
           ageAtEvent: r.age_at_event as number,
           amount: Number(r.computed_amount),
-          attendance: at === "full_conference" ? "Full Conference" : at === "kote" ? "KOTE" : `${r.num_days || "?"} Day(s)`,
+          attendance: at === "full_conference"
+            ? "Full Conference"
+            : at === "kote"
+            ? (r.selected_days && evtData?.start_date ? `KOTE · ${formatSelectedDays(evtData.start_date, r.selected_days as number[])}` : "KOTE")
+            : (r.selected_days && evtData?.start_date ? formatSelectedDays(evtData.start_date, r.selected_days as number[]) : `${r.num_days || "?"} Day(s)`),
           attendanceType: r.attendance_type as string | undefined,
           accessTier: r.access_tier as string | undefined,
           confirmationCode: r.public_confirmation_code as string | undefined,
           gender: r.gender as string | null,
           city: r.city as string | null,
           churchName,
+          selectedDays: r.selected_days as number[] | null,
         };
       })
     );

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Logger } from "@/lib/logger";
+import { selectedDaysToDateStrings } from "@/lib/date-utils";
 
 /**
  * Auto-generate service entitlements for a confirmed registration
@@ -20,7 +21,7 @@ export async function generateEntitlements(
   // 1. Fetch the registration to determine entitlement rules
   const { data: reg, error: regError } = await supabase
     .from("registrations")
-    .select("attendance_type, access_tier, is_full_duration, num_days")
+    .select("attendance_type, access_tier, is_full_duration, num_days, selected_days, event_id, events(start_date)")
     .eq("id", registrationId)
     .single();
 
@@ -29,10 +30,10 @@ export async function generateEntitlements(
     return { created: 0, skipped: 0 };
   }
 
-  // 2. Fetch all active services for this event
+  // 2. Fetch all active services for this event (include service_date for day filtering)
   const { data: services } = await supabase
     .from("service_catalog")
-    .select("id, service_category, meal_type")
+    .select("id, service_category, meal_type, service_date")
     .eq("event_id", eventId)
     .eq("is_active", true);
 
@@ -45,24 +46,49 @@ export async function generateEntitlements(
   const attendanceType = reg.attendance_type || "full_conference";
   const accessTier = reg.access_tier || "FULL_ACCESS";
 
+  // Build set of allowed dates for partial/kote registrants
+  const selectedDays: number[] | null = reg.selected_days;
+  // Supabase join: events is an object (single FK) but TS may see it as array
+  const rawEvents = reg.events;
+  const eventData = Array.isArray(rawEvents) ? rawEvents[0] : rawEvents;
+  const eventStartDate: string | undefined = eventData?.start_date;
+  let allowedDates: Set<string> | null = null;
+
+  if (selectedDays && selectedDays.length > 0 && eventStartDate) {
+    allowedDates = new Set(selectedDaysToDateStrings(eventStartDate, selectedDays));
+  }
+
+  // Helper: check if a service falls on an allowed day
+  function isServiceOnAllowedDay(serviceDate: string | null): boolean {
+    // No date filter = allow all (full_conference or no selected_days)
+    if (!allowedDates) return true;
+    // Service has no date = allow (undated services like main_service)
+    if (!serviceDate) return true;
+    return allowedDates.has(serviceDate);
+  }
+
   const entitled: string[] = [];
   for (const svc of services) {
     const cat = svc.service_category;
 
-    // Main service — everyone gets it
+    // Main service — everyone gets it, but only for their selected days
     if (cat === "main_service") {
-      entitled.push(svc.id);
+      if (isServiceOnAllowedDay(svc.service_date)) {
+        entitled.push(svc.id);
+      }
       continue;
     }
 
-    // Meals — depends on attendance type and access tier
+    // Meals — depends on attendance type, access tier, AND selected days
     if (cat === "meal") {
       // KOTE attendees don't get meals by default
       if (attendanceType === "kote" && accessTier !== "STAFF" && accessTier !== "VIP") {
         continue;
       }
-      // Full conference, partial, STAFF, VIP all get meals
-      entitled.push(svc.id);
+      // Only grant meals for days the registrant is attending
+      if (isServiceOnAllowedDay(svc.service_date)) {
+        entitled.push(svc.id);
+      }
       continue;
     }
 

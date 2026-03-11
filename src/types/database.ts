@@ -114,6 +114,7 @@ export type Registration = {
   is_full_duration: boolean;
   is_staying_in_motel: boolean | null;
   num_days: number | null;
+  selected_days: number[] | null;
   computed_amount: number;
   explanation_code: ExplanationCode;
   explanation_detail: string | null;

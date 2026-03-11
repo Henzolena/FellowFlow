@@ -96,6 +96,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
               attendanceType: attType,
               isFullDuration: attType === "full_conference",
               numDays: attType !== "full_conference" ? r.selectedDays.length : undefined,
+              selectedDays: attType !== "full_conference" ? r.selectedDays : undefined,
             };
           }),
         }),

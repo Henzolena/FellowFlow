@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { generateRegistrationBadgePDF, type BadgeData } from "@/lib/pdf/registration-badge";
 import { getCategoryBadge, getAccessTierBadge, getAttendanceBadge, emailBadgePill } from "@/lib/badge-colors";
+import { formatSelectedDays } from "@/lib/date-utils";
 
 let resendClient: Resend | null = null;
 
@@ -17,6 +18,10 @@ function getResend(): Resend | null {
 }
 
 const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL || "FellowFlow <noreply@fellowflow.com>";
+
+function formatSelectedDaysForEmail(eventStartDate: string, days: number[]): string {
+  return formatSelectedDays(eventStartDate, days);
+}
 
 /* ── Shared styles ─────────────────────────────────────────────────── */
 
@@ -105,6 +110,7 @@ export type ConfirmationEmailParams = {
   gender?: string | null;
   city?: string | null;
   churchName?: string | null;
+  selectedDays?: number[] | null;
 };
 
 export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
@@ -158,6 +164,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
         churchName,
         amount,
         isFree,
+        selectedDays: params.selectedDays,
       };
       const pdfBytes = await generateRegistrationBadgePDF(badgeData);
       const safeName = `${firstName}_${lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -229,6 +236,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
         ${detailRow("Name", `${firstName} ${lastName}`)}
         ${detailRow("Event", eventName)}
         ${detailRow("Attendance", attendanceType ? attendanceLabel(attendanceType) : null)}
+        ${params.selectedDays && params.selectedDays.length > 0 && eventStartDate ? detailRow("Days Attending", formatSelectedDaysForEmail(eventStartDate, params.selectedDays)) : ""}
         ${detailRow("Category", category ? categoryLabel(category) : null)}
         ${detailRow("Gender", gender ? (gender.charAt(0).toUpperCase() + gender.slice(1)) : null)}
         ${detailRow("City", city)}
@@ -285,6 +293,7 @@ export type GroupMember = {
   gender?: string | null;
   city?: string | null;
   churchName?: string | null;
+  selectedDays?: number[] | null;
 };
 
 export type GroupReceiptEmailParams = {
@@ -384,6 +393,7 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
         churchName: m.churchName,
         amount: m.amount,
         isFree,
+        selectedDays: m.selectedDays,
       };
       const pdfBytes = await generateRegistrationBadgePDF(badgeData);
       const safeName = `${m.firstName}_${m.lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");
