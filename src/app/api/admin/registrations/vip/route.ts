@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         num_days: null,
         computed_amount: 0,
         explanation_code: "FULL_ADULT",
-        explanation_detail: "VIP — payment waived by admin",
+        explanation_detail: "Complimentary — payment waived by admin",
         status: "confirmed",
         confirmed_at: now,
         gender: v.gender || null,
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
         church_id: v.churchId || null,
         church_name_custom: v.churchNameCustom || null,
         public_confirmation_code: publicCode,
-        access_tier: "VIP",
+        access_tier: "FULL_ACCESS",
         registration_source: "admin_direct",
         payment_waived: true,
         admin_notes: v.notes || null,
@@ -109,8 +109,8 @@ export async function POST(request: NextRequest) {
 
     if (regError) throw regError;
 
-    // Generate entitlements (VIP gets full access to all services)
-    const log = createLogger("vip-registration");
+    // Generate entitlements (FULL_ACCESS gets main service + meals)
+    const log = createLogger("admin-direct-registration");
     try {
       await generateEntitlements(supabase, registration.id, v.eventId, log);
     } catch (entErr) {
@@ -132,10 +132,10 @@ export async function POST(request: NextRequest) {
           isFree: true,
           registrationId: registration.id,
           confirmationCode: publicCode,
-          explanationDetail: "VIP — Complimentary Access",
+          explanationDetail: "Complimentary — payment waived by admin",
           attendanceType: "full_conference",
           category: "adult",
-          accessTier: "VIP",
+          accessTier: "FULL_ACCESS",
           gender: v.gender,
           city: v.city,
           churchName,
