@@ -28,7 +28,9 @@ type WizardProps = {
 
 // Helper to generate day details with dates
 function getDayDetails(eventStartDate: string, dayNumber: number) {
-  const start = new Date(eventStartDate);
+  // Parse date in local timezone to avoid UTC offset issues
+  const [year, month, day] = eventStartDate.split('-').map(Number);
+  const start = new Date(year, month - 1, day);
   const targetDate = new Date(start);
   targetDate.setDate(start.getDate() + dayNumber - 1);
   
@@ -375,7 +377,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                               <span className={`text-[10px] font-medium leading-tight ${selected ? "text-primary/70" : "text-muted-foreground"}`}>
                                 {d === 1 ? dict.common.day : dict.common.days}
                               </span>
-                              <span className={`text-[9px] leading-tight ${selected ? "text-primary/60" : "text-muted-foreground/70"}`}>
+                              <span className={`text-[9px] font-semibold leading-tight ${selected ? "text-primary/60" : "text-muted-foreground/70"}`}>
                                 {dayInfo.dayName}, {dayInfo.monthDay}
                               </span>
                               {selected && (
@@ -423,7 +425,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                               <span className={`text-[10px] font-medium leading-tight ${selected ? "text-primary/70" : "text-muted-foreground"}`}>
                                 {d === 1 ? dict.common.day : dict.common.days}
                               </span>
-                              <span className={`text-[9px] leading-tight ${selected ? "text-primary/60" : "text-muted-foreground/70"}`}>
+                              <span className={`text-[9px] font-semibold leading-tight ${selected ? "text-primary/60" : "text-muted-foreground/70"}`}>
                                 {dayInfo.dayName}, {dayInfo.monthDay}
                               </span>
                               {selected && (
