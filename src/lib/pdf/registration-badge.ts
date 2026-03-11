@@ -1,6 +1,6 @@
 import { PDFDocument, rgb, StandardFonts, type RGB, type PDFPage, type PDFFont } from "pdf-lib";
 import { getCategoryBadge, getAccessTierBadge, getAttendanceBadge } from "@/lib/badge-colors";
-import { formatSelectedDays } from "@/lib/date-utils";
+import { formatDayNumber } from "@/lib/date-utils";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const bwipjs = require("bwip-js") as {
   toBuffer(opts: Record<string, unknown>): Promise<Buffer>;
@@ -100,8 +100,14 @@ function drawPill(
 export async function generateRegistrationBadgePDF(
   badge: BadgeData
 ): Promise<Uint8Array> {
+  // Determine if we need the "Valid Days" section
+  const hasSpecificDays = !!(badge.selectedDays && badge.selectedDays.length > 0 && badge.eventStartDate);
+  const isFullConference = badge.attendanceType === "full_conference";
+  const showValidDays = hasSpecificDays || (isFullConference && !!badge.eventStartDate);
+  const validDaysExtra = showValidDays ? 60 : 0;
+
   const doc = await PDFDocument.create();
-  const page = doc.addPage([400, 580]);
+  const page = doc.addPage([400, 580 + validDaysExtra]);
   const { width, height } = page.getSize();
 
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -171,8 +177,55 @@ export async function generateRegistrationBadgePDF(
   pillX += catPillW + gap;
   drawPill(page, pillX, y, attLabel, fontBold, 8, ATT_TEXT, ATT_BG);
 
+  // ── Valid Days section ──
+  if (showValidDays) {
+    const CHIP_BG = rgb(0.996, 0.957, 0.886);   // warm cream/amber
+    const CHIP_BORDER = rgb(0.929, 0.886, 0.792); // subtle border
+    const CHIP_H = 22;
+    const CHIP_FONT = 8;
+    const CHIP_GAP = 6;
+
+    y -= 30;
+    const validLabel = "VALID FOR";
+    const vLabelW = fontBold.widthOfTextAtSize(validLabel, 7);
+    page.drawText(validLabel, { x: (width - vLabelW) / 2, y, size: 7, font: fontBold, color: GRAY });
+    y -= 20;
+
+    if (isFullConference && !hasSpecificDays) {
+      // Full conference: single wide chip with date range
+      const rangeText = badge.eventEndDate
+        ? `ALL DAYS  ·  ${formatDate(badge.eventStartDate)} – ${formatDate(badge.eventEndDate)}`
+        : "ALL CONFERENCE DAYS";
+      const rTextW = fontBold.widthOfTextAtSize(rangeText, CHIP_FONT);
+      const rChipW = rTextW + 24;
+      const rX = (width - rChipW) / 2;
+      page.drawRectangle({ x: rX, y: y - CHIP_H, width: rChipW, height: CHIP_H, color: CHIP_BG, borderColor: CHIP_BORDER, borderWidth: 0.5 });
+      page.drawText(rangeText, { x: rX + 12, y: y - CHIP_H + 7, size: CHIP_FONT, font: fontBold, color: DARK });
+    } else if (hasSpecificDays) {
+      // Individual day chips
+      const sortedDays = badge.selectedDays!.slice().sort((a, b) => a - b);
+      const dayLabels = sortedDays.map((d) => formatDayNumber(badge.eventStartDate!, d));
+      const chipWidths = dayLabels.map((l) => fontBold.widthOfTextAtSize(l, CHIP_FONT) + 20);
+      const totalW = chipWidths.reduce((s, w) => s + w, 0) + CHIP_GAP * (chipWidths.length - 1);
+
+      let cx = (width - totalW) / 2;
+      for (let i = 0; i < dayLabels.length; i++) {
+        page.drawRectangle({
+          x: cx, y: y - CHIP_H, width: chipWidths[i], height: CHIP_H,
+          color: CHIP_BG, borderColor: CHIP_BORDER, borderWidth: 0.5,
+        });
+        page.drawText(dayLabels[i], {
+          x: cx + 10, y: y - CHIP_H + 7, size: CHIP_FONT, font: fontBold, color: DARK,
+        });
+        cx += chipWidths[i] + CHIP_GAP;
+      }
+    }
+
+    y -= CHIP_H + 6;
+  }
+
   // ── Details box ──
-  y -= 38;
+  y -= 20;
   const boxX = 30;
   const boxW = width - 60;
 
@@ -180,9 +233,6 @@ export async function generateRegistrationBadgePDF(
   if (badge.gender) detailLines.push(["Gender", badge.gender.charAt(0).toUpperCase() + badge.gender.slice(1)]);
   if (badge.churchName) detailLines.push(["Church", badge.churchName]);
   if (badge.city) detailLines.push(["City", badge.city]);
-  if (badge.selectedDays && badge.selectedDays.length > 0 && badge.eventStartDate) {
-    detailLines.push(["Days", formatSelectedDays(badge.eventStartDate, badge.selectedDays)]);
-  }
   if (badge.amount !== undefined) {
     detailLines.push(["Amount", badge.isFree ? "FREE" : `$${badge.amount.toFixed(2)}`]);
   }
