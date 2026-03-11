@@ -116,21 +116,6 @@ export function computePricing(
   }
 
   // ─── Partial attendance path ───
-
-  // Legacy: Staying in motel + not full duration → FREE (kept for backward compat)
-  if (input.isStayingInMotel && pricing.motel_stay_free) {
-    return {
-      category,
-      ageAtEvent,
-      amount: 0,
-      baseAmount: 0,
-      surcharge: 0,
-      surchargeLabel: null,
-      explanationCode: "PARTIAL_MOTEL_FREE",
-      explanationDetail: "Partial attendance with motel stay. Registration is free.",
-    };
-  }
-
   // Daily rate × number of days
   const numDays = input.numDays ?? 1;
   const dailyMap: Record<AgeCategory, { rate: number; code: ExplanationCode }> = {
@@ -249,7 +234,6 @@ export function getExplanationLabel(code: ExplanationCode | string): string {
     FULL_ADULT: "Full Conference — Adult",
     FULL_YOUTH: "Full Conference — Youth",
     FULL_CHILD: "Full Conference — Child",
-    PARTIAL_MOTEL_FREE: "Partial Attendance + Motel (Free)",
     PARTIAL_ADULT: "Partial Attendance — Adult (per day)",
     PARTIAL_YOUTH: "Partial Attendance — Youth (per day)",
     PARTIAL_CHILD: "Partial Attendance — Child (per day)",

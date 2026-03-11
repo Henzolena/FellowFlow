@@ -312,7 +312,7 @@ describe("pricingSchema", () => {
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.motelStayFree).toBe(true); // default
+      expect(result.data.koteDailyPrice).toBe(10); // default
     }
   });
 
@@ -340,7 +340,7 @@ describe("pricingSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("overrides motelStayFree default", () => {
+  it("overrides koteDailyPrice default", () => {
     const result = pricingSchema.safeParse({
       adultFullPrice: 100,
       adultDailyPrice: 25,
@@ -348,11 +348,11 @@ describe("pricingSchema", () => {
       youthDailyPrice: 20,
       childFullPrice: 50,
       childDailyPrice: 15,
-      motelStayFree: false,
+      koteDailyPrice: 15,
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.motelStayFree).toBe(false);
+      expect(result.data.koteDailyPrice).toBe(15);
     }
   });
 });

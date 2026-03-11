@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { DollarSign, User, Calendar, Home } from "lucide-react";
+import { DollarSign, User, Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AgeCategory } from "@/types/database";
 import { useTranslation } from "@/lib/i18n/context";
@@ -12,7 +12,6 @@ type PriceSummaryProps = {
   eventName?: string;
   category?: AgeCategory;
   isFullDuration?: boolean;
-  isStayingInMotel?: boolean;
   numDays?: number;
   amount?: number;
   explanationDetail?: string;
@@ -29,7 +28,6 @@ export function PriceSummary({
   eventName,
   category,
   isFullDuration,
-  isStayingInMotel,
   numDays,
   amount,
   explanationDetail,
@@ -75,17 +73,8 @@ export function PriceSummary({
             <span>
               {isFullDuration
                 ? dict.priceSummary.fullConference
-                : isStayingInMotel
-                ? dict.priceSummary.partialMotelGuest
                 : `${numDays || "?"} ${dict.wizard.nDays}`}
             </span>
-          </div>
-        )}
-
-        {isStayingInMotel !== undefined && !isFullDuration && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Home className="h-4 w-4" />
-            <span>{isStayingInMotel ? dict.priceSummary.motelStayFree : dict.common.noMotel}</span>
           </div>
         )}
 

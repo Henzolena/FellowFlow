@@ -40,7 +40,6 @@ function makePricing(overrides: Partial<PricingConfig> = {}): PricingConfig {
     youth_daily_price: 20,
     child_full_price: 50,
     child_daily_price: 15,
-    motel_stay_free: true,
     kote_daily_price: 10,
     lodging_fee: 0,
     late_surcharge_tiers: [],
@@ -231,29 +230,6 @@ describe("computePricing", () => {
     });
   });
 
-  describe("partial duration — motel stay (free)", () => {
-    it("returns free when staying in motel and motel_stay_free is enabled", () => {
-      const result = computePricing(
-        { dateOfBirth: "1990-01-01", isFullDuration: false, isStayingInMotel: true, numDays: 2 },
-        event,
-        pricing
-      );
-      expect(result.amount).toBe(0);
-      expect(result.explanationCode).toBe("PARTIAL_MOTEL_FREE");
-    });
-
-    it("charges daily rate when motel_stay_free is disabled", () => {
-      const pricingNoMotel = makePricing({ motel_stay_free: false });
-      const result = computePricing(
-        { dateOfBirth: "1990-01-01", isFullDuration: false, isStayingInMotel: true, numDays: 2, registrationDate: "2026-01-15" },
-        event,
-        pricingNoMotel
-      );
-      expect(result.amount).toBe(50); // 2 days × $25/day
-      expect(result.explanationCode).toBe("PARTIAL_ADULT");
-    });
-  });
-
   describe("partial duration — daily rate", () => {
     it("charges daily rate × numDays for adult", () => {
       const result = computePricing(
@@ -332,17 +308,6 @@ describe("computePricing", () => {
       expect(result.amount).toBe(0);
       expect(result.surcharge).toBe(0);
       expect(result.explanationCode).toBe("FREE_INFANT");
-    });
-
-    it("does NOT add surcharge to motel-free registrations", () => {
-      const result = computePricing(
-        { dateOfBirth: "1990-01-01", isFullDuration: false, isStayingInMotel: true, registrationDate: "2026-06-20" },
-        event,
-        pricingWithSurcharge
-      );
-      expect(result.amount).toBe(0);
-      expect(result.surcharge).toBe(0);
-      expect(result.explanationCode).toBe("PARTIAL_MOTEL_FREE");
     });
 
     it("adds surcharge to partial daily rate", () => {
@@ -548,21 +513,6 @@ describe("computeGroupPricing", () => {
     expect(result.grandTotal).toBe(175);
   });
 
-  it("handles motel-free partial registrant in a group", () => {
-    const result = computeGroupPricing(
-      [
-        { dateOfBirth: "1990-01-01", isFullDuration: true, registrationDate: regDate },
-        { dateOfBirth: "1990-01-01", isFullDuration: false, isStayingInMotel: true, numDays: 2, registrationDate: regDate },
-      ],
-      event,
-      pricing
-    );
-    expect(result.items[0].amount).toBe(100);
-    expect(result.items[1].amount).toBe(0);
-    expect(result.items[1].explanationCode).toBe("PARTIAL_MOTEL_FREE");
-    expect(result.subtotal).toBe(100);
-  });
-
   it("uses first registrant's registrationDate for surcharge calculation", () => {
     const pricingWithSurcharge = makePricing({ late_surcharge_tiers: SURCHARGE_TIERS });
     const result = computeGroupPricing(
@@ -586,7 +536,7 @@ describe("getExplanationLabel", () => {
   it("returns correct label for known codes", () => {
     expect(getExplanationLabel("FREE_INFANT")).toBe("Infant / Toddler (Free)");
     expect(getExplanationLabel("FULL_ADULT")).toBe("Full Conference — Adult");
-    expect(getExplanationLabel("PARTIAL_MOTEL_FREE")).toBe("Partial Attendance + Motel (Free)");
+    expect(getExplanationLabel("PARTIAL_ADULT")).toBe("Partial Attendance — Adult (per day)");
   });
 
   it("returns the code itself for unknown codes", () => {

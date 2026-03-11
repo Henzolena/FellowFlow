@@ -67,11 +67,8 @@ export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels
       if (!r.ageRange || !r.attendanceType) return false;
       if (r.attendanceType === "full_conference") return true;
       if (r.attendanceType === "kote") return r.numDays >= 1;
-      // partial
-      return (
-        r.isFullDuration !== null &&
-        (r.isFullDuration || (r.isStayingInMotel !== null && (r.isStayingInMotel || r.numDays >= 1)))
-      );
+      // partial: just needs numDays
+      return r.numDays >= 1;
     });
 
     if (validRegistrants.length === 0) {
@@ -94,7 +91,7 @@ export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels
             return {
               dateOfBirth: syntheticDob(opt?.representativeAge ?? 25, event.start_date),
               isFullDuration: attType === "full_conference",
-              isStayingInMotel: attType === "partial" ? (r.isStayingInMotel ?? false) : false,
+              isStayingInMotel: false,
               numDays: attType !== "full_conference" ? r.numDays : undefined,
               attendanceType: attType,
             };

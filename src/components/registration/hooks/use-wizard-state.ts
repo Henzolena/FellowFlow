@@ -59,13 +59,8 @@ export function isRegistrantComplete(r: Registrant): boolean {
   if (r.attendanceType === "kote") {
     return r.numDays >= 1;
   }
-  // partial
-  if (r.isFullDuration === null) return false;
-  if (!r.isFullDuration) {
-    if (r.isStayingInMotel === null) return false;
-    if (!r.isStayingInMotel && r.numDays < 1) return false;
-  }
-  return true;
+  // partial: just needs number of days
+  return r.numDays >= 1;
 }
 
 export function useWizardState() {

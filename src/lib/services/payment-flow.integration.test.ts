@@ -333,7 +333,6 @@ describe("Pricing Drift Detection", () => {
       youth_daily_price: 20,
       child_full_price: 50,
       child_daily_price: 10,
-      motel_stay_free: true,
       late_surcharge_tiers: [],
     } as any;
 

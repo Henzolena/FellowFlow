@@ -10,7 +10,7 @@ export type Dictionary = {
     yes: string; no: string; total: string; subtotal: string; lateSurcharge: string;
     backToHome: string; viewReceipt: string; startNewRegistration: string;
     fullConference: string; partial: string; partialMotel: string; motelStay: string;
-    noMotel: string; amountDue: string; amountPaid: string; totalPaid: string;
+    amountDue: string; amountPaid: string; totalPaid: string;
     confirmationId: string; contact: string; event: string; attendee: string;
     pricing: string; category: string; registeredOn: string; paymentViaStripe: string;
     from: string; registrationClosed: string; showingEvents: string;
@@ -47,7 +47,7 @@ export type Dictionary = {
     fullConference: string; fullConferenceDesc: string; partialAttendance: string;
     partialAttendanceDesc: string; koteAttendance: string; koteAttendanceDesc: string;
     attendingFullDuration: string; yesFullConference: string;
-    noPartialAttendance: string; stayingInMotel: string; numberOfDays: string;
+    noPartialAttendance: string; numberOfDays: string;
     contactInfo: string; contactDesc: string; emailRequired: string; phoneOptional: string;
     emailHint: string; reviewAndSubmit: string; reviewDesc: string;
     completeRegistration: string; proceedToPayment: string; priceSummary: string;
@@ -81,8 +81,7 @@ export type Dictionary = {
     signInDesc: string; emailLabel: string; passwordLabel: string; signIn: string;
   };
   priceSummary: {
-    title: string; fullConference: string; partialMotelGuest: string;
-    motelStayFree: string; completeForm: string;
+    title: string; fullConference: string; completeForm: string;
   };
   notConfigured: {
     title: string; description: string; backToEvents: string;
@@ -120,7 +119,6 @@ const en: Dictionary = {
     partial: "Partial",
     partialMotel: "Partial — Motel",
     motelStay: "Motel Stay",
-    noMotel: "No Motel",
     amountDue: "Amount Due",
     amountPaid: "Amount Paid",
     totalPaid: "Total Paid",
@@ -235,7 +233,6 @@ const en: Dictionary = {
     attendingFullDuration: "Attending for the full duration?",
     yesFullConference: "Yes, full conference ({days} days)",
     noPartialAttendance: "No, partial attendance",
-    stayingInMotel: "Staying in the motel?",
     numberOfDays: "Number of days",
     contactInfo: "Contact Information",
     contactDesc: "Provide the email and phone for registration confirmations and receipts",
@@ -322,8 +319,6 @@ const en: Dictionary = {
   priceSummary: {
     title: "Price Summary",
     fullConference: "Full Conference",
-    partialMotelGuest: "Partial — Motel Guest",
-    motelStayFree: "Motel Stay (Free)",
     completeForm: "Complete the form to see pricing",
   },
 
@@ -366,7 +361,6 @@ const am: Dictionary = {
     partial: "ከፊል",
     partialMotel: "ከፊል — ሞቴል",
     motelStay: "ሞቴል ቆይታ",
-    noMotel: "ሞቴል የለም",
     amountDue: "የሚከፈል መጠን",
     amountPaid: "የተከፈለ መጠን",
     totalPaid: "ጠቅላላ የተከፈለ",
@@ -481,7 +475,6 @@ const am: Dictionary = {
     attendingFullDuration: "ሙሉ ጊዜ ይሳተፋሉ?",
     yesFullConference: "አዎ፣ ሙሉ ጉባዔ ({days} ቀናት)",
     noPartialAttendance: "አይ፣ ከፊል ተሳትፎ",
-    stayingInMotel: "በሞቴል ይቆያሉ?",
     numberOfDays: "የቀናት ብዛት",
     contactInfo: "የአድራሻ መረጃ",
     contactDesc: "ለምዝገባ ማረጋገጫ እና ደረሰኞች ኢሜይል እና ስልክ ያቅርቡ",
@@ -568,8 +561,6 @@ const am: Dictionary = {
   priceSummary: {
     title: "የዋጋ ማጠቃለያ",
     fullConference: "ሙሉ ጉባዔ",
-    partialMotelGuest: "ከፊል — የሞቴል እንግዳ",
-    motelStayFree: "ሞቴል ቆይታ (ነፃ)",
     completeForm: "ዋጋ ለማየት ቅጹን ያጠናቅቁ",
   },
 

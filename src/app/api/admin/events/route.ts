@@ -62,7 +62,6 @@ export async function POST(request: NextRequest) {
         youth_daily_price: v.pricing?.youthDailyPrice ?? 0,
         child_full_price: v.pricing?.childFullPrice ?? 0,
         child_daily_price: v.pricing?.childDailyPrice ?? 0,
-        motel_stay_free: v.pricing?.motelStayFree ?? true,
         kote_daily_price: v.pricing?.koteDailyPrice ?? 10,
         lodging_fee: v.pricing?.lodgingFee ?? 0,
       });
@@ -116,7 +115,6 @@ export async function PUT(request: NextRequest) {
           youth_daily_price: v.pricing.youthDailyPrice,
           child_full_price: v.pricing.childFullPrice,
           child_daily_price: v.pricing.childDailyPrice,
-          motel_stay_free: v.pricing.motelStayFree ?? true,
           kote_daily_price: v.pricing.koteDailyPrice ?? 10,
           lodging_fee: v.pricing.lodgingFee ?? 0,
         }, { onConflict: "event_id" });

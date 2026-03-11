@@ -80,7 +80,6 @@ export type PricingConfig = {
   youth_daily_price: number;
   child_full_price: number;
   child_daily_price: number;
-  motel_stay_free: boolean;
   kote_daily_price: number;
   lodging_fee: number;
   late_surcharge_tiers: SurchargeTier[];
@@ -95,7 +94,6 @@ export type ExplanationCode =
   | "FULL_ADULT"
   | "FULL_YOUTH"
   | "FULL_CHILD"
-  | "PARTIAL_MOTEL_FREE"
   | "PARTIAL_ADULT"
   | "PARTIAL_YOUTH"
   | "PARTIAL_CHILD"

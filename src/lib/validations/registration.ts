@@ -79,6 +79,5 @@ export const pricingSchema = z.object({
   youthDailyPrice: z.number().min(0),
   childFullPrice: z.number().min(0),
   childDailyPrice: z.number().min(0),
-  motelStayFree: z.boolean().default(true),
   koteDailyPrice: z.number().min(0).default(10),
 });

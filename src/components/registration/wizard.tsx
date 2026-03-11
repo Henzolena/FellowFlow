@@ -77,7 +77,6 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
               churchNameCustom: r.churchNameCustom || undefined,
               attendanceType: attType,
               isFullDuration: attType === "full_conference",
-              isStayingInMotel: attType === "partial" ? r.isStayingInMotel : undefined,
               numDays: attType !== "full_conference" ? r.numDays : undefined,
             };
           }),
@@ -300,8 +299,8 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       const att = v as AttendanceTypeKey;
                       updateRegistrant(idx, {
                         attendanceType: att,
-                        isFullDuration: att === "full_conference" ? true : false,
-                        isStayingInMotel: att === "partial" ? reg.isStayingInMotel : null,
+                        isFullDuration: att === "full_conference",
+                        isStayingInMotel: null,
                         numDays: att !== "full_conference" ? reg.numDays || 1 : 1,
                       });
                     }}
@@ -328,50 +327,31 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   </RadioGroup>
                 </div>
 
-                {/* Partial sub-fields: motel question + days */}
+                {/* Partial sub-fields: just days */}
                 <AnimatePresence>
                   {reg.attendanceType === "partial" && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="space-y-3 overflow-hidden"
+                      className="space-y-2 overflow-hidden"
                     >
-                      <Label>{dict.wizard.stayingInMotel}</Label>
-                      <RadioGroup
-                        value={reg.isStayingInMotel === null ? "" : reg.isStayingInMotel ? "yes" : "no"}
-                        onValueChange={(v) => updateRegistrant(idx, { isStayingInMotel: v === "yes" })}
+                      <Label>{dict.wizard.numberOfDays}</Label>
+                      <Select
+                        value={String(reg.numDays)}
+                        onValueChange={(v) => updateRegistrant(idx, { numDays: parseInt(v) })}
                       >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="yes" id={`motel-yes-${idx}`} />
-                          <Label htmlFor={`motel-yes-${idx}`} className="font-normal">{dict.common.yes}</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="no" id={`motel-no-${idx}`} />
-                          <Label htmlFor={`motel-no-${idx}`} className="font-normal">{dict.common.no}</Label>
-                        </div>
-                      </RadioGroup>
-
-                      {reg.isStayingInMotel === false && (
-                        <div className="space-y-2 pt-1">
-                          <Label>{dict.wizard.numberOfDays}</Label>
-                          <Select
-                            value={String(reg.numDays)}
-                            onValueChange={(v) => updateRegistrant(idx, { numDays: parseInt(v) })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.from({ length: event.duration_days - 1 }, (_, i) => i + 1).map((d) => (
-                                <SelectItem key={d} value={String(d)}>
-                                  {d} {d !== 1 ? dict.common.days : dict.common.day}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: event.duration_days - 1 }, (_, i) => i + 1).map((d) => (
+                            <SelectItem key={d} value={String(d)}>
+                              {d} {d !== 1 ? dict.common.days : dict.common.day}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </motion.div>
                   )}
                 </AnimatePresence>

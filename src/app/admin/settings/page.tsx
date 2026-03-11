@@ -28,7 +28,6 @@ type EventForm = {
     youthDailyPrice: number;
     childFullPrice: number;
     childDailyPrice: number;
-    motelStayFree: boolean;
     koteDailyPrice: number;
     lodgingFee: number;
   };
@@ -49,7 +48,6 @@ const emptyForm: EventForm = {
     youthDailyPrice: 0,
     childFullPrice: 0,
     childDailyPrice: 0,
-    motelStayFree: true,
     koteDailyPrice: 10,
     lodgingFee: 0,
   },
@@ -100,7 +98,6 @@ export default function SettingsPage() {
         youthDailyPrice: pc ? Number(pc.youth_daily_price) : 0,
         childFullPrice: pc ? Number(pc.child_full_price) : 0,
         childDailyPrice: pc ? Number(pc.child_daily_price) : 0,
-        motelStayFree: pc?.motel_stay_free ?? true,
         koteDailyPrice: pc ? Number(pc.kote_daily_price) : 10,
         lodgingFee: pc ? Number(pc.lodging_fee) : 0,
       },
@@ -443,21 +440,6 @@ export default function SettingsPage() {
                   }
                 />
               </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={form.pricing.motelStayFree}
-                onCheckedChange={(checked) =>
-                  setForm((f) => ({
-                    ...f,
-                    pricing: { ...f.pricing, motelStayFree: checked },
-                  }))
-                }
-              />
-              <Label>
-                Full conference + motel stay = Free registration
-              </Label>
             </div>
 
             <div className="space-y-3 rounded-lg border border-border/60 p-4">
