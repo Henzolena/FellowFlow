@@ -13,6 +13,7 @@ const registerSchema = z.object({
   email: z.string().email(),
   phone: z.string().optional(),
   gender: z.enum(["male", "female"]).optional(),
+  ageRange: z.enum(["infant", "child", "youth", "adult"]),
   dateOfBirth: z.string().optional(),
   city: z.string().optional(),
   churchId: z.string().uuid().optional(),
@@ -59,26 +60,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Compute age category from dateOfBirth or default to adult
-    let dateOfBirth = v.dateOfBirth || "1980-01-01";
-    let ageAtEvent = 45;
-    let category: "adult" | "youth" | "child" = "adult";
-
-    if (v.dateOfBirth) {
-      const eventStart = new Date(event.start_date + "T00:00:00");
-      const dob = new Date(v.dateOfBirth + "T00:00:00");
-      ageAtEvent = Math.floor((eventStart.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-
-      if (ageAtEvent <= (event.infant_age_threshold ?? 3)) {
-        category = "child"; // infants treated as children for DB
-      } else if (ageAtEvent < (event.youth_age_threshold ?? 13)) {
-        category = "child";
-      } else if (ageAtEvent < (event.adult_age_threshold ?? 18)) {
-        category = "youth";
-      } else {
-        category = "adult";
-      }
-    }
+    // Map ageRange to category and compute synthetic DOB
+    const ageRangeMap: Record<string, { category: "adult" | "youth" | "child"; representativeAge: number }> = {
+      infant: { category: "child", representativeAge: Math.max(0, Math.floor((event.infant_age_threshold ?? 3) / 2)) },
+      child:  { category: "child", representativeAge: Math.floor(((event.infant_age_threshold ?? 3) + 1 + (event.youth_age_threshold ?? 13) - 1) / 2) },
+      youth:  { category: "youth", representativeAge: Math.floor(((event.youth_age_threshold ?? 13) + (event.adult_age_threshold ?? 18) - 1) / 2) },
+      adult:  { category: "adult", representativeAge: (event.adult_age_threshold ?? 18) + 10 },
+    };
+    const ageInfo = ageRangeMap[v.ageRange] ?? ageRangeMap.adult;
+    const category = ageInfo.category;
+    const ageAtEvent = ageInfo.representativeAge;
+    const eventYear = new Date(event.start_date).getFullYear();
+    const dateOfBirth = v.dateOfBirth || `${eventYear - ageAtEvent}-01-01`;
 
     // Determine attendance details
     const isFullDuration = v.attendanceType === "full_conference";

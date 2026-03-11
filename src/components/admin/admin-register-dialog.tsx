@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Event, Church, Motel, Room, Bed } from "@/types/database";
+import { getAgeRangeOptions, syntheticDob } from "@/components/registration/hooks/use-group-quote";
 
 /* ── Types ─────────────────────────────────────────────────────────── */
 
@@ -57,7 +58,7 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [ageRange, setAgeRange] = useState("");
   const [city, setCity] = useState("");
   const [churchId, setChurchId] = useState("");
   const [churchCustom, setChurchCustom] = useState("");
@@ -90,6 +91,8 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
   // Event-derived data
   const selectedEvent = events.find((e) => e.id === eventId);
   const durationDays = selectedEvent?.duration_days ?? 4;
+  const ageLabels = { infant: "Infant", child: "Child", youth: "Youth", adult: "Adult" };
+  const ageRangeOptions = selectedEvent ? getAgeRangeOptions(selectedEvent, ageLabels) : [];
 
   // Fetch motels when event changes
   const fetchMotels = useCallback(async () => {
@@ -122,7 +125,7 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
     setEmail("");
     setPhone("");
     setGender("");
-    setDateOfBirth("");
+    setAgeRange("");
     setCity("");
     setChurchId("");
     setChurchCustom("");
@@ -222,6 +225,10 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
       setError("Event, first name, last name, and email are required.");
       return;
     }
+    if (!ageRange) {
+      setError("Please select an age range.");
+      return;
+    }
     if (attendanceType !== "full_conference" && selectedDays.length === 0) {
       setError("Please select at least one day for partial/KOTE attendance.");
       return;
@@ -244,7 +251,11 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
           email: email.trim(),
           phone: phone.trim() || undefined,
           gender: gender || undefined,
-          dateOfBirth: dateOfBirth || undefined,
+          ageRange,
+          dateOfBirth: selectedEvent ? syntheticDob(
+            ageRangeOptions.find(o => o.key === ageRange)?.representativeAge ?? 25,
+            selectedEvent.start_date
+          ) : undefined,
           city: city.trim() || undefined,
           churchId: churchId && churchId !== "other" ? churchId : undefined,
           churchNameCustom: churchId === "other" ? churchCustom.trim() : undefined,
@@ -363,16 +374,37 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
               </div>
             </div>
 
-            {/* DOB + City */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Age Range */}
+            {eventId && (
               <div className="space-y-2">
-                <Label>Date of Birth</Label>
-                <Input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
+                <Label>Age Range <span className="text-destructive">*</span></Label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {ageRangeOptions.map((opt) => {
+                    const selected = ageRange === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => setAgeRange(opt.key)}
+                        className={`flex flex-col items-center gap-0.5 rounded-lg border-2 px-2 py-2 text-center transition-all text-xs ${
+                          selected
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                            : "border-muted hover:border-primary/40"
+                        }`}
+                      >
+                        <span className="font-semibold capitalize">{opt.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{opt.range} yrs</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>City</Label>
-                <Input value={city} onChange={(e) => setCity(e.target.value)} />
-              </div>
+            )}
+
+            {/* City */}
+            <div className="space-y-2">
+              <Label>City</Label>
+              <Input value={city} onChange={(e) => setCity(e.target.value)} />
             </div>
 
             {/* Church */}
