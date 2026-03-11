@@ -94,15 +94,20 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
   const ageLabels = { infant: "Infant", child: "Child", youth: "Youth", adult: "Adult" };
   const ageRangeOptions = selectedEvent ? getAgeRangeOptions(selectedEvent, ageLabels) : [];
 
-  // Fetch motels when event changes
-  const fetchMotels = useCallback(async () => {
-    if (!eventId) { setMotels([]); return; }
+  // Fetch motels when event changes — returns data for direct use by callers
+  const fetchMotels = useCallback(async (): Promise<MotelWithRooms[]> => {
+    if (!eventId) { setMotels([]); return []; }
     setMotelsLoading(true);
     try {
       const res = await fetch(`/api/admin/motels?eventId=${eventId}`);
-      if (res.ok) setMotels(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setMotels(data);
+        return data;
+      }
     } catch { /* silent */ }
     finally { setMotelsLoading(false); }
+    return [];
   }, [eventId]);
 
   useEffect(() => {
@@ -198,15 +203,13 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
       });
       if (res.ok) {
         toast.success(`Room "${newRoomNumber.trim()}01" created with ${newBedsPerRoom} beds`);
-        await fetchMotels();
-        // Auto-select the new room
-        setTimeout(() => {
-          const updated = motels.find((m) => m.id === selectedMotelId);
-          if (updated) {
-            const newRoom = updated.rooms.find((r) => r.room_number === `${newRoomNumber.trim()}01`);
-            if (newRoom) setSelectedRoomId(newRoom.id);
-          }
-        }, 300);
+        const freshMotels = await fetchMotels();
+        // Auto-select the new room using fresh data (avoids stale closure)
+        const updated = freshMotels.find((m: MotelWithRooms) => m.id === selectedMotelId);
+        if (updated) {
+          const newRoom = updated.rooms.find((r) => r.room_number === `${newRoomNumber.trim()}01`);
+          if (newRoom) setSelectedRoomId(newRoom.id);
+        }
         setNewRoomNumber("");
         setShowCreateRoom(false);
       } else {

@@ -82,6 +82,18 @@ export async function POST(request: NextRequest) {
     let accessTier = "FULL_ACCESS";
     if (v.attendanceType === "kote") accessTier = "KOTE_ACCESS";
 
+    // Compute explanation code based on age range and attendance type
+    let explanationCode: string;
+    if (v.ageRange === "infant") {
+      explanationCode = "FREE_INFANT";
+    } else if (v.attendanceType === "kote") {
+      explanationCode = "KOTE";
+    } else if (v.attendanceType === "partial") {
+      explanationCode = category === "youth" ? "PARTIAL_YOUTH" : category === "child" ? "PARTIAL_CHILD" : "PARTIAL_ADULT";
+    } else {
+      explanationCode = category === "youth" ? "FULL_YOUTH" : category === "child" ? "FULL_CHILD" : "FULL_ADULT";
+    }
+
     // Generate public confirmation code
     const { data: codeResult } = await supabase.rpc("generate_confirmation_code", {
       p_first_name: v.firstName,
@@ -133,7 +145,7 @@ export async function POST(request: NextRequest) {
         selected_days: selectedDays,
         is_staying_in_motel: v.isStayingInMotel,
         computed_amount: 0,
-        explanation_code: "FULL_ADULT",
+        explanation_code: explanationCode,
         explanation_detail: "Complimentary — registered by admin",
         status: "confirmed",
         confirmed_at: now,
@@ -151,7 +163,15 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (regError) throw regError;
+    if (regError) {
+      if (regError.code === "23505") {
+        return NextResponse.json(
+          { error: "This person already has an active registration for this event. Check existing registrations." },
+          { status: 409 }
+        );
+      }
+      throw regError;
+    }
 
     // Assign bed if provided
     let lodgingAssigned = false;
