@@ -17,6 +17,7 @@ type Registrant = {
   isFullDuration: boolean | null;
   isStayingInMotel: boolean | null;
   numDays: number;
+  selectedDays: number[];
 };
 
 export type ItemQuote = {
@@ -66,9 +67,9 @@ export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels
     const validRegistrants = registrants.filter((r) => {
       if (!r.ageRange || !r.attendanceType) return false;
       if (r.attendanceType === "full_conference") return true;
-      if (r.attendanceType === "kote") return r.numDays >= 1;
-      // partial: just needs numDays
-      return r.numDays >= 1;
+      if (r.attendanceType === "kote") return r.selectedDays.length >= 1;
+      // partial: needs at least one day selected
+      return r.selectedDays.length >= 1;
     });
 
     if (validRegistrants.length === 0) {
@@ -92,7 +93,7 @@ export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels
               dateOfBirth: syntheticDob(opt?.representativeAge ?? 25, event.start_date),
               isFullDuration: attType === "full_conference",
               isStayingInMotel: false,
-              numDays: attType !== "full_conference" ? r.numDays : undefined,
+              numDays: attType !== "full_conference" ? r.selectedDays.length : undefined,
               attendanceType: attType,
             };
           }),

@@ -95,7 +95,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
               churchNameCustom: r.churchNameCustom || undefined,
               attendanceType: attType,
               isFullDuration: attType === "full_conference",
-              numDays: attType !== "full_conference" ? r.numDays : undefined,
+              numDays: attType !== "full_conference" ? r.selectedDays.length : undefined,
             };
           }),
         }),
@@ -319,7 +319,8 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                         attendanceType: att,
                         isFullDuration: att === "full_conference",
                         isStayingInMotel: null,
-                        numDays: att !== "full_conference" ? reg.numDays || 1 : 1,
+                        numDays: 0,
+                        selectedDays: [],
                       });
                     }}
                   >
@@ -345,91 +346,54 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   </RadioGroup>
                 </div>
 
-                {/* Partial sub-fields: visual day selector */}
+                {/* Partial / KOTE sub-fields: multi-select day cards */}
                 <AnimatePresence>
-                  {reg.attendanceType === "partial" && (
+                  {(reg.attendanceType === "partial" || reg.attendanceType === "kote") && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       className="space-y-3 overflow-hidden"
                     >
-                      <Label>{dict.wizard.numberOfDays}</Label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {Array.from({ length: event.duration_days - 1 }, (_, i) => i + 1).map((d) => {
-                          const selected = reg.numDays === d;
-                          const dayInfo = getDayDetails(event.start_date, d);
-                          return (
-                            <button
-                              key={d}
-                              type="button"
-                              onClick={() => updateRegistrant(idx, { numDays: d })}
-                              className={`relative flex flex-col items-center gap-1 rounded-lg border-2 px-3 py-3 text-center transition-all ${
-                                selected
-                                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                                  : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
-                              }`}
-                            >
-                              <Calendar className={`h-4 w-4 ${selected ? "text-primary" : "text-muted-foreground"}`} />
-                              <span className={`text-lg font-bold ${selected ? "text-primary" : "text-foreground"}`}>
-                                {d}
-                              </span>
-                              <span className={`text-[10px] font-medium leading-tight ${selected ? "text-primary/70" : "text-muted-foreground"}`}>
-                                {d === 1 ? dict.common.day : dict.common.days}
-                              </span>
-                              <span className={`text-[9px] font-semibold leading-tight ${selected ? "text-primary/60" : "text-muted-foreground/70"}`}>
-                                {dayInfo.dayName}, {dayInfo.monthDay}
-                              </span>
-                              {selected && (
-                                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white">
-                                  <Check className="h-3 w-3" />
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
+                      <div className="flex items-center justify-between">
+                        <Label>{dict.wizard.numberOfDays}</Label>
+                        {reg.selectedDays.length > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {reg.selectedDays.length} {reg.selectedDays.length === 1 ? dict.common.day : dict.common.days}
+                          </Badge>
+                        )}
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* KOTE sub-fields: visual day selector */}
-                <AnimatePresence>
-                  {reg.attendanceType === "kote" && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="space-y-3 overflow-hidden"
-                    >
-                      <Label>{dict.wizard.numberOfDays}</Label>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {Array.from({ length: event.duration_days }, (_, i) => i + 1).map((d) => {
-                          const selected = reg.numDays === d;
+                          const selected = reg.selectedDays.includes(d);
                           const dayInfo = getDayDetails(event.start_date, d);
                           return (
                             <button
                               key={d}
                               type="button"
-                              onClick={() => updateRegistrant(idx, { numDays: d })}
-                              className={`relative flex flex-col items-center gap-1 rounded-lg border-2 px-3 py-3 text-center transition-all ${
+                              onClick={() => {
+                                const days = selected
+                                  ? reg.selectedDays.filter((x) => x !== d)
+                                  : [...reg.selectedDays, d].sort((a, b) => a - b);
+                                updateRegistrant(idx, { selectedDays: days, numDays: days.length });
+                              }}
+                              className={`relative flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-3.5 text-center transition-all ${
                                 selected
-                                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                                  ? "border-primary bg-primary/5 shadow-sm ring-2 ring-primary/20"
                                   : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
                               }`}
                             >
-                              <Calendar className={`h-4 w-4 ${selected ? "text-primary" : "text-muted-foreground"}`} />
-                              <span className={`text-lg font-bold ${selected ? "text-primary" : "text-foreground"}`}>
-                                {d}
+                              <span className={`text-[11px] font-bold uppercase tracking-wide ${selected ? "text-primary" : "text-muted-foreground"}`}>
+                                {dayInfo.dayName}
                               </span>
-                              <span className={`text-[10px] font-medium leading-tight ${selected ? "text-primary/70" : "text-muted-foreground"}`}>
-                                {d === 1 ? dict.common.day : dict.common.days}
+                              <span className={`text-xl font-bold leading-none ${selected ? "text-primary" : "text-foreground"}`}>
+                                {dayInfo.monthDay.split(" ")[1]}
                               </span>
-                              <span className={`text-[9px] font-semibold leading-tight ${selected ? "text-primary/60" : "text-muted-foreground/70"}`}>
-                                {dayInfo.dayName}, {dayInfo.monthDay}
+                              <span className={`text-[10px] font-semibold leading-tight ${selected ? "text-primary/70" : "text-muted-foreground/70"}`}>
+                                {dayInfo.monthDay.split(" ")[0]}
                               </span>
                               {selected && (
-                                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white">
+                                <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white shadow-sm">
                                   <Check className="h-3 w-3" />
                                 </span>
                               )}
@@ -437,6 +401,9 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                           );
                         })}
                       </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Tap each day you plan to attend
+                      </p>
                     </motion.div>
                   )}
                 </AnimatePresence>

@@ -19,6 +19,7 @@ export type Registrant = {
   isFullDuration: boolean | null;
   isStayingInMotel: boolean | null;
   numDays: number;
+  selectedDays: number[];
 };
 
 export type ContactInfo = {
@@ -44,7 +45,8 @@ export function createEmptyRegistrant(): Registrant {
     attendanceType: "",
     isFullDuration: null,
     isStayingInMotel: null,
-    numDays: 1,
+    numDays: 0,
+    selectedDays: [],
   };
 }
 
@@ -57,10 +59,10 @@ export function isRegistrantComplete(r: Registrant): boolean {
     return true;
   }
   if (r.attendanceType === "kote") {
-    return r.numDays >= 1;
+    return r.selectedDays.length >= 1;
   }
-  // partial: just needs number of days
-  return r.numDays >= 1;
+  // partial: needs at least one day selected
+  return r.selectedDays.length >= 1;
 }
 
 export function useWizardState() {
