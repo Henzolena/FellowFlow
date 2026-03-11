@@ -179,6 +179,7 @@ export default function VenueInfoPage() {
   const confRooms = facilities.filter((f) => f.facility_type === "conference_room");
   const halls = facilities.filter((f) => f.facility_type === "hall");
   const amenities = facilities.filter((f) => f.facility_type === "amenity");
+  const otherFacilities = facilities.filter((f) => f.facility_type === "other");
 
   const accommodationRates = rates.filter((r) => r.rate_category === "accommodation");
   const mealRates = rates.filter((r) => r.rate_category === "meal");
@@ -357,9 +358,17 @@ export default function VenueInfoPage() {
             {venue.payment_notes && (
               <>
                 <Separator />
-                <p className="text-xs text-muted-foreground italic leading-relaxed">
-                  {venue.payment_notes}
-                </p>
+                <div className="space-y-2">
+                  {(venue.payment_notes as string).split('\n\n').map((paragraph, i) => (
+                    <p key={i} className={`text-xs leading-relaxed ${
+                      paragraph.startsWith('CANCELLATION') || paragraph.startsWith('MEAL FINALIZATION')
+                        ? 'text-amber-700 dark:text-amber-400 font-medium'
+                        : 'text-muted-foreground italic'
+                    }`}>
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
               </>
             )}
           </CardContent>
@@ -445,8 +454,9 @@ export default function VenueInfoPage() {
             Facilities & Accommodations
           </CardTitle>
           <CardDescription>
-            {totalHotelCapacity} hotel rooms • {totalDormCapacity} dorm beds •{" "}
+            {totalHotelCapacity} hotel rooms • {totalDormCapacity} dorm beds (compiled from reservation list) •{" "}
             {confRooms.length} conference rooms • {halls.length} halls • {amenities.length} amenities
+            {otherFacilities.length > 0 && ` • ${otherFacilities.length} other campus facilities`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -470,7 +480,7 @@ export default function VenueInfoPage() {
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
                 <BedDouble className="h-4 w-4 text-amber-600" />
-                Dormitories & Cottages ({totalDormCapacity} beds)
+                Reserved Dormitories & Cottages ({totalDormCapacity} beds, compiled from page 1)
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {dorms.map((f) => (
@@ -519,6 +529,24 @@ export default function VenueInfoPage() {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {amenities.map((f) => (
+                  <FacilityCard key={f.id} facility={f} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Other Available Facilities (not on reservation list) */}
+          {otherFacilities.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
+                <Building2 className="h-4 w-4 text-gray-400" />
+                Other Campus Facilities ({otherFacilities.length})
+              </h3>
+              <p className="text-[11px] text-muted-foreground mb-3">
+                Listed on the equipment/tables page (page 3) but not on the reservation list (page 1). Available on campus but not confirmed as reserved for this contract.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {otherFacilities.map((f) => (
                   <FacilityCard key={f.id} facility={f} />
                 ))}
               </div>
