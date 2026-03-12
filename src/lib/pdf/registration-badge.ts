@@ -238,7 +238,38 @@ export async function generateRegistrationBadgePDF(
   if (badge.dormName) detailLines.push(["Dorm", badge.dormName]);
   if (badge.bedLabel) detailLines.push(["Bed", badge.bedLabel]);
 
-  const boxH = Math.max(50, detailLines.length * 16 + 20);
+  const VAL_FONT_SIZE = 10;
+  const LINE_H = 16;
+  const labelX = boxX + 16;
+  const valX = boxX + 80;
+  const maxValWidth = boxW - 100;
+
+  // Word-wrap helper: split value into lines that fit within maxValWidth
+  function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
+    if (font.widthOfTextAtSize(text, fontSize) <= maxWidth) return [text];
+    const words = text.split(/\s+/);
+    const lines: string[] = [];
+    let current = "";
+    for (const word of words) {
+      const test = current ? `${current} ${word}` : word;
+      if (font.widthOfTextAtSize(test, fontSize) <= maxWidth) {
+        current = test;
+      } else {
+        if (current) lines.push(current);
+        current = word;
+      }
+    }
+    if (current) lines.push(current);
+    return lines.length ? lines : [text];
+  }
+
+  // Pre-compute wrapped lines for each detail to determine box height
+  const wrappedDetails: { label: string; lines: string[] }[] = detailLines.map(([label, value]) => ({
+    label,
+    lines: wrapText(value, fontBold, VAL_FONT_SIZE, maxValWidth),
+  }));
+  const totalLines = wrappedDetails.reduce((sum, d) => sum + d.lines.length, 0);
+  const boxH = Math.max(50, totalLines * LINE_H + 20);
 
   page.drawRectangle({
     x: boxX, y: y - boxH, width: boxW, height: boxH,
@@ -246,15 +277,12 @@ export async function generateRegistrationBadgePDF(
   });
 
   let detailY = y - 16;
-  for (const [label, value] of detailLines) {
-    page.drawText(label, { x: boxX + 16, y: detailY, size: 9, font: fontRegular, color: GRAY });
-    const maxValWidth = boxW - 140;
-    let displayVal = value;
-    while (fontBold.widthOfTextAtSize(displayVal, 10) > maxValWidth && displayVal.length > 3) {
-      displayVal = displayVal.slice(0, -4) + "...";
+  for (const { label, lines } of wrappedDetails) {
+    page.drawText(label, { x: labelX, y: detailY, size: 9, font: fontRegular, color: GRAY });
+    for (let i = 0; i < lines.length; i++) {
+      page.drawText(lines[i], { x: valX, y: detailY, size: VAL_FONT_SIZE, font: fontBold, color: DARK });
+      detailY -= LINE_H;
     }
-    page.drawText(displayVal, { x: boxX + 120, y: detailY, size: 10, font: fontBold, color: DARK });
-    detailY -= 16;
   }
 
   y -= boxH + 16;

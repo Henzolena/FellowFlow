@@ -555,7 +555,7 @@ function Row({
     <div className="flex justify-between gap-2 text-sm">
       <span className="text-muted-foreground shrink-0">{label}</span>
       <span
-        className={`font-medium text-right truncate ${capitalize ? "capitalize" : ""} ${mono ? "font-mono text-xs break-all whitespace-normal text-right" : ""}`}
+        className={`font-medium text-right break-words ${capitalize ? "capitalize" : ""} ${mono ? "font-mono text-xs break-all whitespace-normal text-right" : ""}`}
       >
         {value}
       </span>

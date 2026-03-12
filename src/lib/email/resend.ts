@@ -39,7 +39,7 @@ const S = {
   detailBox: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin:0 0 24px;',
   detailPad: 'padding:20px 24px;',
   rowLabel: 'padding:7px 0;color:#64748b;font-size:13px;vertical-align:top;width:40%;',
-  rowValue: 'padding:7px 0;color:#18181b;font-size:13px;text-align:right;font-weight:600;',
+  rowValue: 'padding:7px 0;color:#18181b;font-size:13px;text-align:right;font-weight:600;word-break:break-word;',
   divider: 'padding:10px 0 0;border-top:1px solid #e2e8f0;',
   codeBox: 'background:linear-gradient(135deg,#f0f9ff,#ede9fe);border:2px dashed #a5b4fc;border-radius:12px;padding:20px;text-align:center;margin:0 0 28px;',
   codeLabel: 'margin:0 0 6px;color:#6366f1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;',
