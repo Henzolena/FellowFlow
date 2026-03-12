@@ -267,25 +267,22 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   </Select>
                 </div>
 
-                {/* City + Church row */}
+                {/* Church + City row */}
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>{dict.wizard.city}</Label>
-                    <Input
-                      value={reg.city}
-                      onChange={(e) => updateRegistrant(idx, { city: e.target.value })}
-                      placeholder="Dallas, TX"
-                    />
-                  </div>
                   <div className="space-y-2">
                     <Label>{dict.wizard.church}</Label>
                     <Select
                       value={reg.churchId || "__other"}
                       onValueChange={(v) => {
                         if (v === "__other") {
-                          updateRegistrant(idx, { churchId: "", churchNameCustom: reg.churchNameCustom });
+                          updateRegistrant(idx, { churchId: "", churchNameCustom: reg.churchNameCustom, city: "" });
                         } else {
-                          updateRegistrant(idx, { churchId: v, churchNameCustom: "" });
+                          const selectedChurch = churches.find((c) => c.id === v);
+                          updateRegistrant(idx, { 
+                            churchId: v, 
+                            churchNameCustom: "",
+                            city: selectedChurch?.city || ""
+                          });
                         }
                       }}
                     >
@@ -306,6 +303,21 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                         placeholder={dict.wizard.customChurchName}
                         className="mt-2"
                       />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{dict.wizard.city} *</Label>
+                    <Input
+                      value={reg.city}
+                      onChange={(e) => updateRegistrant(idx, { city: e.target.value })}
+                      placeholder="Dallas, TX"
+                      disabled={!!reg.churchId}
+                      className={reg.churchId ? "bg-muted cursor-not-allowed" : ""}
+                    />
+                    {reg.churchId && (
+                      <p className="text-xs text-muted-foreground">
+                        Auto-filled from church
+                      </p>
                     )}
                   </div>
                 </div>

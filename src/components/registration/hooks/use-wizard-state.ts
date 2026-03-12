@@ -53,6 +53,7 @@ export function createEmptyRegistrant(): Registrant {
 export function isRegistrantComplete(r: Registrant): boolean {
   if (!r.firstName.trim() || !r.lastName.trim() || !r.ageRange) return false;
   if (!r.gender) return false;
+  if (!r.city.trim()) return false;
   if (!r.attendanceType) return false;
 
   if (r.attendanceType === "full_conference") {
