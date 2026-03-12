@@ -311,7 +311,8 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                 </div>
                 <div className="space-y-3">
                   {groupMembers.map((member: any) => {
-                    const la = Array.isArray(member.lodging_assignments) ? member.lodging_assignments[0] : null;
+                    const laRaw = member.lodging_assignments;
+                    const la = Array.isArray(laRaw) ? laRaw[0] : laRaw;
                     const dormName = la?.beds?.rooms?.motels?.name;
                     const bedLbl = la?.beds?.bed_label;
                     return (
@@ -411,7 +412,8 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
 
                 {/* Lodging Assignment */}
                 {(() => {
-                  const la = Array.isArray(data.lodging_assignments) ? data.lodging_assignments[0] : null;
+                  const laRaw = data.lodging_assignments;
+                  const la = Array.isArray(laRaw) ? laRaw[0] : laRaw;
                   const dormName = la?.beds?.rooms?.motels?.name;
                   const bedLbl = la?.beds?.bed_label;
                   if (!dormName) return null;

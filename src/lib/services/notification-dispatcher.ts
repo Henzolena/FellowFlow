@@ -10,8 +10,9 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Extract lodging info from nested lodging_assignments join
 function extractLodging(row: Record<string, unknown>): { dormName: string | null; bedLabel: string | null } {
-  const las = row.lodging_assignments as unknown as Array<{ beds?: { bed_label?: string; rooms?: { motels?: { name?: string } } } }> | null;
-  const la = las?.[0];
+  const raw = row.lodging_assignments as unknown;
+  // PostgREST returns object (not array) when FK has unique constraint
+  const la = Array.isArray(raw) ? raw[0] : raw as { beds?: { bed_label?: string; rooms?: { motels?: { name?: string } } } } | null;
   return {
     dormName: la?.beds?.rooms?.motels?.name || null,
     bedLabel: la?.beds?.bed_label || null,
