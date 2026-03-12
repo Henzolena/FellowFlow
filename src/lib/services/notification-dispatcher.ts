@@ -8,6 +8,16 @@ import { formatSelectedDays } from "@/lib/date-utils";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Extract lodging info from nested lodging_assignments join
+function extractLodging(row: Record<string, unknown>): { dormName: string | null; bedLabel: string | null } {
+  const las = row.lodging_assignments as unknown as Array<{ beds?: { bed_label?: string; rooms?: { motels?: { name?: string } } } }> | null;
+  const la = las?.[0];
+  return {
+    dormName: la?.beds?.rooms?.motels?.name || null,
+    bedLabel: la?.beds?.bed_label || null,
+  };
+}
+
 /**
  * Send a solo confirmation email and log the result.
  */
@@ -22,7 +32,8 @@ export async function dispatchSoloConfirmation(
       .select(
         "first_name, last_name, email, computed_amount, explanation_detail, event_id, " +
         "category, access_tier, attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, selected_days, " +
-        "events(name, start_date, end_date)"
+        "events(name, start_date, end_date), " +
+        "lodging_assignments(id, bed_id, beds(bed_label, rooms(room_number, motels(name))))"
       )
       .eq("id", registrationId)
       .single<Record<string, unknown>>();
@@ -41,6 +52,7 @@ export async function dispatchSoloConfirmation(
       churchName = ch?.name || null;
     }
 
+    const lodging = extractLodging(reg);
     try {
       await sendConfirmationEmail({
         to: reg.email as string,
@@ -61,6 +73,8 @@ export async function dispatchSoloConfirmation(
         city: reg.city as string | null,
         churchName,
         selectedDays: reg.selected_days as number[] | null,
+        dormName: lodging.dormName,
+        bedLabel: lodging.bedLabel,
       });
 
       log.info("Confirmation email sent", { registrationId });
@@ -135,7 +149,8 @@ export async function dispatchGroupConfirmation(
         "category, access_tier, age_at_event, is_full_duration, is_staying_in_motel, num_days, selected_days, " +
         "date_of_birth, event_id, attendance_type, public_confirmation_code, " +
         "gender, city, church_id, church_name_custom, " +
-        "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)"
+        "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold), " +
+        "lodging_assignments(id, bed_id, beds(bed_label, rooms(room_number, motels(name))))"
       )
       .eq("group_id", groupId)
       .order("created_at", { ascending: true });
@@ -160,6 +175,7 @@ export async function dispatchGroupConfirmation(
 
     if (isSoloInGroup) {
       const churchName = await resolveChurch(primaryReg.church_id, primaryReg.church_name_custom);
+      const soloLodging = extractLodging(primaryReg);
       try {
         await sendConfirmationEmail({
           to: primaryReg.email as string,
@@ -180,6 +196,8 @@ export async function dispatchGroupConfirmation(
           city: primaryReg.city as string | null,
           churchName,
           selectedDays: primaryReg.selected_days as number[] | null,
+          dormName: soloLodging.dormName,
+          bedLabel: soloLodging.bedLabel,
         });
         log.info("Solo confirmation email sent (group of 1)", { registrationId: primaryReg.id, groupId });
         await supabase.from("email_logs").insert({
@@ -292,6 +310,7 @@ export async function dispatchGroupConfirmation(
           city: r.city as string | null,
           churchName,
           selectedDays: r.selected_days as number[] | null,
+          ...extractLodging(r),
         };
       })
     );
