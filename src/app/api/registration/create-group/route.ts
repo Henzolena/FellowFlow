@@ -203,6 +203,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── Auto-assign beds based on city→dorm mapping ───
+    const bedAssignments = new Map<string, { dormName: string; bedLabel: string }>();
     for (let i = 0; i < registrations.length; i++) {
       const reg = registrations[i];
       let city = reg.city;
@@ -226,6 +227,7 @@ export async function POST(request: NextRequest) {
             assignedBy: "system_public_registration",
           });
           if (result) {
+            bedAssignments.set(reg.id, { dormName: result.motelName, bedLabel: result.bedLabel });
             log.info("Bed auto-assigned", {
               registrationId: reg.id,
               city,
@@ -262,6 +264,7 @@ export async function POST(request: NextRequest) {
       try {
         if (registrations.length === 1) {
           const r = registrations[0];
+          const ba = bedAssignments.get(r.id);
           await sendConfirmationEmail({
             to: data.email,
             firstName: r.first_name,
@@ -275,6 +278,8 @@ export async function POST(request: NextRequest) {
             accessTier: r.access_tier,
             attendanceType: r.attendance_type,
             selectedDays: r.selected_days,
+            dormName: ba?.dormName ?? null,
+            bedLabel: ba?.bedLabel ?? null,
           });
           log.info("Free solo confirmation email sent", { registrationId: r.id });
           await adminClient.from("email_logs").insert({
@@ -296,17 +301,22 @@ export async function POST(request: NextRequest) {
           await sendGroupReceiptEmail({
             to: data.email,
             eventName: event.name,
-            members: registrations.map((r) => ({
-              firstName: r.first_name,
-              lastName: r.last_name,
-              category: r.category,
-              ageAtEvent: r.age_at_event,
-              amount: Number(r.computed_amount),
-              attendance: attendanceLabel(r),
-              attendanceType: r.attendance_type,
-              accessTier: r.access_tier,
-              selectedDays: r.selected_days,
-            })),
+            members: registrations.map((r) => {
+              const ba = bedAssignments.get(r.id);
+              return {
+                firstName: r.first_name,
+                lastName: r.last_name,
+                category: r.category,
+                ageAtEvent: r.age_at_event,
+                amount: Number(r.computed_amount),
+                attendance: attendanceLabel(r),
+                attendanceType: r.attendance_type,
+                accessTier: r.access_tier,
+                selectedDays: r.selected_days,
+                dormName: ba?.dormName ?? null,
+                bedLabel: ba?.bedLabel ?? null,
+              };
+            }),
             subtotal: groupPricing.subtotal,
             surcharge: groupPricing.surcharge,
             surchargeLabel: groupPricing.surchargeLabel,

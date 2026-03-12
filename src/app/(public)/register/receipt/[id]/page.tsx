@@ -310,7 +310,11 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                   </h3>
                 </div>
                 <div className="space-y-3">
-                  {groupMembers.map((member: any) => (
+                  {groupMembers.map((member: any) => {
+                    const la = Array.isArray(member.lodging_assignments) ? member.lodging_assignments[0] : null;
+                    const dormName = la?.beds?.rooms?.motels?.name;
+                    const bedLbl = la?.beds?.bed_label;
+                    return (
                     <div
                       key={member.id}
                       className="rounded-lg bg-muted/40 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
@@ -331,6 +335,11 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                               : `${member.num_days} ${dict.wizard.nDays}`}
                           </span>
                         </div>
+                        {dormName && (
+                          <p className="text-xs text-teal-600">
+                            🏠 {dormName}{bedLbl ? ` · ${bedLbl}` : ""}
+                          </p>
+                        )}
                       </div>
                       <p className="text-sm font-semibold">
                         {Number(member.computed_amount) === 0
@@ -338,7 +347,8 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                           : `$${Number(member.computed_amount).toFixed(2)}`}
                       </p>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Group pricing summary */}
@@ -398,6 +408,26 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                       : `${data.num_days} ${dict.wizard.nDays}`}
                   </p>
                 </div>
+
+                {/* Lodging Assignment */}
+                {(() => {
+                  const la = Array.isArray(data.lodging_assignments) ? data.lodging_assignments[0] : null;
+                  const dormName = la?.beds?.rooms?.motels?.name;
+                  const bedLbl = la?.beds?.bed_label;
+                  if (!dormName) return null;
+                  return (
+                    <>
+                      <Separator />
+                      <div className="space-y-1">
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Lodging Assignment
+                        </h3>
+                        <p className="text-sm font-medium text-teal-700">🏠 {dormName}</p>
+                        {bedLbl && <p className="text-sm text-muted-foreground">{bedLbl}</p>}
+                      </div>
+                    </>
+                  );
+                })()}
 
                 <Separator />
 

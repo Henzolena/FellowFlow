@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
         "group_id, event_id, category, access_tier, age_at_event, is_full_duration, is_staying_in_motel, " +
         "num_days, date_of_birth, attendance_type, public_confirmation_code, " +
         "gender, city, church_id, church_name_custom, " +
-        "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold)"
+        "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold), " +
+        "lodging_assignments(id, bed_id, beds(bed_label, rooms(room_number, motels(name))))"
       )
       .eq(column, confirmationId)
       .single<Record<string, unknown>>();
@@ -68,6 +69,16 @@ export async function POST(request: NextRequest) {
       return ch?.name || null;
     }
 
+    // Extract lodging info from nested lodging_assignments join
+    function extractLodging(row: Record<string, unknown>): { dormName: string | null; bedLabel: string | null } {
+      const las = row.lodging_assignments as unknown as Array<{ beds?: { bed_label?: string; rooms?: { motels?: { name?: string } } } }> | null;
+      const la = las?.[0];
+      return {
+        dormName: la?.beds?.rooms?.motels?.name || null,
+        bedLabel: la?.beds?.bed_label || null,
+      };
+    }
+
     // ─── Group receipt (only for actual multi-person groups) ───
     if (groupId) {
       const { data: siblings } = await supabase
@@ -75,7 +86,8 @@ export async function POST(request: NextRequest) {
         .select(
           "id, first_name, last_name, email, computed_amount, category, access_tier, age_at_event, " +
           "is_full_duration, is_staying_in_motel, num_days, date_of_birth, " +
-          "attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom"
+          "attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, " +
+          "lodging_assignments(id, bed_id, beds(bed_label, rooms(room_number, motels(name))))"
         )
         .eq("group_id", groupId)
         .order("created_at", { ascending: true });
@@ -140,6 +152,7 @@ export async function POST(request: NextRequest) {
               gender: r.gender as string | null,
               city: r.city as string | null,
               churchName,
+              ...extractLodging(r),
             };
           })
         );
@@ -171,6 +184,7 @@ export async function POST(request: NextRequest) {
       data.church_name_custom as string | null
     );
 
+    const lodging = extractLodging(data);
     await sendConfirmationEmail({
       to: data.email as string,
       firstName: data.first_name as string,
@@ -189,6 +203,8 @@ export async function POST(request: NextRequest) {
       gender: data.gender as string | null,
       city: data.city as string | null,
       churchName,
+      dormName: lodging.dormName,
+      bedLabel: lodging.bedLabel,
     });
 
     return NextResponse.json({ sent: true });

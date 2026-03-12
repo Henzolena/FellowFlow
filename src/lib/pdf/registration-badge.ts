@@ -24,6 +24,8 @@ export type BadgeData = {
   amount?: number;
   isFree?: boolean;
   selectedDays?: number[] | null;
+  dormName?: string | null;
+  bedLabel?: string | null;
 };
 
 /* ── Helpers ────────────────────────────────────────────────────────── */
@@ -233,9 +235,8 @@ export async function generateRegistrationBadgePDF(
   if (badge.gender) detailLines.push(["Gender", badge.gender.charAt(0).toUpperCase() + badge.gender.slice(1)]);
   if (badge.churchName) detailLines.push(["Church", badge.churchName]);
   if (badge.city) detailLines.push(["City", badge.city]);
-  if (badge.amount !== undefined) {
-    detailLines.push(["Amount", badge.isFree ? "FREE" : `$${badge.amount.toFixed(2)}`]);
-  }
+  if (badge.dormName) detailLines.push(["Dorm", badge.dormName]);
+  if (badge.bedLabel) detailLines.push(["Bed", badge.bedLabel]);
 
   const boxH = Math.max(50, detailLines.length * 16 + 20);
 

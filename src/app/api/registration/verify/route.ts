@@ -13,7 +13,8 @@ const REG_SELECT =
   "is_full_duration, is_staying_in_motel, num_days, selected_days, computed_amount, explanation_code, " +
   "explanation_detail, status, confirmed_at, created_at, group_id, event_id, " +
   "attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, access_tier, " +
-  "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold), payments(*)";
+  "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold), payments(*), " +
+  "lodging_assignments(id, bed_id, notes, beds(bed_label, bed_type, rooms(room_number, motels(name))))";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

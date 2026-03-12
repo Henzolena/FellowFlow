@@ -111,6 +111,8 @@ export type ConfirmationEmailParams = {
   city?: string | null;
   churchName?: string | null;
   selectedDays?: number[] | null;
+  dormName?: string | null;
+  bedLabel?: string | null;
 };
 
 export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
@@ -165,6 +167,8 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
         amount,
         isFree,
         selectedDays: params.selectedDays,
+        dormName: params.dormName,
+        bedLabel: params.bedLabel,
       };
       const pdfBytes = await generateRegistrationBadgePDF(badgeData);
       const safeName = `${firstName}_${lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -241,7 +245,8 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
         ${detailRow("Gender", gender ? (gender.charAt(0).toUpperCase() + gender.slice(1)) : null)}
         ${detailRow("City", city)}
         ${detailRow("Church", churchName)}
-        ${explanationDetail ? detailRow("Pricing", explanationDetail) : ""}
+        ${detailRow("Dorm", params.dormName)}
+        ${detailRow("Bed", params.bedLabel)}
       </table>
     </td></tr></table>
 
@@ -294,6 +299,8 @@ export type GroupMember = {
   city?: string | null;
   churchName?: string | null;
   selectedDays?: number[] | null;
+  dormName?: string | null;
+  bedLabel?: string | null;
 };
 
 export type GroupReceiptEmailParams = {
@@ -355,6 +362,7 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
             ${m.city ? ` · ${m.city}` : ""}
           </div>
           ${m.churchName ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">⛪ ${m.churchName}</div>` : ""}
+          ${m.dormName ? `<div style="font-size:11px;color:#0d9488;margin-top:2px;">🏠 ${m.dormName}${m.bedLabel ? ` · ${m.bedLabel}` : ""}</div>` : ""}
           ${m.confirmationCode ? `<div style="font-size:11px;color:#6366f1;font-family:monospace;font-weight:600;margin-top:4px;">Code: ${m.confirmationCode}</div>` : ""}
         </td>
         <td style="padding:12px 16px;text-align:right;vertical-align:top;font-size:15px;font-weight:700;color:${m.amount === 0 ? "#16a34a" : "#18181b"};${i < members.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}">
@@ -394,6 +402,8 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
         amount: m.amount,
         isFree,
         selectedDays: m.selectedDays,
+        dormName: m.dormName,
+        bedLabel: m.bedLabel,
       };
       const pdfBytes = await generateRegistrationBadgePDF(badgeData);
       const safeName = `${m.firstName}_${m.lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");

@@ -59,6 +59,8 @@ export async function autoAssignBed(
       const bed = availableBeds[0];
 
       // 3. Create lodging assignment
+      // assigned_by is UUID (foreign key) — only use if it looks like a valid UUID
+      const isUuid = assignedBy && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assignedBy);
       const { error: assignError } = await supabase
         .from("lodging_assignments")
         .insert({
@@ -66,8 +68,8 @@ export async function autoAssignBed(
           bed_id: bed.id,
           check_in_date: checkInDate || null,
           check_out_date: checkOutDate || null,
-          assigned_by: assignedBy || "system_auto",
-          notes: `Auto-assigned from city: ${city}`,
+          assigned_by: isUuid ? assignedBy : null,
+          notes: `Auto-assigned (${assignedBy || "system"}) from city: ${city}`,
         });
 
       if (assignError) {

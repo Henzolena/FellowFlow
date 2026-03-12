@@ -263,6 +263,8 @@ export async function POST(request: NextRequest) {
           city: v.city,
           churchName,
           selectedDays: selectedDays ?? undefined,
+          dormName: autoAssignedInfo?.motelName ?? null,
+          bedLabel: autoAssignedInfo?.bedLabel ?? null,
         });
         emailSent = true;
       } catch (emailErr) {
