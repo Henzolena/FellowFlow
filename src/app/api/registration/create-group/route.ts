@@ -7,6 +7,7 @@ import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendConfirmationEmail, sendGroupReceiptEmail } from "@/lib/email/resend";
 import { dispatchAdminNotification } from "@/lib/services/notification-dispatcher";
 import { generateEntitlements, generateGroupEntitlements } from "@/lib/services/entitlement-generator";
+import { autoAssignBed } from "@/lib/services/bed-auto-assign";
 import { createRequestLogger } from "@/lib/logger";
 import type { Event, PricingConfig } from "@/types/database";
 import { formatSelectedDays } from "@/lib/date-utils";
@@ -199,6 +200,52 @@ export async function POST(request: NextRequest) {
         { error: "Failed to create registrations" },
         { status: 500 }
       );
+    }
+
+    // ─── Auto-assign beds based on city→dorm mapping ───
+    for (let i = 0; i < registrations.length; i++) {
+      const reg = registrations[i];
+      let city = reg.city;
+
+      // If no city on registration, resolve from church
+      if (!city && reg.church_id) {
+        const { data: church } = await adminClient
+          .from("churches")
+          .select("city")
+          .eq("id", reg.church_id)
+          .single();
+        city = church?.city ?? null;
+      }
+
+      if (city) {
+        try {
+          const result = await autoAssignBed(adminClient, {
+            registrationId: reg.id,
+            eventId: data.eventId,
+            city,
+            assignedBy: "system_public_registration",
+          });
+          if (result) {
+            log.info("Bed auto-assigned", {
+              registrationId: reg.id,
+              city,
+              motel: result.motelName,
+              bed: result.bedLabel,
+            });
+          } else {
+            log.warn("No available bed for auto-assignment", {
+              registrationId: reg.id,
+              city,
+            });
+          }
+        } catch (e) {
+          log.error("Bed auto-assignment failed", {
+            registrationId: reg.id,
+            city,
+            error: String(e),
+          });
+        }
+      }
     }
 
     // Generate service entitlements for free registrations (paid ones get entitlements via webhook)
