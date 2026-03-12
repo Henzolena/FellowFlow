@@ -92,7 +92,7 @@ export function useWizardState() {
 
   const allRegistrantsComplete = registrants.every(isRegistrantComplete);
   const canProceedStep0 = allRegistrantsComplete;
-  const canProceedStep1 = contact.email.trim() !== "";
+  const canProceedStep1 = contact.email.trim() !== "" && contact.phone.trim() !== "";
 
   return {
     step,

@@ -530,7 +530,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">{dict.wizard.phoneOptional}</Label>
+                    <Label htmlFor="phone">{dict.wizard.phoneRequired}</Label>
                     <Input
                       id="phone"
                       type="tel"

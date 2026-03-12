@@ -48,7 +48,7 @@ export type Dictionary = {
     partialAttendanceDesc: string; koteAttendance: string; koteAttendanceDesc: string;
     attendingFullDuration: string; yesFullConference: string;
     noPartialAttendance: string; numberOfDays: string;
-    contactInfo: string; contactDesc: string; emailRequired: string; phoneOptional: string;
+    contactInfo: string; contactDesc: string; emailRequired: string; phoneRequired: string;
     emailHint: string; reviewAndSubmit: string; reviewDesc: string;
     completeRegistration: string; proceedToPayment: string; priceSummary: string;
     addDetailsToSee: string; nDays: string;
@@ -237,7 +237,7 @@ const en: Dictionary = {
     contactInfo: "Contact Information",
     contactDesc: "Provide the email and phone for registration confirmations and receipts",
     emailRequired: "Email *",
-    phoneOptional: "Phone *",
+    phoneRequired: "Phone *",
     emailHint: "Confirmation emails and receipts will be sent to this address",
     reviewAndSubmit: "Review & Submit",
     reviewDesc: "Verify all details before submitting",
@@ -479,7 +479,7 @@ const am: Dictionary = {
     contactInfo: "የአድራሻ መረጃ",
     contactDesc: "ለምዝገባ ማረጋገጫ እና ደረሰኞች ኢሜይል እና ስልክ ያቅርቡ",
     emailRequired: "ኢሜይል *",
-    phoneOptional: "ስልክ *",
+    phoneRequired: "ስልክ *",
     emailHint: "የማረጋገጫ ኢሜይሎች እና ደረሰኞች ወደዚህ አድራሻ ይላካሉ",
     reviewAndSubmit: "ገምግመው ያስገቡ",
     reviewDesc: "ከማስገባትዎ በፊት ሁሉንም ዝርዝሮች ያረጋግጡ",

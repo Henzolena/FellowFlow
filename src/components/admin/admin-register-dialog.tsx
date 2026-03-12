@@ -252,7 +252,7 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: email.trim(),
-          phone: phone.trim() || undefined,
+          phone: phone.trim(),
           gender: gender || undefined,
           ageRange,
           dateOfBirth: selectedEvent ? syntheticDob(
@@ -362,8 +362,8 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
             {/* Phone + Gender */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <Label>Phone *</Label>
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label>Gender</Label>
