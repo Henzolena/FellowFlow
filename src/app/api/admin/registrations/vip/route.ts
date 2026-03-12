@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/admin-guard";
 import { z } from "zod";
 import { generateEntitlements } from "@/lib/services/entitlement-generator";
+import { autoAssignBed } from "@/lib/services/bed-auto-assign";
 import { sendConfirmationEmail } from "@/lib/email/resend";
 import { createLogger } from "@/lib/logger";
 
@@ -109,6 +110,35 @@ export async function POST(request: NextRequest) {
 
     if (regError) throw regError;
 
+    // Auto-assign bed based on city→dorm mapping
+    let lodgingAssigned = false;
+    let autoAssignedInfo: { motelName: string; bedLabel: string } | null = null;
+    {
+      let city = v.city || null;
+      if (!city && v.churchId) {
+        const { data: church } = await supabase.from("churches").select("city").eq("id", v.churchId).single();
+        city = church?.city ?? null;
+      }
+      if (city) {
+        try {
+          const result = await autoAssignBed(supabase, {
+            registrationId: registration.id,
+            eventId: v.eventId,
+            city,
+            assignedBy: auth.userId,
+            checkInDate: event.start_date,
+            checkOutDate: event.end_date,
+          });
+          if (result) {
+            lodgingAssigned = true;
+            autoAssignedInfo = { motelName: result.motelName, bedLabel: result.bedLabel };
+          }
+        } catch (e) {
+          console.error("VIP bed auto-assignment failed (non-fatal):", e);
+        }
+      }
+    }
+
     // Generate entitlements (FULL_ACCESS gets main service + meals)
     const log = createLogger("admin-direct-registration");
     try {
@@ -149,6 +179,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       registration,
       emailSent,
+      lodgingAssigned,
+      autoAssignedInfo,
     }, { status: 201 });
   } catch (error) {
     console.error("Create VIP registration error:", error);

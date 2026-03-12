@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/admin-guard";
 import { z } from "zod";
 import { generateEntitlements } from "@/lib/services/entitlement-generator";
+import { autoAssignBed } from "@/lib/services/bed-auto-assign";
 import { sendConfirmationEmail } from "@/lib/email/resend";
 import { createLogger } from "@/lib/logger";
 
@@ -114,16 +115,21 @@ export async function POST(request: NextRequest) {
 
     const now = new Date().toISOString();
 
-    // Validate bed assignment if requested
+    // Validate bed assignment if requested (respect max_occupants)
     if (v.bedId) {
-      const { data: existingBed } = await supabase
-        .from("lodging_assignments")
-        .select("id")
-        .eq("bed_id", v.bedId)
-        .maybeSingle();
+      const { data: bed } = await supabase
+        .from("beds")
+        .select("max_occupants")
+        .eq("id", v.bedId)
+        .single();
 
-      if (existingBed) {
-        return NextResponse.json({ error: "Selected bed is already assigned to another registrant" }, { status: 409 });
+      const { count: currentCount } = await supabase
+        .from("lodging_assignments")
+        .select("*", { count: "exact", head: true })
+        .eq("bed_id", v.bedId);
+
+      if (bed && (currentCount ?? 0) >= bed.max_occupants) {
+        return NextResponse.json({ error: "Selected bed is at full capacity" }, { status: 409 });
       }
     }
 
@@ -173,8 +179,9 @@ export async function POST(request: NextRequest) {
       throw regError;
     }
 
-    // Assign bed if provided
+    // Assign bed: manual selection or auto-assign by city
     let lodgingAssigned = false;
+    let autoAssignedInfo: { motelName: string; bedLabel: string } | null = null;
     if (v.bedId) {
       const { error: lodgingError } = await supabase
         .from("lodging_assignments")
@@ -188,10 +195,40 @@ export async function POST(request: NextRequest) {
         });
 
       if (!lodgingError) {
-        await supabase.from("beds").update({ is_occupied: true }).eq("id", v.bedId);
+        // Update occupancy: mark occupied if at max capacity
+        const { data: bed } = await supabase.from("beds").select("max_occupants").eq("id", v.bedId).single();
+        const { count } = await supabase.from("lodging_assignments").select("*", { count: "exact", head: true }).eq("bed_id", v.bedId);
+        if (bed && (count ?? 0) >= bed.max_occupants) {
+          await supabase.from("beds").update({ is_occupied: true }).eq("id", v.bedId);
+        }
         lodgingAssigned = true;
       } else {
         console.error("Lodging assignment failed (non-fatal):", lodgingError);
+      }
+    } else {
+      // Auto-assign based on city→dorm mapping
+      let city = v.city || null;
+      if (!city && v.churchId) {
+        const { data: church } = await supabase.from("churches").select("city").eq("id", v.churchId).single();
+        city = church?.city ?? null;
+      }
+      if (city) {
+        try {
+          const result = await autoAssignBed(supabase, {
+            registrationId: registration.id,
+            eventId: v.eventId,
+            city,
+            assignedBy: auth.userId,
+            checkInDate: event.start_date,
+            checkOutDate: event.end_date,
+          });
+          if (result) {
+            lodgingAssigned = true;
+            autoAssignedInfo = { motelName: result.motelName, bedLabel: result.bedLabel };
+          }
+        } catch (e) {
+          console.error("Bed auto-assignment failed (non-fatal):", e);
+        }
       }
     }
 
@@ -237,6 +274,7 @@ export async function POST(request: NextRequest) {
       registration,
       emailSent,
       lodgingAssigned,
+      autoAssignedInfo,
     }, { status: 201 });
   } catch (error) {
     console.error("Admin register error:", error);
