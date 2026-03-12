@@ -267,59 +267,59 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   </Select>
                 </div>
 
-                {/* Church + City row */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>{dict.wizard.church}</Label>
-                    <Select
-                      value={reg.churchId || "__other"}
-                      onValueChange={(v) => {
-                        if (v === "__other") {
-                          updateRegistrant(idx, { churchId: "", churchNameCustom: reg.churchNameCustom, city: "" });
-                        } else {
-                          const selectedChurch = churches.find((c) => c.id === v);
-                          updateRegistrant(idx, { 
-                            churchId: v, 
-                            churchNameCustom: "",
-                            city: selectedChurch?.city || ""
-                          });
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={dict.wizard.selectChurch} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {churches.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                        <SelectItem value="__other">{dict.wizard.otherChurch}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {!reg.churchId && (
-                      <Input
-                        value={reg.churchNameCustom}
-                        onChange={(e) => updateRegistrant(idx, { churchNameCustom: e.target.value })}
-                        placeholder={dict.wizard.customChurchName}
-                        className="mt-2"
-                      />
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{dict.wizard.city} *</Label>
+                {/* Church */}
+                <div className="space-y-2">
+                  <Label>{dict.wizard.church}</Label>
+                  <Select
+                    value={reg.churchId || "__other"}
+                    onValueChange={(v) => {
+                      if (v === "__other") {
+                        updateRegistrant(idx, { churchId: "", churchNameCustom: reg.churchNameCustom, city: "" });
+                      } else {
+                        const selectedChurch = churches.find((c) => c.id === v);
+                        updateRegistrant(idx, { 
+                          churchId: v, 
+                          churchNameCustom: "",
+                          city: selectedChurch?.city || ""
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={dict.wizard.selectChurch} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {churches.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                      <SelectItem value="__other">{dict.wizard.otherChurch}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {!reg.churchId && (
                     <Input
-                      value={reg.city}
-                      onChange={(e) => updateRegistrant(idx, { city: e.target.value })}
-                      placeholder="Dallas, TX"
-                      disabled={!!reg.churchId}
-                      className={reg.churchId ? "bg-muted cursor-not-allowed" : ""}
+                      value={reg.churchNameCustom}
+                      onChange={(e) => updateRegistrant(idx, { churchNameCustom: e.target.value })}
+                      placeholder={dict.wizard.customChurchName}
+                      className="mt-2"
                     />
-                    {reg.churchId && (
-                      <p className="text-xs text-muted-foreground">
-                        Auto-filled from church
-                      </p>
-                    )}
-                  </div>
+                  )}
+                </div>
+
+                {/* City */}
+                <div className="space-y-2">
+                  <Label>{dict.wizard.city} *</Label>
+                  <Input
+                    value={reg.city}
+                    onChange={(e) => updateRegistrant(idx, { city: e.target.value })}
+                    placeholder="Dallas, TX"
+                    disabled={!!reg.churchId}
+                    className={reg.churchId ? "bg-muted cursor-not-allowed" : ""}
+                  />
+                  {reg.churchId && (
+                    <p className="text-xs text-muted-foreground">
+                      Auto-filled from church
+                    </p>
+                  )}
                 </div>
 
                 {/* Attendance Type */}
