@@ -45,7 +45,7 @@ export const groupRegistrantSchema = z.object({
   lastName: z.string().min(1, "Last name is required").max(100),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
   gender: genderEnum.optional(),
-  city: z.string().max(200).optional(),
+  city: z.string().min(1, "City is required").max(200),
   churchId: z.string().uuid().optional().nullable(),
   churchNameCustom: z.string().max(200).optional().nullable(),
   isFullDuration: z.boolean(),
