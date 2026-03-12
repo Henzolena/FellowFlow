@@ -183,27 +183,49 @@ export async function POST(request: NextRequest) {
     let lodgingAssigned = false;
     let autoAssignedInfo: { motelName: string; bedLabel: string } | null = null;
     if (v.bedId) {
-      const { error: lodgingError } = await supabase
-        .from("lodging_assignments")
-        .insert({
-          registration_id: registration.id,
-          bed_id: v.bedId,
-          check_in_date: event.start_date,
-          check_out_date: event.end_date,
-          assigned_by: auth.userId,
-          notes: v.notes ? `Admin registration: ${v.notes}` : "Assigned during admin registration",
-        });
+      // Pre-check bed capacity before assigning
+      const { data: bedInfo } = await supabase
+        .from("beds")
+        .select("bed_label, max_occupants, rooms(room_number, motels(name))")
+        .eq("id", v.bedId)
+        .single();
 
-      if (!lodgingError) {
-        // Update occupancy: mark occupied if at max capacity
-        const { data: bed } = await supabase.from("beds").select("max_occupants").eq("id", v.bedId).single();
-        const { count } = await supabase.from("lodging_assignments").select("*", { count: "exact", head: true }).eq("bed_id", v.bedId);
-        if (bed && (count ?? 0) >= bed.max_occupants) {
-          await supabase.from("beds").update({ is_occupied: true }).eq("id", v.bedId);
-        }
-        lodgingAssigned = true;
+      const { count: priorCount } = await supabase
+        .from("lodging_assignments")
+        .select("*", { count: "exact", head: true })
+        .eq("bed_id", v.bedId);
+
+      if (bedInfo && (priorCount ?? 0) >= bedInfo.max_occupants) {
+        console.warn("Bed at capacity, skipping manual assignment:", v.bedId);
       } else {
-        console.error("Lodging assignment failed (non-fatal):", lodgingError);
+        const { error: lodgingError } = await supabase
+          .from("lodging_assignments")
+          .insert({
+            registration_id: registration.id,
+            bed_id: v.bedId,
+            check_in_date: event.start_date,
+            check_out_date: event.end_date,
+            assigned_by: auth.userId,
+            notes: v.notes ? `Admin registration: ${v.notes}` : "Assigned during admin registration",
+          });
+
+        if (!lodgingError) {
+          if (bedInfo) {
+            const rm = bedInfo.rooms as unknown as { room_number: string; motels: { name: string } } | null;
+            autoAssignedInfo = { motelName: rm?.motels?.name || "Unknown", bedLabel: bedInfo.bed_label };
+          }
+          // Mark occupied only if now at capacity
+          const { count: newCount } = await supabase
+            .from("lodging_assignments")
+            .select("*", { count: "exact", head: true })
+            .eq("bed_id", v.bedId);
+          if (bedInfo && (newCount ?? 0) >= bedInfo.max_occupants) {
+            await supabase.from("beds").update({ is_occupied: true }).eq("id", v.bedId);
+          }
+          lodgingAssigned = true;
+        } else {
+          console.error("Lodging assignment failed (non-fatal):", lodgingError);
+        }
       }
     } else {
       // Auto-assign based on city→dorm mapping

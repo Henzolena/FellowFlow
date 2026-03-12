@@ -51,6 +51,9 @@ type BedStat = {
   total_beds: number;
   occupied_beds: number;
   available_beds: number;
+  total_capacity: number;
+  current_occupants: number;
+  available_slots: number;
 };
 
 export default function BedAssignmentsPage() {
@@ -199,7 +202,10 @@ export default function BedAssignmentsPage() {
       {/* Bed availability overview */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {bedStats.map((stat) => {
-          const pct = stat.total_beds > 0 ? Math.round((stat.occupied_beds / stat.total_beds) * 100) : 0;
+          const isMultiOccupant = stat.total_capacity > stat.total_beds;
+          const pct = isMultiOccupant
+            ? stat.total_capacity > 0 ? Math.round((stat.current_occupants / stat.total_capacity) * 100) : 0
+            : stat.total_beds > 0 ? Math.round((stat.occupied_beds / stat.total_beds) * 100) : 0;
           return (
             <Card key={stat.motel_id} className="shadow-brand-sm">
               <CardHeader className="pb-2">
@@ -210,8 +216,8 @@ export default function BedAssignmentsPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-brand-green">{stat.available_beds}</span>
-                  <span className="text-sm text-muted-foreground">/ {stat.total_beds} available</span>
+                  <span className="text-2xl font-bold text-brand-green">{stat.available_slots}</span>
+                  <span className="text-sm text-muted-foreground">/ {stat.total_capacity} slots open</span>
                 </div>
                 <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
                   <div
@@ -222,7 +228,8 @@ export default function BedAssignmentsPage() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {stat.occupied_beds} occupied ({pct}%)
+                  {stat.current_occupants} people assigned ({pct}%)
+                  {isMultiOccupant && ` · ${stat.total_beds} beds`}
                 </p>
               </CardContent>
             </Card>

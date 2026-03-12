@@ -98,6 +98,10 @@ export default function MotelsPage() {
     (s, m) => s + m.rooms.reduce((rs, r) => rs + r.beds.length, 0),
     0
   );
+  const totalCapacity = motels.reduce(
+    (s, m) => s + m.rooms.reduce((rs, r) => rs + r.beds.reduce((bs, b) => bs + (b.max_occupants || 1), 0), 0),
+    0
+  );
   const occupiedBeds = motels.reduce(
     (s, m) =>
       s + m.rooms.reduce((rs, r) => rs + r.beds.filter((b) => b.is_occupied).length, 0),
@@ -151,9 +155,9 @@ export default function MotelsPage() {
         <StatCard icon={BedDouble} label="Total Beds" value={totalBeds} />
         <StatCard
           icon={BedDouble}
-          label="Occupancy"
-          value={totalBeds > 0 ? `${Math.round((occupiedBeds / totalBeds) * 100)}%` : "—"}
-          sub={`${occupiedBeds} / ${totalBeds} beds`}
+          label="Capacity"
+          value={totalCapacity > 0 ? `${totalCapacity}` : "—"}
+          sub={`${occupiedBeds} / ${totalBeds} beds full`}
         />
       </div>
 
@@ -260,6 +264,10 @@ function MotelCard({
   onRefresh: () => void;
 }) {
   const bedCount = motel.rooms.reduce((s, r) => s + r.beds.length, 0);
+  const capacity = motel.rooms.reduce(
+    (s, r) => s + r.beds.reduce((bs, b) => bs + (b.max_occupants || 1), 0),
+    0
+  );
   const occupied = motel.rooms.reduce(
     (s, r) => s + r.beds.filter((b) => b.is_occupied).length,
     0
@@ -305,7 +313,9 @@ function MotelCard({
               {motel.rooms.length} rooms
             </Badge>
             <Badge variant="outline" className="text-xs">
-              {occupied}/{bedCount} beds
+              {capacity > bedCount
+                ? `${occupied}/${bedCount} beds · ${capacity} slots`
+                : `${occupied}/${bedCount} beds`}
             </Badge>
           </div>
         </div>
@@ -375,6 +385,8 @@ function RoomRow({
   onRefresh: () => void;
 }) {
   const occupied = room.beds.filter((b) => b.is_occupied).length;
+  const roomCapacity = room.beds.reduce((s, b) => s + (b.max_occupants || 1), 0);
+  const isMultiOccupant = roomCapacity > room.beds.length;
 
   async function handleDeleteRoom() {
     if (!confirm(`Delete room ${room.room_number} and all its beds?`)) return;
@@ -411,7 +423,9 @@ function RoomRow({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
-            {occupied}/{room.beds.length} beds
+            {isMultiOccupant
+              ? `${occupied}/${room.beds.length} beds · max ${roomCapacity}`
+              : `${occupied}/${room.beds.length} beds`}
           </span>
           <Button
             variant="ghost"
@@ -442,6 +456,7 @@ function RoomRow({
 
 /* ─── Bed Chip ─── */
 function BedChip({ bed }: { bed: Bed }) {
+  const isMulti = (bed.max_occupants || 1) > 1;
   return (
     <div
       className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs border ${
@@ -453,6 +468,9 @@ function BedChip({ bed }: { bed: Bed }) {
       <BedDouble className="h-3 w-3" />
       <span className="font-medium">{bed.bed_label}</span>
       <span className="text-[10px] opacity-70 capitalize">{bed.bed_type.replace("_", " ")}</span>
+      {isMulti && (
+        <span className="text-[10px] opacity-70">({bed.max_occupants}p)</span>
+      )}
     </div>
   );
 }

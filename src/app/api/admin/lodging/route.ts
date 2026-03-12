@@ -61,15 +61,27 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const userId = auth.userId;
 
-    // Check bed is not already occupied
-    const { data: existingBed } = await supabase
-      .from("lodging_assignments")
-      .select("id")
-      .eq("bed_id", parsed.data.bedId)
-      .maybeSingle();
+    // Check bed capacity — count current assignments vs max_occupants
+    const { data: bedData } = await supabase
+      .from("beds")
+      .select("max_occupants")
+      .eq("id", parsed.data.bedId)
+      .single();
 
-    if (existingBed) {
-      return NextResponse.json({ error: "Bed is already assigned" }, { status: 409 });
+    if (!bedData) {
+      return NextResponse.json({ error: "Bed not found" }, { status: 404 });
+    }
+
+    const { count: currentCount } = await supabase
+      .from("lodging_assignments")
+      .select("*", { count: "exact", head: true })
+      .eq("bed_id", parsed.data.bedId);
+
+    if ((currentCount ?? 0) >= bedData.max_occupants) {
+      return NextResponse.json(
+        { error: `Bed is at full capacity (${currentCount}/${bedData.max_occupants})` },
+        { status: 409 }
+      );
     }
 
     // Check registration doesn't already have a bed
@@ -98,8 +110,15 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    // Mark bed as occupied
-    await supabase.from("beds").update({ is_occupied: true }).eq("id", parsed.data.bedId);
+    // Mark bed as occupied if now at capacity
+    const { count: newCount } = await supabase
+      .from("lodging_assignments")
+      .select("*", { count: "exact", head: true })
+      .eq("bed_id", parsed.data.bedId);
+
+    if ((newCount ?? 0) >= bedData.max_occupants) {
+      await supabase.from("beds").update({ is_occupied: true }).eq("id", parsed.data.bedId);
+    }
 
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
@@ -140,8 +159,21 @@ export async function DELETE(request: NextRequest) {
 
     if (error) throw error;
 
-    // Mark bed as unoccupied
-    await supabase.from("beds").update({ is_occupied: false }).eq("id", assignment.bed_id);
+    // Re-check occupancy: only mark unoccupied if below capacity
+    const { count: remaining } = await supabase
+      .from("lodging_assignments")
+      .select("*", { count: "exact", head: true })
+      .eq("bed_id", assignment.bed_id);
+
+    const { data: bedInfo } = await supabase
+      .from("beds")
+      .select("max_occupants")
+      .eq("id", assignment.bed_id)
+      .single();
+
+    if (bedInfo && (remaining ?? 0) < bedInfo.max_occupants) {
+      await supabase.from("beds").update({ is_occupied: false }).eq("id", assignment.bed_id);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
