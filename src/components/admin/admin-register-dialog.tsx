@@ -404,16 +404,18 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
               </div>
             )}
 
-            {/* City */}
-            <div className="space-y-2">
-              <Label>City</Label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} />
-            </div>
-
             {/* Church */}
             <div className="space-y-2">
               <Label>Church</Label>
-              <Select value={churchId} onValueChange={setChurchId}>
+              <Select value={churchId} onValueChange={(v) => {
+                setChurchId(v);
+                if (v === "other") {
+                  setCity("");
+                } else {
+                  const selectedChurch = churches.find((c) => c.id === v);
+                  setCity(selectedChurch?.city || "");
+                }
+              }}>
                 <SelectTrigger><SelectValue placeholder="Select church" /></SelectTrigger>
                 <SelectContent>
                   {churches.map((c) => (
@@ -424,6 +426,21 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
               </Select>
               {churchId === "other" && (
                 <Input value={churchCustom} onChange={(e) => setChurchCustom(e.target.value)} placeholder="Church name" className="mt-2" />
+              )}
+            </div>
+
+            {/* City */}
+            <div className="space-y-2">
+              <Label>City *</Label>
+              <Input 
+                value={city} 
+                onChange={(e) => setCity(e.target.value)} 
+                disabled={!!churchId && churchId !== "other"}
+                className={churchId && churchId !== "other" ? "bg-muted cursor-not-allowed" : ""}
+                placeholder="Dallas, TX"
+              />
+              {churchId && churchId !== "other" && (
+                <p className="text-xs text-muted-foreground">Auto-filled from church</p>
               )}
             </div>
 
