@@ -182,6 +182,7 @@ export type Motel = {
   address: string | null;
   total_rooms: number;
   is_active: boolean;
+  auto_assignable: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -205,6 +206,10 @@ export type Bed = {
   bed_label: string;
   bed_type: BedType;
   is_occupied: boolean;
+  max_occupants: number;
+  bed_row: string | null;
+  bed_column: number | null;
+  bed_position: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -223,6 +228,20 @@ export type LodgingAssignment = {
 
 export type RoomWithBeds = Room & { beds: Bed[] };
 export type MotelWithRooms = Motel & { rooms: RoomWithBeds[] };
+
+export type CityDormAssignment = {
+  id: string;
+  event_id: string;
+  city: string;
+  motel_id: string;
+  priority: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CityDormAssignmentWithMotel = CityDormAssignment & {
+  motels: Motel;
+};
 
 /* ── Service Check-In System ──────────────────────────────────────── */
 
