@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { getExplanationLabel } from "@/lib/pricing/engine";
 import { format, parseISO } from "date-fns";
-import { Printer, Mail, Loader2, Search, ArrowLeft, QrCode } from "lucide-react";
+import { Printer, Mail, Loader2, Search, ArrowLeft, QrCode, UtensilsCrossed } from "lucide-react";
 import type { ExplanationCode } from "@/types/database";
 import Link from "next/link";
 import { useTranslation } from "@/lib/i18n/context";
@@ -498,6 +498,14 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                 <p className="text-xs text-center text-muted-foreground">
                   {dict.receipt.receiptSentTo.replace("{email}", data.email)}
                 </p>
+              )}
+              {data.public_confirmation_code && (
+                <Link href={`/meals/${encodeURIComponent(data.public_confirmation_code)}`}>
+                  <Button variant="outline" className="w-full gap-2 border-amber-200 bg-amber-50/50 text-amber-700 hover:bg-amber-100/60 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400 dark:hover:bg-amber-950/50">
+                    <UtensilsCrossed className="h-4 w-4" />
+                    Purchase Meals
+                  </Button>
+                </Link>
               )}
               <Link href="/">
                 <Button variant="ghost" className="w-full">

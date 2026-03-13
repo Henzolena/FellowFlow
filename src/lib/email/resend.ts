@@ -254,6 +254,14 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:4px 0 8px;">
       <a href="${receiptUrl}" style="${S.cta}">View Full Receipt &rarr;</a>
     </td></tr></table>
+
+    <!-- Meal Purchase CTA -->
+    ${attendanceType === "kote" ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0;"><tr><td align="center">
+      <p style="margin:0 0 8px;color:#92400e;font-size:13px;font-weight:600;">🍽️ Need meals during the conference?</p>
+      <a href="${appUrl}/meals/${encodeURIComponent(displayCode)}" style="display:inline-block;background:#d97706;color:#ffffff;text-decoration:none;padding:10px 28px;border-radius:8px;font-size:13px;font-weight:700;">Purchase Meal Tickets</a>
+    </td></tr></table>
+    ` : ""}
   </td></tr>
 
   <!-- Footer -->
@@ -261,6 +269,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
     <p style="${S.footerText}">
       <span style="${S.footerBold}">FellowFlow</span> — Conference Registration<br>
       Show your confirmation code at the check-in desk.<br>
+      ${attendanceType === "kote" ? `<a href="${appUrl}/meals/${encodeURIComponent(displayCode)}" style="color:#d97706;text-decoration:underline;">Purchase meal tickets here</a><br>` : ""}
       Questions? Reply to this email.
     </p>
   </td></tr>
@@ -486,6 +495,20 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:4px 0 8px;">
       <a href="${receiptUrl}" style="${S.cta}">View Full Receipt &rarr;</a>
     </td></tr></table>
+
+    <!-- Meal Purchase CTA for KOTE members -->
+    ${(() => {
+      const koteMembers = members.filter(m => m.attendanceType === "kote" && m.confirmationCode);
+      if (koteMembers.length === 0) return "";
+      const links = koteMembers.map(m =>
+        `<a href="${appUrl}/meals/${encodeURIComponent(m.confirmationCode!)}" style="color:#d97706;text-decoration:underline;font-weight:600;">${m.firstName} ${m.lastName}</a>`
+      ).join(" · ");
+      return `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0;"><tr><td align="center" style="padding:16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;">
+      <p style="margin:0 0 8px;color:#92400e;font-size:13px;font-weight:600;">🍽️ Need meals during the conference?</p>
+      <p style="margin:0;color:#78350f;font-size:12px;line-height:1.6;">Purchase meal tickets: ${links}</p>
+    </td></tr></table>`;
+    })()}
   </td></tr>
 
   <!-- Footer -->
@@ -493,6 +516,7 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
     <p style="${S.footerText}">
       <span style="${S.footerBold}">FellowFlow</span> — Conference Registration<br>
       Each registrant should present their own confirmation code at check-in.<br>
+      ${members.some(m => m.attendanceType === "kote") ? `<a href="${appUrl}/meals" style="color:#d97706;text-decoration:underline;">Purchase meal tickets here</a><br>` : ""}
       Questions? Reply to this email.
     </p>
   </td></tr>

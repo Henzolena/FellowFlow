@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Zap, Users, Plus, Trash2 } from "lucide-react";
+import { Loader2, Zap, Users, Plus, Trash2, UtensilsCrossed } from "lucide-react";
 import type { Event, PricingConfig } from "@/types/database";
 import { useTranslation } from "@/lib/i18n/context";
 
@@ -255,6 +255,29 @@ export default function KotePage() {
                 Confirmation and receipt will be sent here
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Already registered — Buy meals */}
+        <Card className="shadow-brand-sm border-amber-200 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20">
+          <CardContent className="py-4 flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <UtensilsCrossed className="h-5 w-5 text-amber-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Already registered?</p>
+                <p className="text-xs text-amber-700/80 dark:text-amber-400/80 truncate">
+                  Purchase meal tickets with your confirmation code
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40"
+              onClick={() => router.push("/meals")}
+            >
+              Buy Meals →
+            </Button>
           </CardContent>
         </Card>
 
