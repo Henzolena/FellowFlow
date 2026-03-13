@@ -23,12 +23,14 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  UtensilsCrossed,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { getExplanationLabel } from "@/lib/pricing/engine";
 import type { ExplanationCode } from "@/types/database";
 import Link from "next/link";
 import { toast } from "sonner";
+import SellMealsDialog from "@/components/admin/sell-meals-dialog";
 
 type PaymentRecord = {
   id: string;
@@ -55,6 +57,7 @@ type ServiceEntitlementRecord = {
   quantity_allowed: number;
   quantity_used: number;
   service_catalog: {
+    id: string;
     service_name: string;
     service_code: string;
     service_category: string;
@@ -110,6 +113,7 @@ type DetailData = {
   computed_amount: number;
   explanation_code: string;
   explanation_detail: string;
+  event_id: string;
   status: string;
   checked_in: boolean;
   checked_in_at: string | null;
@@ -143,6 +147,7 @@ export default function RegistrationDetailPage({
   const [data, setData] = useState<DetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [sellMealsOpen, setSellMealsOpen] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -437,13 +442,23 @@ export default function RegistrationDetailPage({
       </div>
 
       {/* ── Service Entitlements ── */}
-      {data.service_entitlements.length > 0 && (
-        <Card className="shadow-brand-sm">
+      <Card className="shadow-brand-sm">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" />
-              Service Entitlements ({data.service_entitlements.length})
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Shield className="h-4 w-4 text-primary" />
+                Service Entitlements ({data.service_entitlements.length})
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => setSellMealsOpen(true)}
+              >
+                <UtensilsCrossed className="h-3.5 w-3.5" />
+                Sell Meals
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -477,7 +492,21 @@ export default function RegistrationDetailPage({
             </div>
           </CardContent>
         </Card>
-      )}
+
+      {/* ── Sell Meals Dialog ── */}
+      <SellMealsDialog
+        open={sellMealsOpen}
+        onOpenChange={setSellMealsOpen}
+        registrationId={data.id}
+        eventId={data.event_id}
+        category={data.category}
+        registrantName={`${data.first_name} ${data.last_name}`}
+        existingEntitlements={data.service_entitlements.map((e) => ({ service_id: e.service_catalog?.id || "", status: e.status }))}
+        onSuccess={() => {
+          // Refresh the page data
+          fetch(`/api/admin/registrations/${id}`).then((r) => r.ok ? r.json() : null).then((d) => { if (d) setData(d); });
+        }}
+      />
 
       {/* ── Email Logs ── */}
       {data.email_logs.length > 0 && (

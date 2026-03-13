@@ -26,6 +26,7 @@ import {
   Plus,
   ChevronDown,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Event, Church, Motel, Room, Bed } from "@/types/database";
@@ -33,7 +34,7 @@ import { getAgeRangeOptions, syntheticDob } from "@/components/registration/hook
 
 /* ── Types ─────────────────────────────────────────────────────────── */
 
-type BedWithOccupancy = Bed & { current_occupants: number };
+type BedWithOccupancy = Bed & { current_occupants: number; occupant_genders: string[] };
 type MotelWithRooms = Motel & { rooms: (Room & { beds: BedWithOccupancy[] })[] };
 
 type Props = {
@@ -83,6 +84,7 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
   const [creatingMotel, setCreatingMotel] = useState(false);
 
   const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [genderWarningBypassed, setGenderWarningBypassed] = useState(false);
   const [newRoomNumber, setNewRoomNumber] = useState("");
   const [newRoomType, setNewRoomType] = useState("standard");
   const [newRoomCapacity, setNewRoomCapacity] = useState("2");
@@ -124,6 +126,21 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
   const selectedRoom = availableRooms.find((r) => r.id === selectedRoomId);
   const availableBeds = selectedRoom?.beds.filter((b) => (b.current_occupants ?? 0) < (b.max_occupants || 1)) ?? [];
 
+  // Gender-mix warning: check all beds in the selected room for occupants of a different gender
+  const roomGenderMismatch = (() => {
+    if (!selectedRoom || !gender) return null;
+    const otherGenders = new Set<string>();
+    for (const bed of selectedRoom.beds) {
+      for (const g of bed.occupant_genders || []) {
+        if (g !== gender) otherGenders.add(g);
+      }
+    }
+    if (otherGenders.size === 0) return null;
+    const labels: Record<string, string> = { male: "male", female: "female" };
+    const others = [...otherGenders].map((g) => labels[g] || g).join(", ");
+    return `This room already has ${others} occupant(s). You are assigning a ${labels[gender] || gender} registrant.`;
+  })();
+
   function reset() {
     setEventId("");
     setFirstName("");
@@ -146,6 +163,7 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
     setSelectedBedId("");
     setShowCreateMotel(false);
     setShowCreateRoom(false);
+    setGenderWarningBypassed(false);
     setError("");
     setSuccess(false);
   }
@@ -239,6 +257,10 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
     }
     if (isStayingInMotel && !selectedBedId) {
       setError("Please select a bed assignment or uncheck motel stay.");
+      return;
+    }
+    if (isStayingInMotel && roomGenderMismatch && !genderWarningBypassed) {
+      setError("Mixed-gender room assignment detected. Please check the override box or choose a different room.");
       return;
     }
 
@@ -624,7 +646,7 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
                           </div>
 
                           {availableRooms.length > 0 ? (
-                            <Select value={selectedRoomId} onValueChange={(v) => { setSelectedRoomId(v); setSelectedBedId(""); }}>
+                            <Select value={selectedRoomId} onValueChange={(v) => { setSelectedRoomId(v); setSelectedBedId(""); setGenderWarningBypassed(false); }}>
                               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select room" /></SelectTrigger>
                               <SelectContent>
                                 {availableRooms
@@ -718,6 +740,29 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
                               </div>
                             </div>
                           )}
+                        </div>
+                      )}
+
+                      {/* Gender-mix warning */}
+                      {selectedRoomId && roomGenderMismatch && !genderWarningBypassed && (
+                        <div className="rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                            <div className="space-y-1">
+                              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">Mixed-Gender Room</p>
+                              <p className="text-xs text-amber-700 dark:text-amber-400">{roomGenderMismatch}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-6">
+                            <Checkbox
+                              id="bypass-gender-warning"
+                              checked={genderWarningBypassed}
+                              onCheckedChange={(v: boolean) => setGenderWarningBypassed(v)}
+                            />
+                            <Label htmlFor="bypass-gender-warning" className="text-xs cursor-pointer text-amber-700 dark:text-amber-400">
+                              Override — married couple or intentional assignment
+                            </Label>
+                          </div>
                         </div>
                       )}
 

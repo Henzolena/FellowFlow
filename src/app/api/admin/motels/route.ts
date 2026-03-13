@@ -41,18 +41,24 @@ export async function GET(request: NextRequest) {
     }
 
     const bedCounts: Record<string, number> = {};
+    const bedGenders: Record<string, string[]> = {};
     if (allBedIds.length > 0) {
       const { data: assignments } = await supabase
         .from("lodging_assignments")
-        .select("bed_id")
+        .select("bed_id, registrations(gender)")
         .in("bed_id", allBedIds);
 
       for (const a of assignments || []) {
         bedCounts[a.bed_id] = (bedCounts[a.bed_id] || 0) + 1;
+        const reg = a.registrations as unknown as { gender: string | null } | null;
+        if (reg?.gender) {
+          if (!bedGenders[a.bed_id]) bedGenders[a.bed_id] = [];
+          bedGenders[a.bed_id].push(reg.gender);
+        }
       }
     }
 
-    // Attach current_occupants to each bed
+    // Attach current_occupants + occupant_genders to each bed
     const enriched = (data || []).map((motel: Record<string, unknown>) => ({
       ...motel,
       rooms: ((motel.rooms as Record<string, unknown>[]) || []).map((room) => ({
@@ -60,6 +66,7 @@ export async function GET(request: NextRequest) {
         beds: ((room.beds as Record<string, unknown>[]) || []).map((bed) => ({
           ...bed,
           current_occupants: bedCounts[(bed as { id: string }).id] || 0,
+          occupant_genders: bedGenders[(bed as { id: string }).id] || [],
         })),
       })),
     }));

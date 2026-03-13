@@ -50,6 +50,13 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+
+        // ── Meal purchase flow ──
+        if (session.metadata?.type === "meal_purchase") {
+          await handleMealPurchaseCompleted(supabase, session, log);
+          break;
+        }
+
         const groupId = session.metadata?.group_id;
 
         // 3a. Reconcile payment (validate + mark completed)
@@ -108,4 +115,68 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ received: true });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Meal purchase completion handler                                    */
+/* ------------------------------------------------------------------ */
+async function handleMealPurchaseCompleted(
+  supabase: ReturnType<typeof createAdminClient>,
+  session: Stripe.Checkout.Session,
+  log: ReturnType<typeof createRequestLogger>
+) {
+  const purchaseId = session.metadata?.meal_purchase_id;
+  const registrationId = session.metadata?.registration_id;
+
+  if (!purchaseId || !registrationId) {
+    log.warn("Meal purchase webhook missing metadata", { metadata: session.metadata });
+    return;
+  }
+
+  // Mark the purchase as completed
+  const { error: updateError } = await supabase
+    .from("meal_purchases")
+    .update({ payment_status: "completed", stripe_session_id: session.id })
+    .eq("id", purchaseId)
+    .eq("payment_status", "pending");
+
+  if (updateError) {
+    log.error("Failed to update meal purchase status", { purchaseId, error: updateError.message });
+    return;
+  }
+
+  // Fetch the purchase items to create entitlements
+  const { data: items } = await supabase
+    .from("meal_purchase_items")
+    .select("service_id, unit_price")
+    .eq("meal_purchase_id", purchaseId);
+
+  if (!items || items.length === 0) {
+    log.warn("Meal purchase has no items", { purchaseId });
+    return;
+  }
+
+  // Create service entitlements for each purchased meal
+  const entitlements = items.map((item) => ({
+    registration_id: registrationId,
+    service_id: item.service_id,
+    status: "paid_extra" as const,
+    quantity_allowed: 1,
+    quantity_used: 0,
+    notes: `Stripe meal purchase #${purchaseId.slice(0, 8)}`,
+  }));
+
+  const { error: entError } = await supabase
+    .from("service_entitlements")
+    .upsert(entitlements, { onConflict: "registration_id,service_id" });
+
+  if (entError) {
+    log.error("Failed to create meal entitlements", { purchaseId, error: entError.message });
+  } else {
+    log.info("Meal purchase completed — entitlements created", {
+      purchaseId,
+      registrationId,
+      mealsCount: items.length,
+    });
+  }
 }

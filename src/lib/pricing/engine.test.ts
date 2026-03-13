@@ -42,6 +42,8 @@ function makePricing(overrides: Partial<PricingConfig> = {}): PricingConfig {
     child_daily_price: 15,
     kote_daily_price: 10,
     lodging_fee: 0,
+    meal_price_adult: 12,
+    meal_price_child: 8,
     late_surcharge_tiers: [],
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",

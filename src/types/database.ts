@@ -82,6 +82,8 @@ export type PricingConfig = {
   child_daily_price: number;
   kote_daily_price: number;
   lodging_fee: number;
+  meal_price_adult: number;
+  meal_price_child: number;
   late_surcharge_tiers: SurchargeTier[];
   created_at: string;
   updated_at: string;
@@ -407,6 +409,37 @@ export type VenueWithDetails = Venue & {
   venue_facilities: VenueFacility[];
   venue_rates: VenueRate[];
   venue_meal_schedule: VenueMealSchedule[];
+};
+
+/* ── Meal Purchases ────────────────────────────────────────────── */
+
+export type MealPaymentMethod = 'cash' | 'card' | 'stripe';
+export type MealPaymentStatus = 'pending' | 'completed' | 'refunded';
+
+export type MealPurchase = {
+  id: string;
+  registration_id: string;
+  event_id: string;
+  total_amount: number;
+  payment_method: MealPaymentMethod;
+  payment_status: MealPaymentStatus;
+  stripe_session_id: string | null;
+  purchased_by: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MealPurchaseItem = {
+  id: string;
+  meal_purchase_id: string;
+  service_id: string;
+  unit_price: number;
+  created_at: string;
+};
+
+export type MealPurchaseWithItems = MealPurchase & {
+  meal_purchase_items: (MealPurchaseItem & { service_catalog: ServiceCatalogItem })[];
 };
 
 /* ── Composite types ─────────────────────────────────────────────── */
