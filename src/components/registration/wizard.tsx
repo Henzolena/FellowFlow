@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { DuplicateRegistrationDialog } from "./duplicate-dialog";
-import { ArrowLeft, ArrowRight, Loader2, Check, Plus, Trash2, User, Users, Church, MapPin, Baby, GraduationCap, Calendar } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Check, Plus, Trash2, User, Users, Church, MapPin, Baby, GraduationCap, Calendar, UtensilsCrossed } from "lucide-react";
 import type { Event, PricingConfig, Church as ChurchType } from "@/types/database";
 import { useTranslation } from "@/lib/i18n/context";
 import { useWizardState, type Registrant, type AttendanceTypeKey, type GenderKey } from "./hooks/use-wizard-state";
@@ -60,6 +60,16 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
       .catch(() => {});
   }, []);
 
+  // Fetch available meals for KOTE meal selection
+  type MealService = { id: string; service_name: string; service_code: string; meal_type: string | null; service_date: string | null; start_time: string | null; display_order: number };
+  const [availableMeals, setAvailableMeals] = useState<MealService[]>([]);
+  useEffect(() => {
+    fetch(`/api/services/meals?eventId=${event.id}`)
+      .then((r) => r.json())
+      .then((d) => setAvailableMeals(d.meals ?? []))
+      .catch(() => {});
+  }, [event.id]);
+
   const {
     step, setStep, loading, setLoading, error, setError,
     registrants, expandedIdx, setExpandedIdx, contact, setContact,
@@ -98,6 +108,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
               isFullDuration: attType === "full_conference",
               numDays: attType !== "full_conference" ? r.selectedDays.length : undefined,
               selectedDays: attType !== "full_conference" ? r.selectedDays : undefined,
+              mealServiceIds: r.selectedMealIds.length > 0 ? r.selectedMealIds : undefined,
             };
           }),
         }),
@@ -335,6 +346,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                         isStayingInMotel: null,
                         numDays: 0,
                         selectedDays: [],
+                        selectedMealIds: [],
                       });
                     }}
                   >
@@ -418,6 +430,124 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       <p className="text-[11px] text-muted-foreground">
                         Tap each day you plan to attend
                       </p>
+
+                      {/* ─── KOTE Meal Selection ─── */}
+                      {reg.attendanceType === "kote" && reg.selectedDays.length > 0 && (() => {
+                        // Filter meals to only show those on selected days
+                        const selectedDateStrings = reg.selectedDays.map((d) => {
+                          const [y, m, day] = event.start_date.split("-").map(Number);
+                          const dt = new Date(y, m - 1, day);
+                          dt.setDate(dt.getDate() + d - 1);
+                          return dt.toISOString().split("T")[0];
+                        });
+                        const mealsForDays = availableMeals.filter((meal) =>
+                          meal.service_date && selectedDateStrings.includes(meal.service_date)
+                        );
+                        if (mealsForDays.length === 0) return null;
+
+                        // Group meals by date
+                        const mealsByDate = new Map<string, MealService[]>();
+                        for (const meal of mealsForDays) {
+                          const date = meal.service_date!;
+                          if (!mealsByDate.has(date)) mealsByDate.set(date, []);
+                          mealsByDate.get(date)!.push(meal);
+                        }
+
+                        const mealTypeLabel = (t: string | null) => {
+                          if (t === "breakfast") return "Breakfast";
+                          if (t === "lunch") return "Lunch";
+                          if (t === "dinner") return "Dinner";
+                          return t || "Meal";
+                        };
+                        const mealPrice = reg.ageRange === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+
+                        return (
+                          <div className="space-y-3 mt-4 pt-4 border-t border-amber-200/60">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <UtensilsCrossed className="h-4 w-4 text-amber-600" />
+                                <Label className="text-amber-800 dark:text-amber-300 font-semibold text-sm">Add Meals (Optional)</Label>
+                              </div>
+                              {reg.selectedMealIds.length > 0 && (
+                                <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                                  {reg.selectedMealIds.length} meal{reg.selectedMealIds.length !== 1 ? "s" : ""} · ${(reg.selectedMealIds.length * mealPrice).toFixed(0)}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              ${mealPrice}/meal · Select meals you&apos;d like to purchase
+                            </p>
+
+                            {Array.from(mealsByDate.entries()).map(([date, meals]) => {
+                              const [y, m, d] = date.split("-").map(Number);
+                              const dt = new Date(y, m - 1, d);
+                              const dayLabel = dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+                              const allSelected = meals.every((meal) => reg.selectedMealIds.includes(meal.id));
+
+                              return (
+                                <div key={date} className="space-y-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{dayLabel}</p>
+                                    <button
+                                      type="button"
+                                      className="text-[10px] text-amber-600 hover:text-amber-700 font-medium"
+                                      onClick={() => {
+                                        if (allSelected) {
+                                          const mealIds = meals.map((m) => m.id);
+                                          updateRegistrant(idx, {
+                                            selectedMealIds: reg.selectedMealIds.filter((id) => !mealIds.includes(id)),
+                                          });
+                                        } else {
+                                          const newIds = new Set([...reg.selectedMealIds, ...meals.map((m) => m.id)]);
+                                          updateRegistrant(idx, { selectedMealIds: Array.from(newIds) });
+                                        }
+                                      }}
+                                    >
+                                      {allSelected ? "Deselect all" : "Select all"}
+                                    </button>
+                                  </div>
+                                  <div className="grid grid-cols-3 gap-1.5">
+                                    {meals.map((meal) => {
+                                      const isSelected = reg.selectedMealIds.includes(meal.id);
+                                      return (
+                                        <button
+                                          key={meal.id}
+                                          type="button"
+                                          onClick={() => {
+                                            const ids = isSelected
+                                              ? reg.selectedMealIds.filter((id) => id !== meal.id)
+                                              : [...reg.selectedMealIds, meal.id];
+                                            updateRegistrant(idx, { selectedMealIds: ids });
+                                          }}
+                                          className={`relative flex flex-col items-center gap-0.5 rounded-lg border-2 px-2 py-2 text-center transition-all text-xs ${
+                                            isSelected
+                                              ? "border-amber-500 bg-amber-50 dark:bg-amber-950/30 ring-1 ring-amber-300"
+                                              : "border-muted hover:border-amber-300/60 hover:bg-amber-50/50"
+                                          }`}
+                                        >
+                                          <span className={`font-semibold ${isSelected ? "text-amber-700 dark:text-amber-400" : "text-foreground"}`}>
+                                            {mealTypeLabel(meal.meal_type)}
+                                          </span>
+                                          {meal.start_time && (
+                                            <span className={`text-[10px] ${isSelected ? "text-amber-600/70" : "text-muted-foreground"}`}>
+                                              {meal.start_time.slice(0, 5)}
+                                            </span>
+                                          )}
+                                          {isSelected && (
+                                            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white">
+                                              <Check className="h-2.5 w-2.5" />
+                                            </span>
+                                          )}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -601,10 +731,20 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                                 ? formatSelectedDays(event.start_date, reg.selectedDays)
                                 : `${reg.numDays} ${dict.wizard.nDays}`}
                             </p>
+                            {q && q.mealCount > 0 && (
+                              <p className="text-xs text-amber-600 mt-0.5 ml-6">
+                                🍽️ {q.mealCount} meal{q.mealCount !== 1 ? "s" : ""} (+${q.mealTotal.toFixed(2)})
+                              </p>
+                            )}
                           </div>
-                          <p className={`font-semibold text-sm ${q?.amount === 0 ? "text-brand-green" : "text-foreground"}`}>
-                            {q ? (q.amount === 0 ? dict.common.free : `$${q.amount.toFixed(2)}`) : "—"}
-                          </p>
+                          <div className="text-right">
+                            <p className={`font-semibold text-sm ${q?.amount === 0 && (!q?.mealTotal) ? "text-brand-green" : "text-foreground"}`}>
+                              {q ? (q.amount === 0 ? dict.common.free : `$${q.amount.toFixed(2)}`) : "—"}
+                            </p>
+                            {q && q.mealTotal > 0 && (
+                              <p className="text-xs text-amber-600">+${q.mealTotal.toFixed(2)} meals</p>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -623,6 +763,12 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                             {groupQuote.surchargeLabel || dict.common.lateSurcharge}
                           </span>
                           <span className="text-amber-600">+${groupQuote.surcharge.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {groupQuote.mealTotal > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">🍽️ Meals</span>
+                          <span className="text-amber-600">+${groupQuote.mealTotal.toFixed(2)}</span>
                         </div>
                       )}
                       <Separator />
@@ -712,6 +858,13 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground text-xs">{groupQuote.surchargeLabel || dict.common.lateSurcharge}</span>
                     <span className="text-amber-600">+${groupQuote.surcharge.toFixed(2)}</span>
+                  </div>
+                )}
+
+                {groupQuote.mealTotal > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground text-xs">🍽️ Meals</span>
+                    <span className="text-amber-600">+${groupQuote.mealTotal.toFixed(2)}</span>
                   </div>
                 )}
 

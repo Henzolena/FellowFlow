@@ -18,6 +18,7 @@ const quoteGroupSchema = z.object({
       numDays: z.number().int().min(1).optional(),
       selectedDays: z.array(z.number().int().min(1).max(10)).optional(),
       attendanceType: z.enum(["full_conference", "partial", "kote"]).optional(),
+      mealServiceIds: z.array(z.string().uuid()).optional(),
     })
   ).min(1).max(20),
 });
@@ -92,18 +93,31 @@ export async function POST(request: NextRequest) {
       pricing
     );
 
+    // Compute meal costs per registrant
+    const mealCounts = registrants.map((r) => r.mealServiceIds?.length ?? 0);
+    const mealItems = result.items.map((item, i) => {
+      const count = mealCounts[i];
+      const pricePerMeal = item.category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+      return { mealCount: count, mealPriceEach: pricePerMeal, mealTotal: count * pricePerMeal };
+    });
+    const mealGrandTotal = mealItems.reduce((sum, m) => sum + m.mealTotal, 0);
+
     return NextResponse.json({
-      items: result.items.map((item) => ({
+      items: result.items.map((item, i) => ({
         category: item.category,
         ageAtEvent: item.ageAtEvent,
         amount: item.amount,
         explanationCode: item.explanationCode,
         explanationDetail: item.explanationDetail,
+        mealCount: mealItems[i].mealCount,
+        mealPriceEach: mealItems[i].mealPriceEach,
+        mealTotal: mealItems[i].mealTotal,
       })),
       subtotal: result.subtotal,
       surcharge: result.surcharge,
       surchargeLabel: result.surchargeLabel,
-      grandTotal: result.grandTotal,
+      mealTotal: mealGrandTotal,
+      grandTotal: result.grandTotal + mealGrandTotal,
     });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

@@ -18,6 +18,7 @@ type Registrant = {
   isStayingInMotel: boolean | null;
   numDays: number;
   selectedDays: number[];
+  selectedMealIds: string[];
 };
 
 export type ItemQuote = {
@@ -26,6 +27,9 @@ export type ItemQuote = {
   amount: number;
   explanationCode: string;
   explanationDetail: string;
+  mealCount: number;
+  mealPriceEach: number;
+  mealTotal: number;
 };
 
 export type GroupQuote = {
@@ -33,6 +37,7 @@ export type GroupQuote = {
   subtotal: number;
   surcharge: number;
   surchargeLabel: string | null;
+  mealTotal: number;
   grandTotal: number;
 };
 
@@ -96,6 +101,7 @@ export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels
               numDays: attType !== "full_conference" ? r.selectedDays.length : undefined,
               selectedDays: attType !== "full_conference" ? r.selectedDays : undefined,
               attendanceType: attType,
+              mealServiceIds: r.selectedMealIds.length > 0 ? r.selectedMealIds : undefined,
             };
           }),
         }),

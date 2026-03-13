@@ -53,6 +53,7 @@ export const groupRegistrantSchema = z.object({
   numDays: z.number().int().min(1).optional(),
   selectedDays: z.array(z.number().int().min(1)).optional(),
   attendanceType: attendanceTypeEnum.optional(),
+  mealServiceIds: z.array(z.string().uuid()).optional(),
 });
 
 export const groupRegistrationSchema = z.object({

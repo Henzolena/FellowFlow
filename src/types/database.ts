@@ -135,6 +135,7 @@ export type Registration = {
   prefill_token_expires_at: string | null;
   invited_by_admin: string | null;
   invitation_code: string | null;
+  selected_meal_ids: string[] | null;
   checked_in: boolean;
   checked_in_at: string | null;
   created_at: string;

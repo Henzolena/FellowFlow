@@ -21,7 +21,7 @@ export async function generateEntitlements(
   // 1. Fetch the registration to determine entitlement rules
   const { data: reg, error: regError } = await supabase
     .from("registrations")
-    .select("attendance_type, access_tier, is_full_duration, num_days, selected_days, event_id, events(start_date)")
+    .select("attendance_type, access_tier, is_full_duration, num_days, selected_days, selected_meal_ids, event_id, events(start_date)")
     .eq("id", registrationId)
     .single();
 
@@ -102,13 +102,9 @@ export async function generateEntitlements(
     }
   }
 
-  if (entitled.length === 0) {
-    log.debug("No entitlements to create for registration", { registrationId, attendanceType });
-    return { created: 0, skipped: 0 };
-  }
-
-  // 4. Upsert entitlements (skip existing to support manual overrides)
-  const rows = entitled.map((serviceId) => ({
+  // 4. Build entitlement rows
+  type EntitlementRow = { registration_id: string; service_id: string; status: "allowed" | "paid_extra"; quantity_allowed: number; quantity_used: number };
+  const rows: EntitlementRow[] = entitled.map((serviceId) => ({
     registration_id: registrationId,
     service_id: serviceId,
     status: "allowed" as const,
@@ -116,6 +112,33 @@ export async function generateEntitlements(
     quantity_used: 0,
   }));
 
+  // 4b. Add paid_extra entitlements for wizard-purchased meals (selected_meal_ids)
+  const selectedMealIds: string[] | null = reg.selected_meal_ids;
+  if (selectedMealIds && selectedMealIds.length > 0) {
+    for (const mealServiceId of selectedMealIds) {
+      // Only add if not already in the "allowed" set (avoid duplicates)
+      if (!entitled.includes(mealServiceId)) {
+        rows.push({
+          registration_id: registrationId,
+          service_id: mealServiceId,
+          status: "paid_extra" as const,
+          quantity_allowed: 1,
+          quantity_used: 0,
+        });
+      }
+    }
+    log.info("Adding paid_extra meal entitlements from registration", {
+      registrationId,
+      mealCount: selectedMealIds.length,
+    });
+  }
+
+  if (rows.length === 0) {
+    log.debug("No entitlements to create for registration", { registrationId, attendanceType });
+    return { created: 0, skipped: 0 };
+  }
+
+  // 5. Upsert entitlements (skip existing to support manual overrides)
   const { data: inserted, error: insertError } = await supabase
     .from("service_entitlements")
     .upsert(rows, { onConflict: "registration_id,service_id", ignoreDuplicates: true })
@@ -127,7 +150,7 @@ export async function generateEntitlements(
   }
 
   const created = inserted?.length || 0;
-  const skipped = entitled.length - created;
+  const skipped = rows.length - created;
 
   log.info("Entitlements generated", {
     registrationId,
@@ -135,6 +158,7 @@ export async function generateEntitlements(
     accessTier,
     totalServices: services.length,
     entitled: entitled.length,
+    paidMeals: selectedMealIds?.length ?? 0,
     created,
     skipped,
   });

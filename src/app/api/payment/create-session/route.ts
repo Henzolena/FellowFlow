@@ -166,7 +166,32 @@ async function handleGroupPayment(
   const groupResult = await recomputeGroupPricing(supabase, registrations, pricing, log);
   const { surcharge, surchargeLabel, grandTotal } = groupResult;
 
-  if (grandTotal === 0) {
+  // Compute meal costs from stored selected_meal_ids
+  let mealGrandTotal = 0;
+  const mealLineItems: { price_data: { currency: string; product_data: { name: string; description: string }; unit_amount: number }; quantity: number }[] = [];
+  for (const r of registrations as Registration[]) {
+    const mealIds = r.selected_meal_ids;
+    if (mealIds && mealIds.length > 0) {
+      const pricePerMeal = r.category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+      const mealTotal = mealIds.length * pricePerMeal;
+      mealGrandTotal += mealTotal;
+      mealLineItems.push({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `Meals: ${r.first_name} ${r.last_name}`,
+            description: `${mealIds.length} meal(s) × $${pricePerMeal.toFixed(2)}`,
+          },
+          unit_amount: Math.round(mealTotal * 100),
+        },
+        quantity: 1,
+      });
+    }
+  }
+
+  const totalWithMeals = grandTotal + mealGrandTotal;
+
+  if (totalWithMeals === 0) {
     return NextResponse.json({ error: "No payment required" }, { status: 400 });
   }
 
@@ -203,6 +228,9 @@ async function handleGroupPayment(
     });
   }
 
+  // Add meal line items
+  lineItems.push(...mealLineItems);
+
   const ln = encodeURIComponent(primaryReg.last_name);
   const result = await createAndPersistSession({
     supabase,
@@ -211,7 +239,7 @@ async function handleGroupPayment(
     groupId,
     eventId: primaryReg.event_id,
     customerEmail: primaryReg.email,
-    amount: grandTotal,
+    amount: totalWithMeals,
     lineItems,
     successUrl: `${appUrl}/register/success?session_id={CHECKOUT_SESSION_ID}&group_id=${groupId}&registration_id=${primaryReg.id}&ln=${ln}`,
     cancelUrl: `${appUrl}/register/review?group_id=${groupId}&registration_id=${primaryReg.id}&ln=${ln}&cancelled=true`,

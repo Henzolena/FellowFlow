@@ -90,6 +90,16 @@ export async function POST(request: NextRequest) {
       pricing
     );
 
+    // Compute meal costs per registrant
+    const mealCostsPerRegistrant = data.registrants.map((reg, i) => {
+      const mealCount = reg.mealServiceIds?.length ?? 0;
+      const pricePerMeal = groupPricing.items[i].category === "child"
+        ? pricing.meal_price_child
+        : pricing.meal_price_adult;
+      return mealCount * pricePerMeal;
+    });
+    const mealGrandTotal = mealCostsPerRegistrant.reduce((s, c) => s + c, 0);
+
     // ─── Server-enforced duplicate check ───
     const adminClient = createAdminClient();
     const duplicateNames = data.registrants.map((r) => ({
@@ -126,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     // Always generate group_id for the group flow (ensures review page shows all registrants)
     const groupId = randomUUID();
-    const isFreeGroup = groupPricing.grandTotal === 0;
+    const isFreeGroup = (groupPricing.grandTotal + mealGrandTotal) === 0;
 
     // Generate confirmation codes via DB function
     const confirmationCodes: string[] = [];
@@ -179,6 +189,7 @@ export async function POST(request: NextRequest) {
         attendance_type: attType,
         public_confirmation_code: confirmationCodes[i],
         access_tier: deriveAccessTier(attType),
+        selected_meal_ids: reg.mealServiceIds?.length ? reg.mealServiceIds : null,
       };
     });
 
@@ -203,9 +214,16 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── Auto-assign beds based on city→dorm mapping ───
+    // KOTE users are off-campus / walk-in — skip auto-assignment
     const bedAssignments = new Map<string, { dormName: string; bedLabel: string }>();
     for (let i = 0; i < registrations.length; i++) {
       const reg = registrations[i];
+
+      if (reg.attendance_type === "kote") {
+        log.debug("Skipping bed auto-assignment for KOTE user", { registrationId: reg.id });
+        continue;
+      }
+
       let city = reg.city;
 
       // If no city on registration, resolve from church
@@ -380,7 +398,8 @@ export async function POST(request: NextRequest) {
       subtotal: groupPricing.subtotal,
       surcharge: groupPricing.surcharge,
       surchargeLabel: groupPricing.surchargeLabel,
-      grandTotal: groupPricing.grandTotal,
+      mealTotal: mealGrandTotal,
+      grandTotal: groupPricing.grandTotal + mealGrandTotal,
     });
   } catch (error) {
     log.error("Group registration error", { error: error instanceof Error ? error.message : String(error) });

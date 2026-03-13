@@ -20,6 +20,7 @@ export type Registrant = {
   isStayingInMotel: boolean | null;
   numDays: number;
   selectedDays: number[];
+  selectedMealIds: string[];
 };
 
 export type ContactInfo = {
@@ -47,6 +48,7 @@ export function createEmptyRegistrant(): Registrant {
     isStayingInMotel: null,
     numDays: 0,
     selectedDays: [],
+    selectedMealIds: [],
   };
 }
 

@@ -218,8 +218,8 @@ export async function POST(request: NextRequest) {
       } else {
         console.error("Lodging assignment failed (non-fatal):", lodgingError);
       }
-    } else {
-      // Auto-assign based on city→dorm mapping
+    } else if (v.attendanceType !== "kote") {
+      // Auto-assign based on city→dorm mapping (skip for KOTE — off-campus)
       let city = v.city || null;
       if (!city && v.churchId) {
         const { data: church } = await supabase.from("churches").select("city").eq("id", v.churchId).single();
