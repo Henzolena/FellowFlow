@@ -460,7 +460,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                           if (t === "dinner") return "Dinner";
                           return t || "Meal";
                         };
-                        const mealPrice = reg.ageRange === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+                        const mealPrice = (reg.ageRange === "child" || reg.ageRange === "infant") ? pricing.meal_price_child : pricing.meal_price_adult;
 
                         return (
                           <div className="space-y-3 mt-4 pt-4 border-t border-amber-200/60">
