@@ -455,21 +455,26 @@ function RoomRow({
 }
 
 /* ─── Bed Chip ─── */
-function BedChip({ bed }: { bed: Bed }) {
-  const isMulti = (bed.max_occupants || 1) > 1;
+function BedChip({ bed }: { bed: Bed & { current_occupants?: number } }) {
+  const occupants = bed.current_occupants ?? 0;
+  const maxOcc = bed.max_occupants || 1;
+  const isFull = occupants >= maxOcc;
+  const isPartial = occupants > 0 && !isFull;
   return (
     <div
       className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs border ${
-        bed.is_occupied
+        isFull
           ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400"
+          : isPartial
+          ? "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400"
           : "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400"
       }`}
     >
       <BedDouble className="h-3 w-3" />
       <span className="font-medium">{bed.bed_label}</span>
       <span className="text-[10px] opacity-70 capitalize">{bed.bed_type.replace("_", " ")}</span>
-      {isMulti && (
-        <span className="text-[10px] opacity-70">({bed.max_occupants}p)</span>
+      {maxOcc > 1 && (
+        <span className="text-[10px] font-medium">{occupants}/{maxOcc}</span>
       )}
     </div>
   );

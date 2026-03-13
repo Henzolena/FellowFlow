@@ -29,7 +29,42 @@ export async function GET(request: NextRequest) {
       .order("name");
 
     if (error) throw error;
-    return NextResponse.json(data);
+
+    // Fetch current assignment counts per bed for accurate capacity display
+    const allBedIds: string[] = [];
+    for (const motel of data || []) {
+      for (const room of (motel as { rooms: { beds: { id: string }[] }[] }).rooms) {
+        for (const bed of room.beds) {
+          allBedIds.push(bed.id);
+        }
+      }
+    }
+
+    const bedCounts: Record<string, number> = {};
+    if (allBedIds.length > 0) {
+      const { data: assignments } = await supabase
+        .from("lodging_assignments")
+        .select("bed_id")
+        .in("bed_id", allBedIds);
+
+      for (const a of assignments || []) {
+        bedCounts[a.bed_id] = (bedCounts[a.bed_id] || 0) + 1;
+      }
+    }
+
+    // Attach current_occupants to each bed
+    const enriched = (data || []).map((motel: Record<string, unknown>) => ({
+      ...motel,
+      rooms: ((motel.rooms as Record<string, unknown>[]) || []).map((room) => ({
+        ...room,
+        beds: ((room.beds as Record<string, unknown>[]) || []).map((bed) => ({
+          ...bed,
+          current_occupants: bedCounts[(bed as { id: string }).id] || 0,
+        })),
+      })),
+    }));
+
+    return NextResponse.json(enriched);
   } catch (error) {
     console.error("Fetch motels error:", error);
     return NextResponse.json({ error: "Failed to fetch motels" }, { status: 500 });

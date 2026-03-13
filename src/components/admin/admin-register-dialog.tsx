@@ -33,7 +33,8 @@ import { getAgeRangeOptions, syntheticDob } from "@/components/registration/hook
 
 /* ── Types ─────────────────────────────────────────────────────────── */
 
-type MotelWithRooms = Motel & { rooms: (Room & { beds: Bed[] })[] };
+type BedWithOccupancy = Bed & { current_occupants: number };
+type MotelWithRooms = Motel & { rooms: (Room & { beds: BedWithOccupancy[] })[] };
 
 type Props = {
   open: boolean;
@@ -121,7 +122,7 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
   const selectedMotel = motels.find((m) => m.id === selectedMotelId);
   const availableRooms = selectedMotel?.rooms.filter((r) => r.is_active) ?? [];
   const selectedRoom = availableRooms.find((r) => r.id === selectedRoomId);
-  const availableBeds = selectedRoom?.beds.filter((b) => !b.is_occupied) ?? [];
+  const availableBeds = selectedRoom?.beds.filter((b) => (b.current_occupants ?? 0) < (b.max_occupants || 1)) ?? [];
 
   function reset() {
     setEventId("");
@@ -279,6 +280,8 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
 
       setSuccess(true);
       onSuccess();
+      // Refetch motels so next registration sees updated bed availability
+      if (eventId) fetchMotels();
     } catch {
       setError("Something went wrong.");
     } finally {
@@ -627,10 +630,10 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
                                 {availableRooms
                                   .sort((a, b) => a.room_number.localeCompare(b.room_number, undefined, { numeric: true }))
                                   .map((r) => {
-                                    const freeBeds = r.beds.filter((b) => !b.is_occupied).length;
+                                    const freeSlots = r.beds.reduce((sum, b) => sum + Math.max(0, (b.max_occupants || 1) - (b.current_occupants ?? 0)), 0);
                                     return (
-                                      <SelectItem key={r.id} value={r.id} disabled={freeBeds === 0}>
-                                        Room {r.room_number} — {freeBeds} bed{freeBeds !== 1 ? "s" : ""} available
+                                      <SelectItem key={r.id} value={r.id} disabled={freeSlots === 0}>
+                                        Room {r.room_number} — {freeSlots} slot{freeSlots !== 1 ? "s" : ""} available
                                       </SelectItem>
                                     );
                                   })}
@@ -740,6 +743,9 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
                                     <BedDouble className="h-3 w-3" />
                                     {bed.bed_label}
                                     <span className="text-[10px] opacity-70 capitalize">{bed.bed_type.replace("_", " ")}</span>
+                                    {(bed.max_occupants || 1) > 1 && (
+                                      <span className="text-[10px] opacity-70">({bed.current_occupants ?? 0}/{bed.max_occupants})</span>
+                                    )}
                                   </button>
                                 ))}
                             </div>
