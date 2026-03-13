@@ -32,7 +32,7 @@ export async function dispatchSoloConfirmation(
       .from("registrations")
       .select(
         "first_name, last_name, email, computed_amount, explanation_detail, event_id, " +
-        "category, access_tier, attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, selected_days, " +
+        "category, access_tier, attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, selected_days, selected_meal_ids, " +
         "events(name, start_date, end_date), " +
         "lodging_assignments(id, bed_id, beds(bed_label, rooms(room_number, motels(name))))"
       )
@@ -76,6 +76,7 @@ export async function dispatchSoloConfirmation(
         selectedDays: reg.selected_days as number[] | null,
         dormName: lodging.dormName,
         bedLabel: lodging.bedLabel,
+        selectedMealIds: reg.selected_meal_ids as string[] | null,
       });
 
       log.info("Confirmation email sent", { registrationId });
@@ -147,7 +148,7 @@ export async function dispatchGroupConfirmation(
       .from("registrations")
       .select(
         "id, first_name, last_name, email, computed_amount, explanation_detail, " +
-        "category, access_tier, age_at_event, is_full_duration, is_staying_in_motel, num_days, selected_days, " +
+        "category, access_tier, age_at_event, is_full_duration, is_staying_in_motel, num_days, selected_days, selected_meal_ids, " +
         "date_of_birth, event_id, attendance_type, public_confirmation_code, " +
         "gender, city, church_id, church_name_custom, " +
         "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold), " +
@@ -199,6 +200,7 @@ export async function dispatchGroupConfirmation(
           selectedDays: primaryReg.selected_days as number[] | null,
           dormName: soloLodging.dormName,
           bedLabel: soloLodging.bedLabel,
+          selectedMealIds: primaryReg.selected_meal_ids as string[] | null,
         });
         log.info("Solo confirmation email sent (group of 1)", { registrationId: primaryReg.id, groupId });
         await supabase.from("email_logs").insert({
@@ -311,10 +313,25 @@ export async function dispatchGroupConfirmation(
           city: r.city as string | null,
           churchName,
           selectedDays: r.selected_days as number[] | null,
+          selectedMealIds: r.selected_meal_ids as string[] | null,
+          mealCount: ((r.selected_meal_ids as string[] | null) || []).length,
           ...extractLodging(r),
         };
       })
     );
+
+    // Compute meal total from selected_meal_ids
+    let mealTotal = 0;
+    if (pricing) {
+      for (const r of rows as unknown as Registration[]) {
+        const mealIds = r.selected_meal_ids;
+        if (mealIds && mealIds.length > 0) {
+          const pricePerMeal = r.category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+          mealTotal += mealIds.length * pricePerMeal;
+        }
+      }
+      grandTotal += mealTotal;
+    }
 
     try {
       await sendGroupReceiptEmail({
@@ -326,6 +343,7 @@ export async function dispatchGroupConfirmation(
         subtotal,
         surcharge,
         surchargeLabel,
+        mealTotal,
         grandTotal,
         isFree: false,
         primaryRegistrationId: primaryReg.id as string,

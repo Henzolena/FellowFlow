@@ -26,6 +26,7 @@ export type BadgeData = {
   selectedDays?: number[] | null;
   dormName?: string | null;
   bedLabel?: string | null;
+  mealCount?: number;
 };
 
 /* ── Helpers ────────────────────────────────────────────────────────── */
@@ -237,6 +238,7 @@ export async function generateRegistrationBadgePDF(
   if (badge.city) detailLines.push(["City", badge.city]);
   if (badge.dormName) detailLines.push(["Dorm", badge.dormName]);
   if (badge.bedLabel) detailLines.push(["Bed", badge.bedLabel]);
+  if (badge.mealCount && badge.mealCount > 0) detailLines.push(["Meals", `${badge.mealCount} meal(s) purchased`]);
 
   const VAL_FONT_SIZE = 10;
   const LINE_H = 16;

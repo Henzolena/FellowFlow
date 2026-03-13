@@ -298,6 +298,13 @@ export async function POST(request: NextRequest) {
             selectedDays: r.selected_days,
             dormName: ba?.dormName ?? null,
             bedLabel: ba?.bedLabel ?? null,
+            selectedMealIds: r.selected_meal_ids,
+            mealTotal: (() => {
+              const ids = r.selected_meal_ids;
+              if (!ids || ids.length === 0) return 0;
+              const price = r.category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+              return ids.length * price;
+            })(),
           });
           log.info("Free solo confirmation email sent", { registrationId: r.id });
           await adminClient.from("email_logs").insert({
@@ -333,12 +340,15 @@ export async function POST(request: NextRequest) {
                 selectedDays: r.selected_days,
                 dormName: ba?.dormName ?? null,
                 bedLabel: ba?.bedLabel ?? null,
+                selectedMealIds: r.selected_meal_ids,
+                mealCount: r.selected_meal_ids?.length ?? 0,
               };
             }),
             subtotal: groupPricing.subtotal,
             surcharge: groupPricing.surcharge,
             surchargeLabel: groupPricing.surchargeLabel,
-            grandTotal: groupPricing.grandTotal,
+            mealTotal: mealGrandTotal,
+            grandTotal: groupPricing.grandTotal + mealGrandTotal,
             isFree: true,
             primaryRegistrationId: registrations[0].id,
           });

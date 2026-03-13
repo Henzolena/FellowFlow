@@ -113,6 +113,8 @@ export type ConfirmationEmailParams = {
   selectedDays?: number[] | null;
   dormName?: string | null;
   bedLabel?: string | null;
+  selectedMealIds?: string[] | null;
+  mealTotal?: number;
 };
 
 export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
@@ -169,6 +171,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
         selectedDays: params.selectedDays,
         dormName: params.dormName,
         bedLabel: params.bedLabel,
+        mealCount: params.selectedMealIds?.length ?? 0,
       };
       const pdfBytes = await generateRegistrationBadgePDF(badgeData);
       const safeName = `${firstName}_${lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -247,6 +250,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
         ${detailRow("Church", churchName)}
         ${detailRow("Dorm", params.dormName)}
         ${detailRow("Bed", params.bedLabel)}
+        ${params.selectedMealIds && params.selectedMealIds.length > 0 ? detailRow("Meals Purchased", `${params.selectedMealIds.length} meal(s)${params.mealTotal ? ` — $${params.mealTotal.toFixed(2)}` : ""}`) : ""}
       </table>
     </td></tr></table>
 
@@ -310,6 +314,8 @@ export type GroupMember = {
   selectedDays?: number[] | null;
   dormName?: string | null;
   bedLabel?: string | null;
+  selectedMealIds?: string[] | null;
+  mealCount?: number;
 };
 
 export type GroupReceiptEmailParams = {
@@ -321,6 +327,7 @@ export type GroupReceiptEmailParams = {
   subtotal: number;
   surcharge: number;
   surchargeLabel: string | null;
+  mealTotal?: number;
   grandTotal: number;
   isFree: boolean;
   primaryRegistrationId: string;
@@ -372,6 +379,7 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
           </div>
           ${m.churchName ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">⛪ ${m.churchName}</div>` : ""}
           ${m.dormName ? `<div style="font-size:11px;color:#0d9488;margin-top:2px;">🏠 ${m.dormName}${m.bedLabel ? ` · ${m.bedLabel}` : ""}</div>` : ""}
+          ${(m.mealCount ?? (m.selectedMealIds?.length ?? 0)) > 0 ? `<div style="font-size:11px;color:#d97706;margin-top:2px;">🍽️ ${m.mealCount ?? m.selectedMealIds!.length} meal(s) purchased</div>` : ""}
           ${m.confirmationCode ? `<div style="font-size:11px;color:#6366f1;font-family:monospace;font-weight:600;margin-top:4px;">Code: ${m.confirmationCode}</div>` : ""}
         </td>
         <td style="padding:12px 16px;text-align:right;vertical-align:top;font-size:15px;font-weight:700;color:${m.amount === 0 ? "#16a34a" : "#18181b"};${i < members.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}">
@@ -413,6 +421,7 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
         selectedDays: m.selectedDays,
         dormName: m.dormName,
         bedLabel: m.bedLabel,
+        mealCount: m.mealCount ?? (m.selectedMealIds?.length ?? 0),
       };
       const pdfBytes = await generateRegistrationBadgePDF(badgeData);
       const safeName = `${m.firstName}_${m.lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -484,6 +493,10 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
         <td style="padding:8px 16px;color:#18181b;font-size:13px;text-align:right;font-weight:600;">$${subtotal.toFixed(2)}</td>
       </tr>
       ${surchargeRow}
+      ${(params.mealTotal ?? 0) > 0 ? `<tr>
+          <td style="padding:8px 16px;color:#64748b;font-size:13px;">🍽️ Meals</td>
+          <td style="padding:8px 16px;color:#d97706;font-size:14px;text-align:right;font-weight:700;">+$${(params.mealTotal ?? 0).toFixed(2)}</td>
+        </tr>` : ""}
       <tr><td colspan="2" style="padding:0 16px;"><div style="border-top:2px solid #e2e8f0;"></div></td></tr>
       <tr>
         <td style="padding:12px 16px;color:#18181b;font-size:17px;font-weight:800;">Total ${isFree ? "" : "Paid"}</td>

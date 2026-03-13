@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, CreditCard, AlertCircle, User } from "lucide-react";
+import { Loader2, CreditCard, AlertCircle, User, UtensilsCrossed } from "lucide-react";
 import type { Registration } from "@/types/database";
 import { useTranslation } from "@/lib/i18n/context";
 import { formatSelectedDays } from "@/lib/date-utils";
@@ -31,7 +31,7 @@ function ReviewContent() {
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [groupPricing, setGroupPricing] = useState<{ subtotal: number; surcharge: number; surchargeLabel: string | null; grandTotal: number } | null>(null);
+  const [groupPricing, setGroupPricing] = useState<{ subtotal: number; surcharge: number; surchargeLabel: string | null; mealTotal?: number; grandTotal: number } | null>(null);
   const [eventStartDate, setEventStartDate] = useState<string | null>(null);
 
   // Derived from state (not just URL) so auto-detected groups render correctly
@@ -202,6 +202,12 @@ function ReviewContent() {
                     : `${reg.num_days} ${dict.wizard.nDays}`}
                   {reg.is_staying_in_motel && ` + ${dict.review.motelStay}`}
                 </p>
+                {reg.selected_meal_ids && reg.selected_meal_ids.length > 0 && (
+                  <p className="text-xs text-amber-600 ml-6 flex items-center gap-1">
+                    <UtensilsCrossed className="h-3 w-3" />
+                    {reg.selected_meal_ids.length} meal(s) purchased
+                  </p>
+                )}
                 {!isGroup && (
                   <p className="text-sm text-muted-foreground">{reg.email}</p>
                 )}
@@ -225,6 +231,15 @@ function ReviewContent() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{groupPricing.surchargeLabel || dict.common.lateSurcharge}</span>
                     <span className="text-amber-600">+${groupPricing.surcharge.toFixed(2)}</span>
+                  </div>
+                )}
+                {(groupPricing.mealTotal ?? 0) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <UtensilsCrossed className="h-3.5 w-3.5" />
+                      Meals
+                    </span>
+                    <span className="text-amber-600">+${(groupPricing.mealTotal ?? 0).toFixed(2)}</span>
                   </div>
                 )}
                 <Separator />

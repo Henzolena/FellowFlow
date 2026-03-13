@@ -110,6 +110,7 @@ type DetailData = {
   is_staying_in_motel: boolean | null;
   num_days: number | null;
   selected_days: number[] | null;
+  selected_meal_ids: string[] | null;
   computed_amount: number;
   explanation_code: string;
   explanation_detail: string;
@@ -323,6 +324,15 @@ export default function RegistrationDetailPage({
           <CardContent className="space-y-2.5">
             <Row label="Rule" value={getExplanationLabel(data.explanation_code as ExplanationCode)} />
             <Row label="Explanation" value={data.explanation_detail || "—"} />
+            {data.selected_meal_ids && data.selected_meal_ids.length > 0 && (
+              <>
+                <Separator className="my-2" />
+                <div className="flex items-center gap-2 text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 rounded-lg px-3 py-2">
+                  <UtensilsCrossed className="h-4 w-4" />
+                  <span className="text-sm font-semibold">{data.selected_meal_ids.length} Meal(s) Purchased</span>
+                </div>
+              </>
+            )}
             <Separator className="my-2" />
             <div className="text-center pt-2">
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-1">Amount</p>

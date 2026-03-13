@@ -10,7 +10,7 @@ const RATE_WINDOW_MS = 60_000;
 
 const REG_SELECT =
   "id, first_name, last_name, email, phone, date_of_birth, age_at_event, category, " +
-  "is_full_duration, is_staying_in_motel, num_days, selected_days, computed_amount, explanation_code, " +
+  "is_full_duration, is_staying_in_motel, num_days, selected_days, selected_meal_ids, computed_amount, explanation_code, " +
   "explanation_detail, status, confirmed_at, created_at, group_id, event_id, " +
   "attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, access_tier, " +
   "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold), payments(*), " +
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     // ─── Group context ───
     const groupId = data.group_id as string | null;
     let groupMembers: Record<string, unknown>[] | null = null;
-    let groupPricing: { subtotal: number; surcharge: number; surchargeLabel: string | null; grandTotal: number } | null = null;
+    let groupPricing: { subtotal: number; surcharge: number; surchargeLabel: string | null; mealTotal: number; grandTotal: number } | null = null;
 
     if (groupId) {
       const { data: siblings } = await supabase
@@ -105,11 +105,23 @@ export async function POST(request: NextRequest) {
             { ...eventData, id: eventId, is_active: true, created_at: "", updated_at: "", description: null } as Event,
             pricing
           );
+
+          // Compute meal costs from selected_meal_ids
+          let mealTotal = 0;
+          for (const s of siblings as unknown as Registration[]) {
+            const mealIds = s.selected_meal_ids;
+            if (mealIds && mealIds.length > 0) {
+              const pricePerMeal = s.category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+              mealTotal += mealIds.length * pricePerMeal;
+            }
+          }
+
           groupPricing = {
             subtotal: result.subtotal,
             surcharge: result.surcharge,
             surchargeLabel: result.surchargeLabel,
-            grandTotal: result.grandTotal,
+            mealTotal,
+            grandTotal: result.grandTotal + mealTotal,
           };
         }
       }

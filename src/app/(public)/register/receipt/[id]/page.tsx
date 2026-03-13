@@ -66,7 +66,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
   const [registration, setRegistration] = useState<any>(null);
   const [groupMembers, setGroupMembers] = useState<any[] | null>(null);
   const [groupPricing, setGroupPricing] = useState<{
-    subtotal: number; surcharge: number; surchargeLabel: string | null; grandTotal: number;
+    subtotal: number; surcharge: number; surchargeLabel: string | null; mealTotal?: number; grandTotal: number;
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -341,6 +341,12 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                             🏠 {dormName}{bedLbl ? ` · ${bedLbl}` : ""}
                           </p>
                         )}
+                        {member.selected_meal_ids && member.selected_meal_ids.length > 0 && (
+                          <p className="text-xs text-amber-600 flex items-center gap-1">
+                            <UtensilsCrossed className="h-3 w-3" />
+                            {member.selected_meal_ids.length} meal(s) purchased
+                          </p>
+                        )}
                       </div>
                       <p className="text-sm font-semibold">
                         {Number(member.computed_amount) === 0
@@ -366,6 +372,17 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                         </span>
                         <span className="text-amber-600">
                           +${groupPricing.surcharge.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {(groupPricing.mealTotal ?? 0) > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <UtensilsCrossed className="h-3.5 w-3.5" />
+                          Meals
+                        </span>
+                        <span className="text-amber-600">
+                          +${(groupPricing.mealTotal ?? 0).toFixed(2)}
                         </span>
                       </div>
                     )}
@@ -451,6 +468,21 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                     </p>
                   )}
                 </div>
+
+                {data.selected_meal_ids && data.selected_meal_ids.length > 0 && (
+                  <>
+                    <div className="space-y-1">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                        <UtensilsCrossed className="h-3.5 w-3.5" />
+                        Purchased Meals
+                      </h3>
+                      <p className="text-sm text-amber-700 font-medium">
+                        {data.selected_meal_ids.length} meal(s) purchased
+                      </p>
+                    </div>
+                    <Separator />
+                  </>
+                )}
 
                 <div className="rounded-xl bg-muted/60 p-5 text-center">
                   <p className="text-sm text-muted-foreground">{dict.common.amountPaid}</p>

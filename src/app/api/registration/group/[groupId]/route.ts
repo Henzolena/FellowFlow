@@ -40,6 +40,7 @@ export async function GET(
       subtotal: 0,
       surcharge: 0,
       surchargeLabel: null as string | null,
+      mealTotal: 0,
       grandTotal: 0,
     };
 
@@ -68,17 +69,29 @@ export async function GET(
         } as Event,
         pricing
       );
+      // Compute meal costs from selected_meal_ids
+      let mealTotal = 0;
+      for (const r of registrations as Registration[]) {
+        const mealIds = r.selected_meal_ids;
+        if (mealIds && mealIds.length > 0) {
+          const pricePerMeal = r.category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+          mealTotal += mealIds.length * pricePerMeal;
+        }
+      }
+
       pricingInfo = {
         subtotal: groupResult.subtotal,
         surcharge: groupResult.surcharge,
         surchargeLabel: groupResult.surchargeLabel,
-        grandTotal: groupResult.grandTotal,
+        mealTotal,
+        grandTotal: groupResult.grandTotal + mealTotal,
       };
     } else {
       pricingInfo = {
         subtotal,
         surcharge: 0,
         surchargeLabel: null,
+        mealTotal: 0,
         grandTotal: subtotal,
       };
     }
