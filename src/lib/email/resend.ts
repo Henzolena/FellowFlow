@@ -143,7 +143,8 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const receiptUrl = `${appUrl}/register/receipt/${registrationId}`;
-  const amountDisplay = isFree ? "FREE" : `$${Number(amount).toFixed(2)}`;
+  const totalWithMeals = Number(amount) + (params.mealTotal ?? 0);
+  const amountDisplay = isFree && totalWithMeals === 0 ? "FREE" : `$${totalWithMeals.toFixed(2)}`;
   const displayCode = confirmationCode || registrationId;
   const dateRange = eventStartDate && eventEndDate
     ? `${formatDate(eventStartDate)} — ${formatDate(eventEndDate)}`

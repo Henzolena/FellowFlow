@@ -127,8 +127,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Compute solo mealTotal when not using groupPricing
+    let mealTotal = 0;
+    if (!groupPricing) {
+      const eventId = data.event_id as string;
+      const mealIds = data.selected_meal_ids as string[] | null;
+      if (mealIds && mealIds.length > 0) {
+        const { data: pricing } = await supabase
+          .from("pricing_config")
+          .select("meal_price_adult, meal_price_child")
+          .eq("event_id", eventId)
+          .single();
+        if (pricing) {
+          const category = data.category as string;
+          const pricePerMeal = category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+          mealTotal = mealIds.length * pricePerMeal;
+        }
+      }
+    }
+
     return NextResponse.json({
       registration: data,
+      mealTotal,
       ...(groupMembers ? { groupMembers, groupPricing } : {}),
     });
   } catch {

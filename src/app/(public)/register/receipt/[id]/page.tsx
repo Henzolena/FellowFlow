@@ -71,6 +71,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
+  const [mealTotal, setMealTotal] = useState(0);
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
@@ -95,6 +96,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
       setRegistration(data.registration);
       if (data.groupMembers) setGroupMembers(data.groupMembers);
       if (data.groupPricing) setGroupPricing(data.groupPricing);
+      if (typeof data.mealTotal === "number") setMealTotal(data.mealTotal);
       setVerified(true);
     } catch {
       setError("Something went wrong. Please try again.");
@@ -478,6 +480,9 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                       </h3>
                       <p className="text-sm text-amber-700 font-medium">
                         {data.selected_meal_ids.length} meal(s) purchased
+                        {mealTotal > 0 && (
+                          <span className="text-amber-600"> — ${mealTotal.toFixed(2)}</span>
+                        )}
                       </p>
                     </div>
                     <Separator />
@@ -487,9 +492,9 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                 <div className="rounded-xl bg-muted/60 p-5 text-center">
                   <p className="text-sm text-muted-foreground">{dict.common.amountPaid}</p>
                   <p className="text-3xl font-bold text-brand-amber-foreground">
-                    {Number(data.computed_amount) === 0
+                    {(Number(data.computed_amount) + mealTotal) === 0
                       ? dict.common.free
-                      : `$${Number(data.computed_amount).toFixed(2)}`}
+                      : `$${(Number(data.computed_amount) + mealTotal).toFixed(2)}`}
                   </p>
                   {payment && (
                     <p className="text-xs text-muted-foreground mt-1">

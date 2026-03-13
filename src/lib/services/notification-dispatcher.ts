@@ -54,6 +54,22 @@ export async function dispatchSoloConfirmation(
     }
 
     const lodging = extractLodging(reg);
+
+    // Compute meal total for solo registrant
+    let soloMealTotal = 0;
+    const mealIds = reg.selected_meal_ids as string[] | null;
+    if (mealIds && mealIds.length > 0) {
+      const { data: pricing } = await supabase
+        .from("pricing_config")
+        .select("meal_price_adult, meal_price_child")
+        .eq("event_id", reg.event_id as string)
+        .single();
+      if (pricing) {
+        const pricePerMeal = (reg.category as string) === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+        soloMealTotal = mealIds.length * pricePerMeal;
+      }
+    }
+
     try {
       await sendConfirmationEmail({
         to: reg.email as string,
@@ -77,6 +93,7 @@ export async function dispatchSoloConfirmation(
         dormName: lodging.dormName,
         bedLabel: lodging.bedLabel,
         selectedMealIds: reg.selected_meal_ids as string[] | null,
+        mealTotal: soloMealTotal,
       });
 
       log.info("Confirmation email sent", { registrationId });
@@ -178,6 +195,22 @@ export async function dispatchGroupConfirmation(
     if (isSoloInGroup) {
       const churchName = await resolveChurch(primaryReg.church_id, primaryReg.church_name_custom);
       const soloLodging = extractLodging(primaryReg);
+
+      // Compute meal total for solo-in-group
+      let soloGroupMealTotal = 0;
+      const soloMealIds = primaryReg.selected_meal_ids as string[] | null;
+      if (soloMealIds && soloMealIds.length > 0) {
+        const { data: soloPricing } = await supabase
+          .from("pricing_config")
+          .select("meal_price_adult, meal_price_child")
+          .eq("event_id", primaryReg.event_id as string)
+          .single();
+        if (soloPricing) {
+          const pricePerMeal = (primaryReg.category as string) === "child" ? soloPricing.meal_price_child : soloPricing.meal_price_adult;
+          soloGroupMealTotal = soloMealIds.length * pricePerMeal;
+        }
+      }
+
       try {
         await sendConfirmationEmail({
           to: primaryReg.email as string,
@@ -201,6 +234,7 @@ export async function dispatchGroupConfirmation(
           dormName: soloLodging.dormName,
           bedLabel: soloLodging.bedLabel,
           selectedMealIds: primaryReg.selected_meal_ids as string[] | null,
+          mealTotal: soloGroupMealTotal,
         });
         log.info("Solo confirmation email sent (group of 1)", { registrationId: primaryReg.id, groupId });
         await supabase.from("email_logs").insert({
