@@ -434,11 +434,12 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       {/* ─── KOTE Meal Selection ─── */}
                       {reg.attendanceType === "kote" && reg.selectedDays.length > 0 && (() => {
                         // Filter meals to only show those on selected days
+                        const pad = (n: number) => String(n).padStart(2, "0");
                         const selectedDateStrings = reg.selectedDays.map((d) => {
                           const [y, m, day] = event.start_date.split("-").map(Number);
                           const dt = new Date(y, m - 1, day);
                           dt.setDate(dt.getDate() + d - 1);
-                          return dt.toISOString().split("T")[0];
+                          return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
                         });
                         const mealsForDays = availableMeals.filter((meal) =>
                           meal.service_date && selectedDateStrings.includes(meal.service_date)
