@@ -241,7 +241,7 @@ export function StaffScanner({ eventId, role, stationLabel, onLogout }: StaffSca
         scannerInstanceRef.current = null;
       }
     };
-  }, [inputMode, performScan]);
+  }, [inputMode, performScan, scanResult]);
 
   function handleManualSubmit(e: React.FormEvent) {
     e.preventDefault();

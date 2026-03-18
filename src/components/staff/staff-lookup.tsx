@@ -190,7 +190,7 @@ export function StaffLookup({ eventId, role, stationLabel, onLogout }: StaffLook
         scannerInstanceRef.current = null;
       }
     };
-  }, [inputMode, performLookup]);
+  }, [inputMode, performLookup, lookupResult, error]);
 
   function handleManualSubmit(e: React.FormEvent) {
     e.preventDefault();
