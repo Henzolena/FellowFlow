@@ -115,6 +115,7 @@ export type ConfirmationEmailParams = {
   bedLabel?: string | null;
   selectedMealIds?: string[] | null;
   mealTotal?: number;
+  tshirtSize?: string | null;
 };
 
 export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
@@ -173,6 +174,8 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
         dormName: params.dormName,
         bedLabel: params.bedLabel,
         mealCount: params.selectedMealIds?.length ?? 0,
+        tshirtSize: params.tshirtSize,
+        mealPurchaseUrl: displayCode ? `${appUrl}/meals/${encodeURIComponent(displayCode)}` : null,
       };
       const pdfBytes = await generateRegistrationBadgePDF(badgeData);
       const safeName = `${firstName}_${lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -252,6 +255,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
         ${detailRow("Dorm", params.dormName)}
         ${detailRow("Bed", params.bedLabel)}
         ${params.selectedMealIds && params.selectedMealIds.length > 0 ? detailRow("Meals Purchased", `${params.selectedMealIds.length} meal(s)${params.mealTotal ? ` — $${params.mealTotal.toFixed(2)}` : ""}`) : ""}
+        ${params.tshirtSize ? detailRow("T-Shirt Size", params.tshirtSize) : ""}
       </table>
     </td></tr></table>
 
@@ -317,6 +321,7 @@ export type GroupMember = {
   bedLabel?: string | null;
   selectedMealIds?: string[] | null;
   mealCount?: number;
+  tshirtSize?: string | null;
 };
 
 export type GroupReceiptEmailParams = {
@@ -381,6 +386,7 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
           ${m.churchName ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">⛪ ${m.churchName}</div>` : ""}
           ${m.dormName ? `<div style="font-size:11px;color:#0d9488;margin-top:2px;">🏠 ${m.dormName}${m.bedLabel ? ` · ${m.bedLabel}` : ""}</div>` : ""}
           ${(m.mealCount ?? (m.selectedMealIds?.length ?? 0)) > 0 ? `<div style="font-size:11px;color:#d97706;margin-top:2px;">🍽️ ${m.mealCount ?? m.selectedMealIds!.length} meal(s) purchased</div>` : ""}
+          ${m.tshirtSize ? `<div style="font-size:11px;color:#7c3aed;margin-top:2px;">👕 T-Shirt: ${m.tshirtSize}</div>` : ""}
           ${m.confirmationCode ? `<div style="font-size:11px;color:#6366f1;font-family:monospace;font-weight:600;margin-top:4px;">Code: ${m.confirmationCode}</div>` : ""}
         </td>
         <td style="padding:12px 16px;text-align:right;vertical-align:top;font-size:15px;font-weight:700;color:${m.amount === 0 ? "#16a34a" : "#18181b"};${i < members.length - 1 ? "border-bottom:1px solid #f1f5f9;" : ""}">
@@ -423,6 +429,8 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
         dormName: m.dormName,
         bedLabel: m.bedLabel,
         mealCount: m.mealCount ?? (m.selectedMealIds?.length ?? 0),
+        tshirtSize: m.tshirtSize,
+        mealPurchaseUrl: m.confirmationCode ? `${appUrl}/meals/${encodeURIComponent(m.confirmationCode)}` : null,
       };
       const pdfBytes = await generateRegistrationBadgePDF(badgeData);
       const safeName = `${m.firstName}_${m.lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");

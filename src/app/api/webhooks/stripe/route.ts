@@ -179,4 +179,38 @@ async function handleMealPurchaseCompleted(
       mealsCount: items.length,
     });
   }
+
+  // Update selected_meal_ids on the registration to include newly purchased meals
+  const { data: reg } = await supabase
+    .from("registrations")
+    .select("selected_meal_ids, group_id")
+    .eq("id", registrationId)
+    .single();
+
+  if (reg) {
+    const existingIds: string[] = (reg.selected_meal_ids as string[] | null) || [];
+    const newIds = items.map((i) => i.service_id);
+    const mergedIds = [...new Set([...existingIds, ...newIds])];
+
+    await supabase
+      .from("registrations")
+      .update({ selected_meal_ids: mergedIds })
+      .eq("id", registrationId);
+
+    // Send updated receipt email with regenerated badge
+    try {
+      const groupId = reg.group_id as string | null;
+      if (groupId) {
+        await dispatchGroupConfirmation(supabase, groupId, log);
+      } else {
+        await dispatchSoloConfirmation(supabase, registrationId, log);
+      }
+      log.info("Updated receipt email sent after meal purchase", { registrationId, purchaseId });
+    } catch (emailErr) {
+      log.error("Failed to send updated receipt after meal purchase", {
+        registrationId,
+        error: emailErr instanceof Error ? emailErr.message : String(emailErr),
+      });
+    }
+  }
 }

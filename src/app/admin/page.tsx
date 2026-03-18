@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, DollarSign, CheckCircle2, Clock, Loader2 } from "lucide-react";
+import { Users, DollarSign, CheckCircle2, Clock, Loader2, Shirt } from "lucide-react";
 
 type RecentRegistration = {
   id: string;
@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [pendingRegistrations, setPendingRegistrations] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [recentRegistrations, setRecentRegistrations] = useState<RecentRegistration[]>([]);
+  const [tshirtStats, setTshirtStats] = useState<{ size: string; count: number }[]>([]);
 
   const fetchStats = async () => {
     const supabase = createClient();
@@ -34,6 +35,7 @@ export default function AdminDashboard() {
       { count: pending },
       { data: revenueData },
       { data: recent },
+      { data: tshirtData },
     ] = await Promise.all([
       supabase.from("registrations").select("*", { count: "exact", head: true }),
       supabase
@@ -53,15 +55,32 @@ export default function AdminDashboard() {
         .select("id, first_name, last_name, email, category, computed_amount, status, created_at, events(name)")
         .order("created_at", { ascending: false })
         .limit(5),
+      supabase
+        .from("registrations")
+        .select("tshirt_size")
+        .not("tshirt_size", "is", null)
+        .in("status", ["confirmed", "pending"]),
     ]);
 
     const revenue = (revenueData || []).reduce((sum, p) => sum + Number(p.amount), 0);
+
+    // Compute t-shirt size distribution
+    const SIZES_ORDER = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+    const sizeCounts = new Map<string, number>();
+    SIZES_ORDER.forEach((s) => sizeCounts.set(s, 0));
+    for (const row of (tshirtData || []) as { tshirt_size: string }[]) {
+      sizeCounts.set(row.tshirt_size, (sizeCounts.get(row.tshirt_size) || 0) + 1);
+    }
+    const computedTshirtStats = SIZES_ORDER
+      .map((size) => ({ size, count: sizeCounts.get(size) || 0 }))
+      .filter((s) => s.count > 0 || (tshirtData && tshirtData.length > 0));
 
     setTotalRegistrations(total ?? 0);
     setConfirmedRegistrations(confirmed ?? 0);
     setPendingRegistrations(pending ?? 0);
     setTotalRevenue(revenue);
     setRecentRegistrations((recent || []) as unknown as RecentRegistration[]);
+    setTshirtStats(computedTshirtStats);
     setLoading(false);
   };
 
@@ -155,6 +174,42 @@ export default function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      {tshirtStats.length > 0 && (
+        <Card className="shadow-brand-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Shirt className="h-4 w-4 text-violet-500" />
+              T-Shirt Size Distribution
+            </CardTitle>
+            <span className="text-sm text-muted-foreground font-medium">
+              {tshirtStats.reduce((s, t) => s + t.count, 0)} total
+            </span>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {tshirtStats.map((s) => {
+                const max = Math.max(...tshirtStats.map((t) => t.count), 1);
+                const pct = (s.count / max) * 100;
+                return (
+                  <div key={s.size} className="flex items-center gap-3">
+                    <span className="w-10 text-sm font-semibold text-right">{s.size}</span>
+                    <div className="flex-1 h-7 bg-muted/50 rounded-md overflow-hidden relative">
+                      <div
+                        className="h-full bg-violet-500/80 rounded-md transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                      <span className="absolute inset-y-0 right-2 flex items-center text-xs font-medium">
+                        {s.count}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="shadow-brand-sm">
         <CardHeader>

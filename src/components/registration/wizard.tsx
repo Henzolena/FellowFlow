@@ -109,6 +109,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
               numDays: attType !== "full_conference" ? r.selectedDays.length : undefined,
               selectedDays: attType !== "full_conference" ? r.selectedDays : undefined,
               mealServiceIds: r.selectedMealIds.length > 0 ? r.selectedMealIds : undefined,
+              tshirtSize: r.tshirtSize || undefined,
             };
           }),
         }),
@@ -332,6 +333,31 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                     </p>
                   )}
                 </div>
+
+                {/* T-Shirt Size (optional, not for infants) */}
+                {reg.ageRange && reg.ageRange !== "infant" && (
+                  <div className="space-y-2">
+                    <Label>T-Shirt Size <span className="text-muted-foreground font-normal text-xs">(optional — for planning purposes only)</span></Label>
+                    <Select
+                      value={reg.tshirtSize || "__none"}
+                      onValueChange={(v) => updateRegistrant(idx, { tshirtSize: v === "__none" ? "" : v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">No preference</SelectItem>
+                        <SelectItem value="XS">XS</SelectItem>
+                        <SelectItem value="S">S</SelectItem>
+                        <SelectItem value="M">M</SelectItem>
+                        <SelectItem value="L">L</SelectItem>
+                        <SelectItem value="XL">XL</SelectItem>
+                        <SelectItem value="2XL">2XL</SelectItem>
+                        <SelectItem value="3XL">3XL</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 {/* Attendance Type */}
                 <div className="space-y-3">

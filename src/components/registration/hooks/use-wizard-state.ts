@@ -21,6 +21,7 @@ export type Registrant = {
   numDays: number;
   selectedDays: number[];
   selectedMealIds: string[];
+  tshirtSize: string;
 };
 
 export type ContactInfo = {
@@ -49,6 +50,7 @@ export function createEmptyRegistrant(): Registrant {
     numDays: 0,
     selectedDays: [],
     selectedMealIds: [],
+    tshirtSize: "",
   };
 }
 

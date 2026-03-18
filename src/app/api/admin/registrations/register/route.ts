@@ -25,6 +25,7 @@ const registerSchema = z.object({
   bedId: z.string().uuid().optional(),
   notes: z.string().optional(),
   sendEmail: z.boolean().default(true),
+  tshirtSize: z.enum(["XS", "S", "M", "L", "XL", "2XL", "3XL"]).optional().nullable(),
 });
 
 // POST /api/admin/registrations/register — unified admin registration (auto-confirmed, payment waived)
@@ -165,6 +166,7 @@ export async function POST(request: NextRequest) {
         payment_waived: true,
         admin_notes: v.notes || null,
         invited_by_admin: adminIdentity,
+        tshirt_size: v.tshirtSize || null,
       })
       .select()
       .single();
@@ -278,6 +280,7 @@ export async function POST(request: NextRequest) {
           selectedDays: selectedDays ?? undefined,
           dormName: autoAssignedInfo?.motelName ?? null,
           bedLabel: autoAssignedInfo?.bedLabel ?? null,
+          tshirtSize: v.tshirtSize ?? null,
         });
         emailSent = true;
       } catch (emailErr) {

@@ -111,6 +111,7 @@ type DetailData = {
   num_days: number | null;
   selected_days: number[] | null;
   selected_meal_ids: string[] | null;
+  tshirt_size: string | null;
   computed_amount: number;
   explanation_code: string;
   explanation_detail: string;
@@ -310,6 +311,7 @@ export default function RegistrationDetailPage({
               <Row label="Motel Stay" value={data.is_staying_in_motel ? "Yes" : "No"} />
             )}
             <Row label="Access Tier" value={data.access_tier ? getAccessTierBadge(data.access_tier).label : "—"} />
+            {data.tshirt_size && <Row label="T-Shirt Size" value={data.tshirt_size} />}
           </CardContent>
         </Card>
 

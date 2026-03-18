@@ -91,6 +91,8 @@ export type PricingConfig = {
 
 export type AgeCategory = "adult" | "youth" | "child";
 
+export type TshirtSize = "XS" | "S" | "M" | "L" | "XL" | "2XL" | "3XL";
+
 export type ExplanationCode =
   | "FREE_INFANT"
   | "FULL_ADULT"
@@ -136,6 +138,7 @@ export type Registration = {
   invited_by_admin: string | null;
   invitation_code: string | null;
   selected_meal_ids: string[] | null;
+  tshirt_size: TshirtSize | null;
   checked_in: boolean;
   checked_in_at: string | null;
   created_at: string;
@@ -441,6 +444,21 @@ export type MealPurchaseItem = {
 
 export type MealPurchaseWithItems = MealPurchase & {
   meal_purchase_items: (MealPurchaseItem & { service_catalog: ServiceCatalogItem })[];
+};
+
+/* ── Staff Access Codes ────────────────────────────────────────── */
+
+export type StaffRole = 'auditorium' | 'proctor' | 'motel' | 'meals';
+
+export type StaffAccessCode = {
+  id: string;
+  event_id: string;
+  role: StaffRole;
+  pin_code: string;
+  label: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 /* ── Composite types ─────────────────────────────────────────────── */

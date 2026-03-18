@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { getExplanationLabel } from "@/lib/pricing/engine";
 import { format, parseISO } from "date-fns";
-import { Printer, Mail, Loader2, Search, ArrowLeft, QrCode, UtensilsCrossed } from "lucide-react";
+import { Printer, Mail, Loader2, Search, ArrowLeft, QrCode, UtensilsCrossed, Shirt } from "lucide-react";
 import type { ExplanationCode } from "@/types/database";
 import Link from "next/link";
 import { useTranslation } from "@/lib/i18n/context";
@@ -484,6 +484,19 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                           <span className="text-amber-600"> — ${mealTotal.toFixed(2)}</span>
                         )}
                       </p>
+                    </div>
+                    <Separator />
+                  </>
+                )}
+
+                {data.tshirt_size && (
+                  <>
+                    <div className="space-y-1">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                        <Shirt className="h-3.5 w-3.5" />
+                        T-Shirt Size
+                      </h3>
+                      <p className="text-sm font-medium">{data.tshirt_size}</p>
                     </div>
                     <Separator />
                   </>

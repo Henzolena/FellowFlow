@@ -27,6 +27,8 @@ export type BadgeData = {
   dormName?: string | null;
   bedLabel?: string | null;
   mealCount?: number;
+  tshirtSize?: string | null;
+  mealPurchaseUrl?: string | null;
 };
 
 /* ── Helpers ────────────────────────────────────────────────────────── */
@@ -239,6 +241,7 @@ export async function generateRegistrationBadgePDF(
   if (badge.dormName) detailLines.push(["Dorm", badge.dormName]);
   if (badge.bedLabel) detailLines.push(["Bed", badge.bedLabel]);
   if (badge.mealCount && badge.mealCount > 0) detailLines.push(["Meals", `${badge.mealCount} meal(s) purchased`]);
+  if (badge.tshirtSize) detailLines.push(["T-Shirt", badge.tshirtSize]);
 
   const VAL_FONT_SIZE = 10;
   const LINE_H = 16;
@@ -321,6 +324,32 @@ export async function generateRegistrationBadgePDF(
     y -= barH + 30;
   } catch {
     // If barcode fails, skip
+  }
+
+  // ── Meal Purchase QR (bottom-right corner) ──
+  if (badge.mealPurchaseUrl) {
+    try {
+      const mealQrPng = await generateQRCode(badge.mealPurchaseUrl);
+      const mealQrImage = await doc.embedPng(mealQrPng);
+      const mqSize = 60;
+      const mqX = width - mqSize - 16;
+      const mqY = 36;
+      // Light background behind QR
+      page.drawRectangle({
+        x: mqX - 4, y: mqY - 4, width: mqSize + 8, height: mqSize + 18,
+        color: rgb(0.98, 0.98, 0.99), borderColor: rgb(0.85, 0.87, 0.9), borderWidth: 0.5,
+      });
+      page.drawImage(mealQrImage, { x: mqX, y: mqY, width: mqSize, height: mqSize });
+      const mqLabel = "Buy Meals";
+      const mqLabelW = fontBold.widthOfTextAtSize(mqLabel, 6);
+      page.drawText(mqLabel, {
+        x: mqX + (mqSize - mqLabelW) / 2,
+        y: mqY + mqSize + 3,
+        size: 6, font: fontBold, color: hexToRgb("#d97706"),
+      });
+    } catch {
+      // If meal QR fails, skip silently
+    }
   }
 
   // ── Color-coded footer bar (matches header) ──

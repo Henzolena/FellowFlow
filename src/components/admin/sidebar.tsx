@@ -26,6 +26,7 @@ import {
   ScanSearch,
   BarChart3,
   MapPin,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
@@ -47,6 +48,7 @@ const navItems: NavItem[] = [
   { href: "/admin/motels", label: "Motels", icon: Hotel },
   { href: "/admin/bed-assignments", label: "Bed Assignments", icon: BedDouble },
   { href: "/admin/venue", label: "Venue Info", icon: MapPin },
+  { href: "/admin/staff-codes", label: "Staff Codes", icon: KeyRound },
   { href: "/admin/settings", label: "Event Settings", icon: Settings },
   { href: "/admin/users", label: "Admin Management", icon: ShieldCheck, superAdminOnly: true },
 ];

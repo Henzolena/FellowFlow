@@ -190,6 +190,7 @@ export async function POST(request: NextRequest) {
         public_confirmation_code: confirmationCodes[i],
         access_tier: deriveAccessTier(attType),
         selected_meal_ids: reg.mealServiceIds?.length ? reg.mealServiceIds : null,
+        tshirt_size: reg.tshirtSize ?? null,
       };
     });
 
@@ -305,6 +306,7 @@ export async function POST(request: NextRequest) {
               const price = r.category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
               return ids.length * price;
             })(),
+            tshirtSize: r.tshirt_size ?? null,
           });
           log.info("Free solo confirmation email sent", { registrationId: r.id });
           await adminClient.from("email_logs").insert({
@@ -342,6 +344,7 @@ export async function POST(request: NextRequest) {
                 bedLabel: ba?.bedLabel ?? null,
                 selectedMealIds: r.selected_meal_ids,
                 mealCount: r.selected_meal_ids?.length ?? 0,
+                tshirtSize: r.tshirt_size ?? null,
               };
             }),
             subtotal: groupPricing.subtotal,

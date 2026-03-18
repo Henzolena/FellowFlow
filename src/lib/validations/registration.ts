@@ -54,6 +54,7 @@ export const groupRegistrantSchema = z.object({
   selectedDays: z.array(z.number().int().min(1)).optional(),
   attendanceType: attendanceTypeEnum.optional(),
   mealServiceIds: z.array(z.string().uuid()).optional(),
+  tshirtSize: z.enum(["XS", "S", "M", "L", "XL", "2XL", "3XL"]).optional().nullable(),
 });
 
 export const groupRegistrationSchema = z.object({
