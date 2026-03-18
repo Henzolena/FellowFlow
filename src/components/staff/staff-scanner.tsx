@@ -327,11 +327,11 @@ export function StaffScanner({ eventId, role, stationLabel, onLogout }: StaffSca
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
                 placeholder="MW26-HR-10927"
-                className="font-mono text-center h-9 text-sm min-w-0 flex-1"
+                className="font-mono text-center h-10 text-base min-w-0 flex-1"
                 autoFocus
                 autoComplete="off"
               />
-              <Button type="submit" size="sm" className="h-9 px-4" disabled={!manualCode.trim() || scanning || !selectedServiceId}>
+              <Button type="submit" size="sm" className="h-10 px-4" disabled={!manualCode.trim() || scanning || !selectedServiceId}>
                 {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : "Scan"}
               </Button>
             </form>

@@ -231,11 +231,11 @@ export function StaffLookup({ eventId, role, stationLabel, onLogout }: StaffLook
                   value={manualCode}
                   onChange={(e) => { setManualCode(e.target.value); setError(""); }}
                   placeholder="MW26-HR-10927"
-                  className="font-mono text-center h-9 text-sm min-w-0 flex-1"
+                  className="font-mono text-center h-10 text-base min-w-0 flex-1"
                   autoFocus
                   autoComplete="off"
                 />
-                <Button type="submit" size="sm" className="h-9 px-4" disabled={!manualCode.trim() || scanning}>
+                <Button type="submit" size="sm" className="h-10 px-4" disabled={!manualCode.trim() || scanning}>
                   {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : "Look Up"}
                 </Button>
               </form>
