@@ -570,6 +570,13 @@ export type AdminNotificationMember = {
   amount: number;
   attendance: string;
   confirmationCode?: string;
+  gender?: string | null;
+  city?: string | null;
+  churchName?: string | null;
+  dormName?: string | null;
+  bedLabel?: string | null;
+  mealCount?: number;
+  tshirtSize?: string | null;
 };
 
 export type AdminNotificationEmailParams = {
@@ -586,6 +593,10 @@ export type AdminNotificationEmailParams = {
   groupId?: string | null;
   primaryRegistrationId: string;
   registeredAt: string;
+  subtotal?: number;
+  surcharge?: number;
+  surchargeLabel?: string | null;
+  mealTotal?: number;
 };
 
 /* ── Pre-fill invitation email ──────────────────────────────────── */
@@ -750,6 +761,10 @@ export async function sendAdminNotificationEmail(params: AdminNotificationEmailP
     isPaid,
     primaryRegistrationId,
     registeredAt,
+    subtotal,
+    surcharge,
+    surchargeLabel,
+    mealTotal,
   } = params;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -765,20 +780,65 @@ export async function sendAdminNotificationEmail(params: AdminNotificationEmailP
     ? `New Group Registration (${members.length}) — ${eventName}`
     : `New Registration: ${members[0].firstName} ${members[0].lastName} — ${eventName}`;
 
+  // Helper to build a detail tag (small colored pill)
+  function tag(label: string, color: string) {
+    return `<span style="display:inline-block;background:${color};color:#fff;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;margin:0 3px 3px 0;">${label}</span>`;
+  }
+
+  // Build rich member rows
   const memberRows = members
     .map(
-      (m, i) => `
+      (m, i) => {
+        const details: string[] = [];
+        if (m.gender) details.push(m.gender === "male" ? "Male" : m.gender === "female" ? "Female" : m.gender);
+        if (m.city) details.push(m.city);
+        if (m.churchName) details.push(m.churchName);
+
+        const lodgingParts: string[] = [];
+        if (m.dormName) lodgingParts.push(m.dormName);
+        if (m.bedLabel) lodgingParts.push(`Bed: ${m.bedLabel}`);
+        const lodgingStr = lodgingParts.length > 0 ? lodgingParts.join(" · ") : null;
+
+        const tags: string[] = [];
+        tags.push(tag(categoryLabel(m.category), m.category === "child" ? "#f59e0b" : m.category === "youth" ? "#8b5cf6" : "#3b82f6"));
+        tags.push(tag(m.attendance, m.attendance.includes("KOTE") ? "#d97706" : "#059669"));
+        if (m.tshirtSize) tags.push(tag(`T-Shirt: ${m.tshirtSize.toUpperCase()}`, "#6366f1"));
+        if (m.mealCount && m.mealCount > 0) tags.push(tag(`${m.mealCount} Meal${m.mealCount !== 1 ? "s" : ""}`, "#ea580c"));
+
+        return `
       <tr>
         <td style="${SA.memberRow}${i === members.length - 1 ? "border-bottom:none;" : ""}">
-          <div style="${SA.memberName}">${m.firstName} ${m.lastName}</div>
-          <div style="${SA.memberMeta}">
-            ${categoryLabel(m.category)} · ${m.attendance} · ${m.amount === 0 ? "FREE" : `$${m.amount.toFixed(2)}`}
-          </div>
-          ${m.confirmationCode ? `<div style="font-size:11px;color:#6366f1;font-family:monospace;font-weight:600;margin-top:2px;">Code: ${m.confirmationCode}</div>` : ""}
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td>
+                <div style="${SA.memberName}">${m.firstName} ${m.lastName}</div>
+                ${m.confirmationCode ? `<div style="font-size:11px;color:#6366f1;font-family:monospace;font-weight:600;margin-top:1px;">Code: ${m.confirmationCode}</div>` : ""}
+              </td>
+              <td style="text-align:right;vertical-align:top;font-size:15px;font-weight:700;color:${m.amount === 0 ? "#16a34a" : "#18181b"};">
+                ${m.amount === 0 ? "FREE" : `$${m.amount.toFixed(2)}`}
+              </td>
+            </tr>
+          </table>
+          <div style="margin-top:6px;">${tags.join("")}</div>
+          ${details.length > 0 ? `<div style="font-size:11px;color:#64748b;margin-top:4px;">${details.join(" · ")}</div>` : ""}
+          ${lodgingStr ? `<div style="font-size:11px;color:#0369a1;margin-top:2px;">🏨 ${lodgingStr}</div>` : ""}
         </td>
-      </tr>`
+      </tr>`;
+      }
     )
     .join("");
+
+  // Build pricing breakdown rows
+  const pricingRows: string[] = [];
+  if (isGroup && subtotal != null) {
+    pricingRows.push(`<tr><td style="padding:8px 20px;color:#64748b;font-size:13px;">Subtotal</td><td style="padding:8px 20px;text-align:right;font-size:14px;font-weight:600;color:#18181b;">$${subtotal.toFixed(2)}</td></tr>`);
+  }
+  if (surcharge && surcharge > 0) {
+    pricingRows.push(`<tr><td style="padding:8px 20px;color:#d97706;font-size:13px;">${surchargeLabel || "Late Surcharge"}</td><td style="padding:8px 20px;text-align:right;font-size:14px;font-weight:700;color:#d97706;">+$${surcharge.toFixed(2)}</td></tr>`);
+  }
+  if (mealTotal && mealTotal > 0) {
+    pricingRows.push(`<tr><td style="padding:8px 20px;color:#ea580c;font-size:13px;">Meals</td><td style="padding:8px 20px;text-align:right;font-size:14px;font-weight:700;color:#ea580c;">+$${mealTotal.toFixed(2)}</td></tr>`);
+  }
 
   let formattedTime = registeredAt;
   try {
@@ -831,16 +891,17 @@ export async function sendAdminNotificationEmail(params: AdminNotificationEmailP
     </td></tr></table>
 
     <!-- Registrants -->
-    <p style="${S.sectionTitle}">Registrant${isGroup ? "s" : ""}</p>
+    <p style="${S.sectionTitle}">Registrant${isGroup ? `s (${members.length})` : ""}</p>
     <table width="100%" cellpadding="0" cellspacing="0" style="${S.detailBox}">
       ${memberRows}
     </table>
 
-    <!-- Total -->
+    <!-- Pricing Breakdown -->
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin:16px 0 28px;">
+      ${pricingRows.join("")}
       <tr>
-        <td style="padding:14px 20px;color:#18181b;font-size:16px;font-weight:800;">Total</td>
-        <td style="padding:14px 20px;text-align:right;font-size:20px;font-weight:800;color:${isFree ? "#16a34a" : "#0ea5e9"};">${totalDisplay}</td>
+        <td style="padding:14px 20px;color:#18181b;font-size:16px;font-weight:800;${pricingRows.length > 0 ? "border-top:2px solid #e2e8f0;" : ""}">Grand Total</td>
+        <td style="padding:14px 20px;text-align:right;font-size:20px;font-weight:800;color:${isFree ? "#16a34a" : "#0ea5e9"};${pricingRows.length > 0 ? "border-top:2px solid #e2e8f0;" : ""}">${totalDisplay}</td>
       </tr>
     </table>
 

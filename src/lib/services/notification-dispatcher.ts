@@ -121,6 +121,7 @@ export async function dispatchSoloConfirmation(
     // Notify admins (independent — fires even if confirmation email failed)
     await delay(600);
     const at = (reg.attendance_type as string) || "full_conference";
+    const soloMealCount = (reg.selected_meal_ids as string[] | null)?.length ?? 0;
     await dispatchAdminNotification(supabase, {
       eventName: evtData?.name || "Event",
       eventStartDate: evtData?.start_date,
@@ -137,12 +138,20 @@ export async function dispatchSoloConfirmation(
           ? (reg.selected_days && evtData?.start_date ? `KOTE · ${formatSelectedDays(evtData.start_date, reg.selected_days as number[])}` : "KOTE")
           : (reg.selected_days && evtData?.start_date ? formatSelectedDays(evtData.start_date, reg.selected_days as number[]) : "Partial"),
         confirmationCode: reg.public_confirmation_code as string | undefined,
+        gender: reg.gender as string | null,
+        city: reg.city as string | null,
+        churchName,
+        dormName: lodging.dormName,
+        bedLabel: lodging.bedLabel,
+        mealCount: soloMealCount,
+        tshirtSize: reg.tshirt_size as string | null,
       }],
-      grandTotal: Number(reg.computed_amount),
-      isFree: Number(reg.computed_amount) === 0,
+      grandTotal: Number(reg.computed_amount) + soloMealTotal,
+      isFree: Number(reg.computed_amount) === 0 && soloMealTotal === 0,
       isPaid: true,
       primaryRegistrationId: registrationId,
       registeredAt: new Date().toISOString(),
+      mealTotal: soloMealTotal > 0 ? soloMealTotal : undefined,
     }, log);
   } catch (err: unknown) {
     log.error("Solo dispatch failed", {
@@ -263,6 +272,7 @@ export async function dispatchGroupConfirmation(
       // Notify admins (independent — fires even if confirmation email failed)
       await delay(600);
       const soloAt = (primaryReg.attendance_type as string) || "full_conference";
+      const soloInGroupMealCount = (primaryReg.selected_meal_ids as string[] | null)?.length ?? 0;
       await dispatchAdminNotification(supabase, {
         eventName: evtData?.name || "Event",
         eventStartDate: evtData?.start_date,
@@ -279,13 +289,21 @@ export async function dispatchGroupConfirmation(
             ? (primaryReg.selected_days && evtData?.start_date ? `KOTE · ${formatSelectedDays(evtData.start_date, primaryReg.selected_days as number[])}` : "KOTE")
             : (primaryReg.selected_days && evtData?.start_date ? formatSelectedDays(evtData.start_date, primaryReg.selected_days as number[]) : "Partial"),
           confirmationCode: primaryReg.public_confirmation_code as string | undefined,
+          gender: primaryReg.gender as string | null,
+          city: primaryReg.city as string | null,
+          churchName,
+          dormName: soloLodging.dormName,
+          bedLabel: soloLodging.bedLabel,
+          mealCount: soloInGroupMealCount,
+          tshirtSize: primaryReg.tshirt_size as string | null,
         }],
-        grandTotal: Number(primaryReg.computed_amount),
-        isFree: Number(primaryReg.computed_amount) === 0,
+        grandTotal: Number(primaryReg.computed_amount) + soloGroupMealTotal,
+        isFree: Number(primaryReg.computed_amount) === 0 && soloGroupMealTotal === 0,
         isPaid: true,
         groupId,
         primaryRegistrationId: primaryReg.id as string,
         registeredAt: new Date().toISOString(),
+        mealTotal: soloGroupMealTotal > 0 ? soloGroupMealTotal : undefined,
       }, log);
       return;
     }
@@ -422,6 +440,13 @@ export async function dispatchGroupConfirmation(
         amount: m.amount,
         attendance: m.attendance,
         confirmationCode: m.confirmationCode,
+        gender: m.gender,
+        city: m.city,
+        churchName: m.churchName,
+        dormName: m.dormName,
+        bedLabel: m.bedLabel,
+        mealCount: m.mealCount,
+        tshirtSize: m.tshirtSize,
       })),
       grandTotal,
       isFree: grandTotal === 0,
@@ -429,6 +454,10 @@ export async function dispatchGroupConfirmation(
       groupId,
       primaryRegistrationId: primaryReg.id as string,
       registeredAt: new Date().toISOString(),
+      subtotal,
+      surcharge,
+      surchargeLabel,
+      mealTotal: mealTotal > 0 ? mealTotal : undefined,
     }, log);
   } catch (err: unknown) {
     log.error("Group notification dispatch failed", {
@@ -455,6 +484,10 @@ export async function dispatchAdminNotification(
     groupId?: string | null;
     primaryRegistrationId: string;
     registeredAt: string;
+    subtotal?: number;
+    surcharge?: number;
+    surchargeLabel?: string | null;
+    mealTotal?: number;
   },
   log: Logger
 ): Promise<void> {

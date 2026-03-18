@@ -376,32 +376,57 @@ export async function POST(request: NextRequest) {
 
       // Notify admins (independent — fires even if confirmation email failed)
       await new Promise((r) => setTimeout(r, 600));
-      function freeAttendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null; attendance_type?: string }): string {
+      function freeAttendanceLabel(r: { is_full_duration: boolean; is_staying_in_motel: boolean | null; num_days: number | null; selected_days: number[] | null; attendance_type?: string }): string {
         const at = (r as Record<string, unknown>).attendance_type as string | undefined;
-        if (at === "kote") return "KOTE";
+        if (at === "kote") return r.selected_days && event?.start_date ? `KOTE · ${formatSelectedDays(event.start_date, r.selected_days)}` : "KOTE";
         if (r.is_full_duration) return "Full Conference";
-        return `${r.num_days} Day(s)`;
+        return r.selected_days && event?.start_date ? formatSelectedDays(event.start_date, r.selected_days) : `${r.num_days || "?"} Day(s)`;
       }
 
-      await dispatchAdminNotification(adminClient, {
-        eventName: event.name,
-        eventStartDate: event.start_date,
-        eventEndDate: event.end_date,
-        registrantEmail: data.email,
-        members: registrations.map((r) => ({
+      // Resolve church names for admin notification
+      async function resolveChurchForAdmin(churchId: string | null, custom: string | null): Promise<string | null> {
+        if (custom) return custom;
+        if (!churchId) return null;
+        const { data: ch } = await adminClient.from("churches").select("name").eq("id", churchId).single();
+        return ch?.name || null;
+      }
+
+      const adminMembers = await Promise.all(registrations.map(async (r) => {
+        const churchName = await resolveChurchForAdmin(r.church_id, r.church_name_custom);
+        const ba = bedAssignments.get(r.id);
+        return {
           firstName: r.first_name,
           lastName: r.last_name,
           category: r.category,
           amount: Number(r.computed_amount),
           attendance: freeAttendanceLabel(r),
           confirmationCode: r.public_confirmation_code,
-        })),
-        grandTotal: groupPricing.grandTotal,
+          gender: r.gender as string | null,
+          city: r.city as string | null,
+          churchName,
+          dormName: ba?.dormName ?? null,
+          bedLabel: ba?.bedLabel ?? null,
+          mealCount: r.selected_meal_ids?.length ?? 0,
+          tshirtSize: r.tshirt_size as string | null,
+        };
+      }));
+
+      await dispatchAdminNotification(adminClient, {
+        eventName: event.name,
+        eventStartDate: event.start_date,
+        eventEndDate: event.end_date,
+        registrantEmail: data.email,
+        members: adminMembers,
+        grandTotal: groupPricing.grandTotal + mealGrandTotal,
         isFree: true,
         isPaid: false,
         groupId,
         primaryRegistrationId: registrations[0].id,
         registeredAt: new Date().toISOString(),
+        subtotal: groupPricing.subtotal,
+        surcharge: groupPricing.surcharge,
+        surchargeLabel: groupPricing.surchargeLabel,
+        mealTotal: mealGrandTotal > 0 ? mealGrandTotal : undefined,
       }, log);
     }
 
