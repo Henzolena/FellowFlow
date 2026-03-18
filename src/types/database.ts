@@ -129,6 +129,7 @@ export type Registration = {
   church_name_custom: string | null;
   attendance_type: AttendanceType;
   public_confirmation_code: string;
+  secure_token: string;
   access_tier: AccessTier | null;
   completion_token: string | null;
   registration_source: RegistrationSource;

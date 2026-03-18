@@ -33,6 +33,8 @@ type MealItem = {
   canPurchase: boolean;
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 type MealData = {
   registration: {
     id: string;
@@ -41,6 +43,7 @@ type MealData = {
     category: string;
     attendanceType: string;
     confirmationCode: string;
+    secureToken: string;
   };
   event: {
     name: string;
@@ -95,7 +98,8 @@ export default function MealPurchasePage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/meals/available?code=${encodeURIComponent(code)}`);
+      const paramKey = UUID_RE.test(code) ? "token" : "code";
+      const res = await fetch(`/api/meals/available?${paramKey}=${encodeURIComponent(code)}`);
       if (!res.ok) {
         const d = await res.json();
         setError(d.error || "Failed to load meals");
@@ -143,11 +147,12 @@ export default function MealPurchasePage() {
     if (selectedMeals.size === 0) return;
     setPurchasing(true);
     try {
+      const isToken = UUID_RE.test(code);
       const res = await fetch("/api/meals/purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          confirmationCode: code,
+          ...(isToken ? { secureToken: code } : { confirmationCode: code }),
           serviceIds: [...selectedMeals],
         }),
       });

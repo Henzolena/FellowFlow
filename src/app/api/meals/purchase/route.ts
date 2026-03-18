@@ -4,9 +4,10 @@ import { getStripe } from "@/lib/stripe/client";
 import { z } from "zod";
 
 const purchaseSchema = z.object({
-  confirmationCode: z.string().min(1),
+  confirmationCode: z.string().optional(),
+  secureToken: z.string().uuid().optional(),
   serviceIds: z.array(z.string().uuid()).min(1, "Select at least one meal"),
-});
+}).refine((d) => d.secureToken || d.confirmationCode, { message: "Token or confirmation code required" });
 
 // POST /api/meals/purchase — Create a Stripe checkout session for meal purchases
 export async function POST(request: NextRequest) {
@@ -17,16 +18,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { confirmationCode, serviceIds } = parsed.data;
+    const { confirmationCode, secureToken, serviceIds } = parsed.data;
     const supabase = createAdminClient();
 
-    // Find the registration
-    const { data: reg } = await supabase
+    // Find the registration by secure_token (preferred) or confirmation code (fallback)
+    let regQuery = supabase
       .from("registrations")
-      .select("id, first_name, last_name, email, category, event_id, status, public_confirmation_code, attendance_type")
-      .eq("public_confirmation_code", confirmationCode.toUpperCase())
-      .eq("status", "confirmed")
-      .single();
+      .select("id, first_name, last_name, email, category, event_id, status, public_confirmation_code, secure_token, attendance_type")
+      .eq("status", "confirmed");
+
+    if (secureToken) {
+      regQuery = regQuery.eq("secure_token", secureToken);
+    } else {
+      regQuery = regQuery.eq("public_confirmation_code", confirmationCode!.toUpperCase());
+    }
+
+    const { data: reg } = await regQuery.single();
 
     if (!reg) {
       return NextResponse.json({ error: "Registration not found or not confirmed" }, { status: 404 });
@@ -121,8 +128,8 @@ export async function POST(request: NextRequest) {
       payment_method_types: ["card"],
       line_items: lineItems,
       mode: "payment",
-      success_url: `${appUrl}/meals/${encodeURIComponent(confirmationCode)}?success=true&purchase_id=${purchase.id}`,
-      cancel_url: `${appUrl}/meals/${encodeURIComponent(confirmationCode)}?cancelled=true`,
+      success_url: `${appUrl}/meals/${encodeURIComponent(reg.secure_token)}?success=true&purchase_id=${purchase.id}`,
+      cancel_url: `${appUrl}/meals/${encodeURIComponent(reg.secure_token)}?cancelled=true`,
       customer_email: reg.email,
       metadata: {
         type: "meal_purchase",

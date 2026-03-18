@@ -1,24 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// GET /api/meals/available?code=FF26-HENOK-1234
-// Public endpoint — fetches available meals for a registration by confirmation code
+// GET /api/meals/available?token=UUID  (secure links)
+// GET /api/meals/available?code=FF26-HENOK-1234  (manual lookup fallback)
+// Public endpoint — fetches available meals for a registration
 export async function GET(request: NextRequest) {
   try {
+    const token = request.nextUrl.searchParams.get("token");
     const code = request.nextUrl.searchParams.get("code");
-    if (!code) {
-      return NextResponse.json({ error: "Confirmation code required" }, { status: 400 });
+    if (!token && !code) {
+      return NextResponse.json({ error: "Token or confirmation code required" }, { status: 400 });
     }
 
     const supabase = createAdminClient();
 
-    // Find the registration by public confirmation code
-    const { data: reg, error: regError } = await supabase
+    // Find the registration by secure_token (preferred) or public_confirmation_code (manual lookup)
+    let query = supabase
       .from("registrations")
-      .select("id, first_name, last_name, email, category, event_id, attendance_type, status, public_confirmation_code, events(name, start_date, end_date)")
-      .eq("public_confirmation_code", code.toUpperCase())
-      .eq("status", "confirmed")
-      .single();
+      .select("id, first_name, last_name, email, category, event_id, attendance_type, status, public_confirmation_code, secure_token, events(name, start_date, end_date)")
+      .eq("status", "confirmed");
+
+    if (token) {
+      query = query.eq("secure_token", token);
+    } else {
+      query = query.eq("public_confirmation_code", code!.toUpperCase());
+    }
+
+    const { data: reg, error: regError } = await query.single();
 
     if (regError || !reg) {
       return NextResponse.json({ error: "Registration not found or not confirmed" }, { status: 404 });
@@ -108,6 +116,7 @@ export async function GET(request: NextRequest) {
         category: reg.category,
         attendanceType: reg.attendance_type,
         confirmationCode: reg.public_confirmation_code,
+        secureToken: reg.secure_token,
       },
       event: {
         name: event?.name,

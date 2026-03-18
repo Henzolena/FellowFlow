@@ -32,7 +32,7 @@ export async function dispatchSoloConfirmation(
       .from("registrations")
       .select(
         "first_name, last_name, email, computed_amount, explanation_detail, event_id, " +
-        "category, access_tier, attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, selected_days, selected_meal_ids, tshirt_size, " +
+        "category, access_tier, attendance_type, public_confirmation_code, secure_token, gender, city, church_id, church_name_custom, selected_days, selected_meal_ids, tshirt_size, " +
         "events(name, start_date, end_date), " +
         "lodging_assignments(id, bed_id, beds(bed_label, rooms(room_number, motels(name))))"
       )
@@ -82,6 +82,7 @@ export async function dispatchSoloConfirmation(
         isFree: false,
         registrationId,
         confirmationCode: reg.public_confirmation_code as string | undefined,
+        secureToken: reg.secure_token as string | undefined,
         explanationDetail: reg.explanation_detail as string | null,
         attendanceType: reg.attendance_type as string | undefined,
         category: reg.category as string | undefined,
@@ -176,7 +177,7 @@ export async function dispatchGroupConfirmation(
       .select(
         "id, first_name, last_name, email, computed_amount, explanation_detail, " +
         "category, access_tier, age_at_event, is_full_duration, is_staying_in_motel, num_days, selected_days, selected_meal_ids, tshirt_size, " +
-        "date_of_birth, event_id, attendance_type, public_confirmation_code, " +
+        "date_of_birth, event_id, attendance_type, public_confirmation_code, secure_token, " +
         "gender, city, church_id, church_name_custom, " +
         "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold), " +
         "lodging_assignments(id, bed_id, beds(bed_label, rooms(room_number, motels(name))))"
@@ -233,6 +234,7 @@ export async function dispatchGroupConfirmation(
           isFree: false,
           registrationId: primaryReg.id as string,
           confirmationCode: primaryReg.public_confirmation_code as string | undefined,
+          secureToken: primaryReg.secure_token as string | undefined,
           explanationDetail: primaryReg.explanation_detail as string | null,
           attendanceType: primaryReg.attendance_type as string | undefined,
           category: primaryReg.category as string | undefined,
@@ -363,6 +365,7 @@ export async function dispatchGroupConfirmation(
           attendanceType: r.attendance_type as string | undefined,
           accessTier: r.access_tier as string | undefined,
           confirmationCode: r.public_confirmation_code as string | undefined,
+          secureToken: r.secure_token as string | undefined,
           gender: r.gender as string | null,
           city: r.city as string | null,
           churchName,

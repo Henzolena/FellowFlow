@@ -270,6 +270,7 @@ export async function POST(request: NextRequest) {
           isFree: true,
           registrationId: registration.id,
           confirmationCode: publicCode,
+          secureToken: registration.secure_token,
           explanationDetail: "Complimentary — registered by admin",
           attendanceType: v.attendanceType,
           category,

@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       .select(
         "id, first_name, last_name, email, computed_amount, explanation_detail, " +
         "group_id, event_id, category, access_tier, age_at_event, is_full_duration, is_staying_in_motel, " +
-        "num_days, date_of_birth, attendance_type, public_confirmation_code, " +
+        "num_days, date_of_birth, attendance_type, public_confirmation_code, secure_token, " +
         "gender, city, church_id, church_name_custom, " +
         "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold), " +
         "lodging_assignments(id, bed_id, beds(bed_label, rooms(room_number, motels(name))))"
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         .select(
           "id, first_name, last_name, email, computed_amount, category, access_tier, age_at_event, " +
           "is_full_duration, is_staying_in_motel, num_days, date_of_birth, " +
-          "attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, " +
+          "attendance_type, public_confirmation_code, secure_token, gender, city, church_id, church_name_custom, " +
           "lodging_assignments(id, bed_id, beds(bed_label, rooms(room_number, motels(name))))"
         )
         .eq("group_id", groupId)
@@ -150,6 +150,7 @@ export async function POST(request: NextRequest) {
               attendanceType: r.attendance_type as string | undefined,
               accessTier: r.access_tier as string | undefined,
               confirmationCode: r.public_confirmation_code as string | undefined,
+              secureToken: r.secure_token as string | undefined,
               gender: r.gender as string | null,
               city: r.city as string | null,
               churchName,
@@ -197,6 +198,7 @@ export async function POST(request: NextRequest) {
       isFree: amount === 0,
       registrationId: data.id as string,
       confirmationCode: data.public_confirmation_code as string | undefined,
+      secureToken: data.secure_token as string | undefined,
       explanationDetail: data.explanation_detail as string | null,
       attendanceType: data.attendance_type as string | undefined,
       category: data.category as string | undefined,

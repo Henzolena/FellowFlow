@@ -24,13 +24,15 @@ export default function MealsLookupPage() {
 
     try {
       const res = await fetch(`/api/meals/available?code=${encodeURIComponent(trimmed)}`);
+      const d = await res.json();
       if (!res.ok) {
-        const d = await res.json();
         setError(d.error || "Registration not found");
         setLoading(false);
         return;
       }
-      router.push(`/meals/${encodeURIComponent(trimmed)}`);
+      // Redirect using secure token so confirmation code never appears in the URL
+      const secureToken = d.registration?.secureToken;
+      router.push(`/meals/${encodeURIComponent(secureToken || trimmed)}`);
     } catch {
       setError("Failed to connect. Please try again.");
       setLoading(false);

@@ -141,6 +141,7 @@ export async function POST(request: NextRequest) {
         amount: 0,
         isFree: true,
         registrationId: registration.id,
+        secureToken: registration.secure_token,
         explanationDetail: pricingResult.explanationDetail,
         category: registration.category,
         accessTier: registration.access_tier,

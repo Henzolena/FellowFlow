@@ -103,6 +103,7 @@ export type ConfirmationEmailParams = {
   isFree: boolean;
   registrationId: string;
   confirmationCode?: string;
+  secureToken?: string;
   explanationDetail: string | null;
   attendanceType?: string;
   category?: string;
@@ -175,7 +176,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
         bedLabel: params.bedLabel,
         mealCount: params.selectedMealIds?.length ?? 0,
         tshirtSize: params.tshirtSize,
-        mealPurchaseUrl: attendanceType === "kote" && displayCode ? `${appUrl}/meals/${encodeURIComponent(displayCode)}` : null,
+        mealPurchaseUrl: attendanceType === "kote" && params.secureToken ? `${appUrl}/meals/${encodeURIComponent(params.secureToken)}` : null,
       };
       const pdfBytes = await generateRegistrationBadgePDF(badgeData);
       const safeName = `${firstName}_${lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -268,7 +269,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
     ${attendanceType === "kote" ? `
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0;"><tr><td align="center">
       <p style="margin:0 0 8px;color:#92400e;font-size:13px;font-weight:600;">🍽️ Need meals during the conference?</p>
-      <a href="${appUrl}/meals/${encodeURIComponent(displayCode)}" style="display:inline-block;background:#d97706;color:#ffffff;text-decoration:none;padding:10px 28px;border-radius:8px;font-size:13px;font-weight:700;">Purchase Meal Tickets</a>
+      <a href="${appUrl}/meals/${encodeURIComponent(params.secureToken || displayCode)}" style="display:inline-block;background:#d97706;color:#ffffff;text-decoration:none;padding:10px 28px;border-radius:8px;font-size:13px;font-weight:700;">Purchase Meal Tickets</a>
     </td></tr></table>
     ` : ""}
   </td></tr>
@@ -278,7 +279,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
     <p style="${S.footerText}">
       <span style="${S.footerBold}">FellowFlow</span> — Conference Registration<br>
       Show your confirmation code at the check-in desk.<br>
-      ${attendanceType === "kote" ? `<a href="${appUrl}/meals/${encodeURIComponent(displayCode)}" style="color:#d97706;text-decoration:underline;">Purchase meal tickets here</a><br>` : ""}
+      ${attendanceType === "kote" ? `<a href="${appUrl}/meals/${encodeURIComponent(params.secureToken || displayCode)}" style="color:#d97706;text-decoration:underline;">Purchase meal tickets here</a><br>` : ""}
       Questions? Reply to this email.
     </p>
   </td></tr>
@@ -313,6 +314,7 @@ export type GroupMember = {
   attendanceType?: string;
   accessTier?: string;
   confirmationCode?: string;
+  secureToken?: string;
   gender?: string | null;
   city?: string | null;
   churchName?: string | null;
@@ -430,7 +432,7 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
         bedLabel: m.bedLabel,
         mealCount: m.mealCount ?? (m.selectedMealIds?.length ?? 0),
         tshirtSize: m.tshirtSize,
-        mealPurchaseUrl: (m.attendanceType || m.attendance) === "kote" && m.confirmationCode ? `${appUrl}/meals/${encodeURIComponent(m.confirmationCode)}` : null,
+        mealPurchaseUrl: (m.attendanceType || m.attendance) === "kote" && m.secureToken ? `${appUrl}/meals/${encodeURIComponent(m.secureToken)}` : null,
       };
       const pdfBytes = await generateRegistrationBadgePDF(badgeData);
       const safeName = `${m.firstName}_${m.lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -520,10 +522,10 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
 
     <!-- Meal Purchase CTA for KOTE members -->
     ${(() => {
-      const koteMembers = members.filter(m => m.attendanceType === "kote" && m.confirmationCode);
+      const koteMembers = members.filter(m => m.attendanceType === "kote" && m.secureToken);
       if (koteMembers.length === 0) return "";
       const links = koteMembers.map(m =>
-        `<a href="${appUrl}/meals/${encodeURIComponent(m.confirmationCode!)}" style="color:#d97706;text-decoration:underline;font-weight:600;">${m.firstName} ${m.lastName}</a>`
+        `<a href="${appUrl}/meals/${encodeURIComponent(m.secureToken!)}" style="color:#d97706;text-decoration:underline;font-weight:600;">${m.firstName} ${m.lastName}</a>`
       ).join(" · ");
       return `
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0;"><tr><td align="center" style="padding:16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;">

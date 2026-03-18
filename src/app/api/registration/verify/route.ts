@@ -12,7 +12,7 @@ const REG_SELECT =
   "id, first_name, last_name, email, phone, date_of_birth, age_at_event, category, " +
   "is_full_duration, is_staying_in_motel, num_days, selected_days, selected_meal_ids, tshirt_size, computed_amount, explanation_code, " +
   "explanation_detail, status, confirmed_at, created_at, group_id, event_id, " +
-  "attendance_type, public_confirmation_code, gender, city, church_id, church_name_custom, access_tier, " +
+  "attendance_type, public_confirmation_code, secure_token, gender, city, church_id, church_name_custom, access_tier, " +
   "events(name, start_date, end_date, duration_days, adult_age_threshold, youth_age_threshold, infant_age_threshold), payments(*), " +
   "lodging_assignments(id, bed_id, notes, beds(bed_label, bed_type, rooms(room_number, motels(name))))";
 
