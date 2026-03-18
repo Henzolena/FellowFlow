@@ -263,7 +263,7 @@ export function StaffScanner({ eventId, role, stationLabel, onLogout }: StaffSca
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
+    <div className="h-[100dvh] w-full flex flex-col bg-background overflow-hidden">
       {/* Header — compact */}
       <div className="shrink-0 bg-background/95 backdrop-blur border-b px-3 py-2">
         <div className="max-w-lg mx-auto flex items-center justify-between">
@@ -282,7 +282,7 @@ export function StaffScanner({ eventId, role, stationLabel, onLogout }: StaffSca
         <div className="shrink-0 px-3 pt-2 pb-1 space-y-2 max-w-lg mx-auto w-full">
           <div className="flex gap-2 items-center">
             <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
-              <SelectTrigger className="h-9 text-xs flex-1">
+              <SelectTrigger className="h-9 text-xs flex-1 min-w-0">
                 <SelectValue placeholder="Select service" />
               </SelectTrigger>
               <SelectContent>
@@ -327,7 +327,7 @@ export function StaffScanner({ eventId, role, stationLabel, onLogout }: StaffSca
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
                 placeholder="MW26-HR-10927"
-                className="font-mono text-center h-9 text-sm"
+                className="font-mono text-center h-9 text-sm min-w-0 flex-1"
                 autoFocus
                 autoComplete="off"
               />
@@ -351,7 +351,7 @@ export function StaffScanner({ eventId, role, stationLabel, onLogout }: StaffSca
           /* Camera fills remaining viewport */
           inputMode === "camera" && services.length > 0 ? (
             <div className="flex-1 min-h-0 rounded-lg overflow-hidden border bg-black mt-2">
-              <div id="staff-qr-reader" className="h-full" style={{ width: "100%" }} />
+              <div id="staff-qr-reader" className="h-full w-full [&>div]:!max-w-full [&_video]:!max-w-full" />
             </div>
           ) : (
             /* Empty state for manual mode */
@@ -364,14 +364,14 @@ export function StaffScanner({ eventId, role, stationLabel, onLogout }: StaffSca
         ) : (
           /* Scan result — replaces camera/input area */
           <div className="flex-1 min-h-0 flex flex-col mt-2 gap-2">
-            <div className={`flex-1 min-h-0 rounded-lg border-2 overflow-auto ${RESULT_COLORS[scanResult.result] || ""}`}>
+            <div className={`flex-1 min-h-0 rounded-lg border-2 overflow-y-auto overflow-x-hidden ${RESULT_COLORS[scanResult.result] || ""}`}>
               <div className="p-3">
                 <div className="flex items-start gap-3">
                   <div className="shrink-0 pt-0.5">
                     {RESULT_ICONS[scanResult.result]}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-lg capitalize leading-tight">{scanResult.result.replace("_", " ")}</p>
+                    <p className="font-bold text-lg capitalize leading-tight break-words">{scanResult.result.replace("_", " ")}</p>
                     {scanResult.reason && (
                       <p className="text-sm text-muted-foreground">{scanResult.reason}</p>
                     )}
@@ -380,7 +380,7 @@ export function StaffScanner({ eventId, role, stationLabel, onLogout }: StaffSca
                         <p className="font-semibold">
                           {scanResult.registration.firstName} {scanResult.registration.lastName}
                         </p>
-                        <p className="text-xs text-muted-foreground font-mono">
+                        <p className="text-xs text-muted-foreground font-mono truncate">
                           {scanResult.registration.confirmationCode}
                         </p>
                         <div className="flex flex-wrap gap-1">

@@ -54,7 +54,7 @@ export function PinGate({ eventId, onAuthenticated }: PinGateProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10 relative">
+    <div className="min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden">
       <div className="hero-glow absolute inset-0" aria-hidden="true" />
       <div className="w-full max-w-sm relative space-y-6">
         <div className="text-center space-y-3">

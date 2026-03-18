@@ -204,7 +204,7 @@ export function StaffLookup({ eventId, role, stationLabel, onLogout }: StaffLook
   const IconComponent = role === "proctor" ? BedDouble : Building2;
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
+    <div className="h-[100dvh] w-full flex flex-col bg-background overflow-hidden">
       {/* Header — compact */}
       <div className="shrink-0 bg-background/95 backdrop-blur border-b px-3 py-2">
         <div className="max-w-lg mx-auto flex items-center justify-between">
@@ -226,12 +226,12 @@ export function StaffLookup({ eventId, role, stationLabel, onLogout }: StaffLook
         <div className="shrink-0 px-3 pt-2 pb-1 space-y-2 max-w-lg mx-auto w-full">
           <div className="flex gap-2 items-center">
             {inputMode === "manual" ? (
-              <form onSubmit={handleManualSubmit} className="flex gap-2 flex-1">
+              <form onSubmit={handleManualSubmit} className="flex gap-2 flex-1 min-w-0">
                 <Input
                   value={manualCode}
                   onChange={(e) => { setManualCode(e.target.value); setError(""); }}
                   placeholder="MW26-HR-10927"
-                  className="font-mono text-center h-9 text-sm"
+                  className="font-mono text-center h-9 text-sm min-w-0 flex-1"
                   autoFocus
                   autoComplete="off"
                 />
@@ -270,7 +270,7 @@ export function StaffLookup({ eventId, role, stationLabel, onLogout }: StaffLook
           /* Camera fills remaining viewport */
           inputMode === "camera" ? (
             <div className="flex-1 min-h-0 rounded-lg overflow-hidden border bg-black mt-2">
-              <div id="staff-lookup-qr-reader" className="h-full" style={{ width: "100%" }} />
+              <div id="staff-lookup-qr-reader" className="h-full w-full [&>div]:!max-w-full [&_video]:!max-w-full" />
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
@@ -285,14 +285,14 @@ export function StaffLookup({ eventId, role, stationLabel, onLogout }: StaffLook
               <div className="flex-1 min-h-0 flex items-center justify-center">
                 <div className="rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-950/30 p-4 flex items-center gap-3 w-full">
                   <XCircle className="h-8 w-8 text-red-500 shrink-0" />
-                  <p className="font-semibold text-red-700 dark:text-red-400 text-lg">{error}</p>
+                  <p className="font-semibold text-red-700 dark:text-red-400 text-lg break-words">{error}</p>
                 </div>
               </div>
             )}
 
             {/* Success state */}
             {lookupResult && (
-              <div className="flex-1 min-h-0 rounded-lg border-2 border-green-500 bg-green-50/50 dark:bg-green-950/20 overflow-auto">
+              <div className="flex-1 min-h-0 rounded-lg border-2 border-green-500 bg-green-50/50 dark:bg-green-950/20 overflow-y-auto overflow-x-hidden">
                 <div className="p-3 space-y-3">
                   {/* Person info */}
                   <div className="flex items-start gap-2.5">
@@ -303,7 +303,7 @@ export function StaffLookup({ eventId, role, stationLabel, onLogout }: StaffLook
                       <p className="font-bold text-base leading-tight">
                         {lookupResult.registration.firstName} {lookupResult.registration.lastName}
                       </p>
-                      <p className="text-[11px] text-muted-foreground font-mono">
+                      <p className="text-[11px] text-muted-foreground font-mono truncate">
                         {lookupResult.registration.confirmationCode}
                       </p>
                       <div className="flex flex-wrap gap-1 mt-1">
@@ -337,7 +337,7 @@ export function StaffLookup({ eventId, role, stationLabel, onLogout }: StaffLook
                         {lookupResult.lodging.motelName && (
                           <div>
                             <span className="text-muted-foreground text-[10px]">Building</span>
-                            <p className="font-medium leading-tight">{lookupResult.lodging.motelName}</p>
+                            <p className="font-medium leading-tight truncate">{lookupResult.lodging.motelName}</p>
                           </div>
                         )}
                         {lookupResult.lodging.roomNumber && (
