@@ -549,7 +549,7 @@ function ReceiptContent({ confirmationId }: { confirmationId: string }) {
                   {dict.receipt.receiptSentTo.replace("{email}", data.email)}
                 </p>
               )}
-              {data.public_confirmation_code && (
+              {data.attendance_type === "kote" && data.public_confirmation_code && (
                 <Link href={`/meals/${encodeURIComponent(data.public_confirmation_code)}`}>
                   <Button variant="outline" className="w-full gap-2 border-amber-200 bg-amber-50/50 text-amber-700 hover:bg-amber-100/60 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400 dark:hover:bg-amber-950/50">
                     <UtensilsCrossed className="h-4 w-4" />

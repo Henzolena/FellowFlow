@@ -24,6 +24,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Registration not found or not confirmed" }, { status: 404 });
     }
 
+    // Only KOTE users can purchase meals — other attendance types have meals included
+    if (reg.attendance_type !== "kote") {
+      return NextResponse.json({ error: "Meals are already included in your registration. Only KOTE (day camper) attendees need to purchase meals separately." }, { status: 400 });
+    }
+
     // Fetch pricing config for meal prices
     const { data: pricing } = await supabase
       .from("pricing_config")

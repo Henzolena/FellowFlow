@@ -23,13 +23,18 @@ export async function POST(request: NextRequest) {
     // Find the registration
     const { data: reg } = await supabase
       .from("registrations")
-      .select("id, first_name, last_name, email, category, event_id, status, public_confirmation_code")
+      .select("id, first_name, last_name, email, category, event_id, status, public_confirmation_code, attendance_type")
       .eq("public_confirmation_code", confirmationCode.toUpperCase())
       .eq("status", "confirmed")
       .single();
 
     if (!reg) {
       return NextResponse.json({ error: "Registration not found or not confirmed" }, { status: 404 });
+    }
+
+    // Only KOTE users can purchase meals — other attendance types have meals included
+    if (reg.attendance_type !== "kote") {
+      return NextResponse.json({ error: "Meals are already included in your registration" }, { status: 400 });
     }
 
     // Fetch pricing

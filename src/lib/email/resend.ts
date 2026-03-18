@@ -175,7 +175,7 @@ export async function sendConfirmationEmail(params: ConfirmationEmailParams) {
         bedLabel: params.bedLabel,
         mealCount: params.selectedMealIds?.length ?? 0,
         tshirtSize: params.tshirtSize,
-        mealPurchaseUrl: displayCode ? `${appUrl}/meals/${encodeURIComponent(displayCode)}` : null,
+        mealPurchaseUrl: attendanceType === "kote" && displayCode ? `${appUrl}/meals/${encodeURIComponent(displayCode)}` : null,
       };
       const pdfBytes = await generateRegistrationBadgePDF(badgeData);
       const safeName = `${firstName}_${lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -430,7 +430,7 @@ export async function sendGroupReceiptEmail(params: GroupReceiptEmailParams) {
         bedLabel: m.bedLabel,
         mealCount: m.mealCount ?? (m.selectedMealIds?.length ?? 0),
         tshirtSize: m.tshirtSize,
-        mealPurchaseUrl: m.confirmationCode ? `${appUrl}/meals/${encodeURIComponent(m.confirmationCode)}` : null,
+        mealPurchaseUrl: (m.attendanceType || m.attendance) === "kote" && m.confirmationCode ? `${appUrl}/meals/${encodeURIComponent(m.confirmationCode)}` : null,
       };
       const pdfBytes = await generateRegistrationBadgePDF(badgeData);
       const safeName = `${m.firstName}_${m.lastName}`.replace(/[^a-zA-Z0-9_-]/g, "_");
