@@ -90,15 +90,18 @@ export async function POST(request: NextRequest) {
           .single();
 
         let motelName: string | null = null;
+        let motelAutoAssignable: boolean | null = null;
         let roomInfo: Record<string, unknown> | null = null;
         if (roomRaw) {
           roomInfo = roomRaw as Record<string, unknown>;
           const { data: motelRaw } = await supabase
             .from("motels")
-            .select("id, name")
+            .select("id, name, auto_assignable")
             .eq("id", roomInfo.motel_id as string)
             .single();
-          motelName = (motelRaw as Record<string, unknown> | null)?.name as string | null;
+          const motel = motelRaw as Record<string, unknown> | null;
+          motelName = motel?.name as string | null;
+          motelAutoAssignable = motel?.auto_assignable as boolean | null;
         }
 
         lodgingInfo = {
@@ -108,6 +111,7 @@ export async function POST(request: NextRequest) {
           roomType: roomInfo?.room_type ?? null,
           floor: roomInfo?.floor ?? null,
           motelName,
+          isHotel: motelAutoAssignable === false,
         };
       }
     }

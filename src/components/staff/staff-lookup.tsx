@@ -28,6 +28,7 @@ type LodgingInfo = {
   roomType: string | null;
   floor: number | null;
   motelName: string | null;
+  isHotel: boolean;
 };
 
 type RegistrationInfo = {
@@ -326,61 +327,92 @@ export function StaffLookup({ eventId, role, stationLabel, onLogout }: StaffLook
                     )}
                   </div>
 
-                  {/* Lodging info — compact */}
-                  {lookupResult.lodging ? (
-                    <div className="rounded-md border bg-background p-2.5 space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold">
-                        <Building2 className="h-3.5 w-3.5 text-blue-500" />
-                        Lodging
+                  {/* Lodging info — role-aware */}
+                  {(() => {
+                    const lodging = lookupResult.lodging;
+                    const isMotelRole = role === "motel";
+                    const isRelevant = lodging && (isMotelRole ? lodging.isHotel : !lodging.isHotel);
+
+                    if (lodging && isRelevant) {
+                      return (
+                        <div className="rounded-md border bg-background p-2.5 space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold">
+                            {isMotelRole ? (
+                              <><Building2 className="h-3.5 w-3.5 text-blue-500" /> Hotel Room</>
+                            ) : (
+                              <><BedDouble className="h-3.5 w-3.5 text-indigo-500" /> Dorm Assignment</>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                            {lodging.motelName && (
+                              <div>
+                                <span className="text-muted-foreground text-[10px]">Building</span>
+                                <p className="font-medium leading-tight truncate">{lodging.motelName}</p>
+                              </div>
+                            )}
+                            {lodging.roomNumber && (
+                              <div>
+                                <span className="text-muted-foreground text-[10px]">Room</span>
+                                <p className="font-medium leading-tight">
+                                  {lodging.roomNumber}
+                                  {lodging.floor != null && (
+                                    <span className="text-muted-foreground ml-1">(F{lodging.floor})</span>
+                                  )}
+                                </p>
+                              </div>
+                            )}
+                            {lodging.bedLabel && (
+                              <div>
+                                <span className="text-muted-foreground text-[10px]">Bed</span>
+                                <p className="font-medium leading-tight flex items-center gap-1">
+                                  <BedDouble className="h-3 w-3" />
+                                  {lodging.bedLabel}
+                                </p>
+                              </div>
+                            )}
+                            {lodging.roomType && (
+                              <div>
+                                <span className="text-muted-foreground text-[10px]">Type</span>
+                                <p className="font-medium leading-tight capitalize">
+                                  {lodging.roomType.replace("_", " ")}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (lodging && !isRelevant) {
+                      return (
+                        <div className="rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 px-2.5 py-2">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-blue-400">
+                            <DoorOpen className="h-3.5 w-3.5" />
+                            {isMotelRole
+                              ? "No hotel room assigned"
+                              : "No dorm assigned"}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {isMotelRole
+                              ? `Assigned to dorm: ${lodging.motelName || "Unknown"}`
+                              : `Assigned to hotel: ${lodging.motelName || "Unknown"}, Room ${lodging.roomNumber || "?"}`}
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-2">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                          <DoorOpen className="h-3.5 w-3.5" />
+                          {isMotelRole ? "No hotel room assigned" : "No dorm assigned"}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Day camper or not yet assigned.
+                        </p>
                       </div>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                        {lookupResult.lodging.motelName && (
-                          <div>
-                            <span className="text-muted-foreground text-[10px]">Building</span>
-                            <p className="font-medium leading-tight truncate">{lookupResult.lodging.motelName}</p>
-                          </div>
-                        )}
-                        {lookupResult.lodging.roomNumber && (
-                          <div>
-                            <span className="text-muted-foreground text-[10px]">Room</span>
-                            <p className="font-medium leading-tight">
-                              {lookupResult.lodging.roomNumber}
-                              {lookupResult.lodging.floor != null && (
-                                <span className="text-muted-foreground ml-1">(F{lookupResult.lodging.floor})</span>
-                              )}
-                            </p>
-                          </div>
-                        )}
-                        {lookupResult.lodging.bedLabel && (
-                          <div>
-                            <span className="text-muted-foreground text-[10px]">Bed</span>
-                            <p className="font-medium leading-tight flex items-center gap-1">
-                              <BedDouble className="h-3 w-3" />
-                              {lookupResult.lodging.bedLabel}
-                            </p>
-                          </div>
-                        )}
-                        {lookupResult.lodging.roomType && (
-                          <div>
-                            <span className="text-muted-foreground text-[10px]">Type</span>
-                            <p className="font-medium leading-tight capitalize">
-                              {lookupResult.lodging.roomType.replace("_", " ")}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-2">
-                      <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-                        <DoorOpen className="h-3.5 w-3.5" />
-                        No lodging assignment
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        Day camper or not yet assigned.
-                      </p>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
             )}
