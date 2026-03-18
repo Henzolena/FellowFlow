@@ -29,8 +29,11 @@ export function useScanAudio() {
   const playSuccess = useCallback(() => {
     try {
       const audio = getSuccessAudio();
+      audio.pause();
       audio.currentTime = 0;
-      audio.play().catch(() => {});
+      const clone = audio.cloneNode() as HTMLAudioElement;
+      clone.volume = 0.7;
+      clone.play().catch(() => {});
     } catch {
       // Audio playback not supported — silent fallback
     }
@@ -39,8 +42,11 @@ export function useScanAudio() {
   const playError = useCallback(() => {
     try {
       const audio = getErrorAudio();
+      audio.pause();
       audio.currentTime = 0;
-      audio.play().catch(() => {});
+      const clone = audio.cloneNode() as HTMLAudioElement;
+      clone.volume = 0.7;
+      clone.play().catch(() => {});
     } catch {
       // Audio playback not supported — silent fallback
     }
