@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       // Fetch bed → room → motel in steps
       const { data: bedRaw } = await supabase
         .from("beds")
-        .select("id, label, bed_type, max_occupants, room_id")
+        .select("id, bed_label, bed_type, max_occupants, room_id")
         .eq("id", assignmentRaw.bed_id)
         .single();
 
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         }
 
         lodgingInfo = {
-          bedLabel: bed.label ?? null,
+          bedLabel: bed.bed_label ?? null,
           bedType: bed.bed_type ?? null,
           roomNumber: roomInfo?.room_number ?? null,
           roomType: roomInfo?.room_type ?? null,
