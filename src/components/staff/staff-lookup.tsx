@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+
 import {
   CheckCircle2,
   XCircle,
@@ -171,184 +171,194 @@ export function StaffLookup({ eventId, role, stationLabel, onLogout }: StaffLook
   const IconComponent = role === "proctor" ? BedDouble : Building2;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 py-3">
+    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
+      {/* Header — compact */}
+      <div className="shrink-0 bg-background/95 backdrop-blur border-b px-3 py-2">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold flex items-center gap-2">
-              <IconComponent className="h-5 w-5" />
+          <div className="min-w-0">
+            <h1 className="text-sm font-bold leading-tight flex items-center gap-1.5">
+              <IconComponent className="h-4 w-4" />
               {roleLabel}
             </h1>
-            <p className="text-xs text-muted-foreground">{stationLabel}</p>
+            <p className="text-[10px] text-muted-foreground truncate">{stationLabel}</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onLogout} className="gap-1 text-xs">
+          <Button variant="ghost" size="sm" onClick={onLogout} className="gap-1 text-[10px] h-7 px-2 shrink-0">
             <LogOut className="h-3 w-3" /> Exit
           </Button>
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
-        {/* Input Mode Toggle */}
-        <div className="flex gap-2">
-          <Button
-            variant={inputMode === "camera" ? "default" : "outline"}
-            size="sm"
-            className="flex-1 gap-1"
-            onClick={() => setInputMode("camera")}
-          >
-            <Camera className="h-4 w-4" /> Camera
-          </Button>
-          <Button
-            variant={inputMode === "manual" ? "default" : "outline"}
-            size="sm"
-            className="flex-1 gap-1"
-            onClick={() => setInputMode("manual")}
-          >
-            <Keyboard className="h-4 w-4" /> Manual
-          </Button>
-        </div>
-
-        {/* Camera Scanner */}
-        {inputMode === "camera" && (
-          <div className="rounded-lg overflow-hidden border bg-black">
-            <div id="staff-lookup-qr-reader" style={{ width: "100%" }} />
+      {/* Controls bar — mode toggle + manual input (hidden when result showing) */}
+      {!lookupResult && !error && (
+        <div className="shrink-0 px-3 pt-2 pb-1 space-y-2 max-w-lg mx-auto w-full">
+          <div className="flex gap-2 items-center">
+            {inputMode === "manual" ? (
+              <form onSubmit={handleManualSubmit} className="flex gap-2 flex-1">
+                <Input
+                  value={manualCode}
+                  onChange={(e) => { setManualCode(e.target.value); setError(""); }}
+                  placeholder="MW26-HR-10927"
+                  className="font-mono text-center h-9 text-sm"
+                  autoFocus
+                  autoComplete="off"
+                />
+                <Button type="submit" size="sm" className="h-9 px-4" disabled={!manualCode.trim() || scanning}>
+                  {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : "Look Up"}
+                </Button>
+              </form>
+            ) : (
+              <div className="flex-1" />
+            )}
+            <div className="flex gap-1 shrink-0">
+              <Button
+                variant={inputMode === "camera" ? "default" : "outline"}
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => setInputMode("camera")}
+              >
+                <Camera className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={inputMode === "manual" ? "default" : "outline"}
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => setInputMode("manual")}
+              >
+                <Keyboard className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Manual Entry */}
-        {inputMode === "manual" && (
-          <form onSubmit={handleManualSubmit} className="flex gap-2">
-            <Input
-              value={manualCode}
-              onChange={(e) => { setManualCode(e.target.value); setError(""); }}
-              placeholder="MW26-HR-10927"
-              className="font-mono text-center h-12"
-              autoFocus
-              autoComplete="off"
-            />
-            <Button type="submit" size="lg" disabled={!manualCode.trim() || scanning}>
-              {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : "Look Up"}
-            </Button>
-          </form>
-        )}
-
-        {/* Error */}
-        {error && (
-          <Card className="border-2 border-red-500 bg-red-50 dark:bg-red-950/30">
-            <CardContent className="py-4 flex items-center gap-3">
-              <XCircle className="h-6 w-6 text-red-500 shrink-0" />
-              <p className="font-medium text-red-700 dark:text-red-400">{error}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Lookup Result */}
-        {lookupResult && (
-          <Card className="border-2 border-green-500 bg-green-50/50 dark:bg-green-950/20">
-            <CardContent className="py-4 space-y-4">
-              {/* Person info */}
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <User className="h-5 w-5 text-primary" />
+      {/* Main area — camera OR result (fills remaining space) */}
+      <div className="flex-1 min-h-0 flex flex-col max-w-lg mx-auto w-full px-3 pb-3">
+        {!lookupResult && !error ? (
+          /* Camera fills remaining viewport */
+          inputMode === "camera" ? (
+            <div className="flex-1 min-h-0 rounded-lg overflow-hidden border bg-black mt-2">
+              <div id="staff-lookup-qr-reader" className="h-full" style={{ width: "100%" }} />
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+              Enter a confirmation code above
+            </div>
+          )
+        ) : (
+          /* Result or error — replaces camera/input area */
+          <div className="flex-1 min-h-0 flex flex-col mt-2 gap-2">
+            {/* Error state */}
+            {error && (
+              <div className="flex-1 min-h-0 flex items-center justify-center">
+                <div className="rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-950/30 p-4 flex items-center gap-3 w-full">
+                  <XCircle className="h-8 w-8 text-red-500 shrink-0" />
+                  <p className="font-semibold text-red-700 dark:text-red-400 text-lg">{error}</p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-lg">
-                    {lookupResult.registration.firstName} {lookupResult.registration.lastName}
-                  </p>
-                  <p className="text-xs text-muted-foreground font-mono">
-                    {lookupResult.registration.confirmationCode}
-                  </p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    <Badge variant="outline" className="text-[10px]">
-                      {lookupResult.registration.category}
-                    </Badge>
-                    <Badge variant="outline" className="text-[10px]">
-                      {lookupResult.registration.attendanceType?.replace("_", " ")}
-                    </Badge>
-                    <Badge
-                      variant={lookupResult.registration.status === "confirmed" ? "default" : "secondary"}
-                      className="text-[10px]"
-                    >
-                      {lookupResult.registration.status}
-                    </Badge>
-                  </div>
-                </div>
-                {lookupResult.registration.checkedIn && (
-                  <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-                )}
               </div>
+            )}
 
-              {/* Lodging info */}
-              {lookupResult.lodging ? (
-                <div className="rounded-lg border bg-background p-3 space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-semibold">
-                    <Building2 className="h-4 w-4 text-blue-500" />
-                    Lodging Assignment
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    {lookupResult.lodging.motelName && (
-                      <div>
-                        <span className="text-muted-foreground text-xs">Building</span>
-                        <p className="font-medium">{lookupResult.lodging.motelName}</p>
+            {/* Success state */}
+            {lookupResult && (
+              <div className="flex-1 min-h-0 rounded-lg border-2 border-green-500 bg-green-50/50 dark:bg-green-950/20 overflow-auto">
+                <div className="p-3 space-y-3">
+                  {/* Person info */}
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-base leading-tight">
+                        {lookupResult.registration.firstName} {lookupResult.registration.lastName}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground font-mono">
+                        {lookupResult.registration.confirmationCode}
+                      </p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        <Badge variant="outline" className="text-[10px]">
+                          {lookupResult.registration.category}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px]">
+                          {lookupResult.registration.attendanceType?.replace("_", " ")}
+                        </Badge>
+                        <Badge
+                          variant={lookupResult.registration.status === "confirmed" ? "default" : "secondary"}
+                          className="text-[10px]"
+                        >
+                          {lookupResult.registration.status}
+                        </Badge>
                       </div>
-                    )}
-                    {lookupResult.lodging.roomNumber && (
-                      <div>
-                        <span className="text-muted-foreground text-xs">Room</span>
-                        <p className="font-medium">
-                          {lookupResult.lodging.roomNumber}
-                          {lookupResult.lodging.floor != null && (
-                            <span className="text-muted-foreground text-xs ml-1">
-                              (Floor {lookupResult.lodging.floor})
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    )}
-                    {lookupResult.lodging.bedLabel && (
-                      <div>
-                        <span className="text-muted-foreground text-xs">Bed</span>
-                        <p className="font-medium flex items-center gap-1">
-                          <BedDouble className="h-3 w-3" />
-                          {lookupResult.lodging.bedLabel}
-                        </p>
-                      </div>
-                    )}
-                    {lookupResult.lodging.roomType && (
-                      <div>
-                        <span className="text-muted-foreground text-xs">Type</span>
-                        <p className="font-medium capitalize">
-                          {lookupResult.lodging.roomType.replace("_", " ")}
-                        </p>
-                      </div>
+                    </div>
+                    {lookupResult.registration.checkedIn && (
+                      <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
                     )}
                   </div>
-                </div>
-              ) : (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3">
-                  <div className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
-                    <DoorOpen className="h-4 w-4" />
-                    No lodging assignment found
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    This person may be a day camper or their lodging hasn&apos;t been assigned yet.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Clear */}
-        {(lookupResult || error) && (
-          <Button
-            variant="outline"
-            className="w-full gap-2"
-            onClick={() => { setLookupResult(null); setError(""); }}
-          >
-            <RefreshCw className="h-4 w-4" /> Ready for Next Lookup
-          </Button>
+                  {/* Lodging info — compact */}
+                  {lookupResult.lodging ? (
+                    <div className="rounded-md border bg-background p-2.5 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold">
+                        <Building2 className="h-3.5 w-3.5 text-blue-500" />
+                        Lodging
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                        {lookupResult.lodging.motelName && (
+                          <div>
+                            <span className="text-muted-foreground text-[10px]">Building</span>
+                            <p className="font-medium leading-tight">{lookupResult.lodging.motelName}</p>
+                          </div>
+                        )}
+                        {lookupResult.lodging.roomNumber && (
+                          <div>
+                            <span className="text-muted-foreground text-[10px]">Room</span>
+                            <p className="font-medium leading-tight">
+                              {lookupResult.lodging.roomNumber}
+                              {lookupResult.lodging.floor != null && (
+                                <span className="text-muted-foreground ml-1">(F{lookupResult.lodging.floor})</span>
+                              )}
+                            </p>
+                          </div>
+                        )}
+                        {lookupResult.lodging.bedLabel && (
+                          <div>
+                            <span className="text-muted-foreground text-[10px]">Bed</span>
+                            <p className="font-medium leading-tight flex items-center gap-1">
+                              <BedDouble className="h-3 w-3" />
+                              {lookupResult.lodging.bedLabel}
+                            </p>
+                          </div>
+                        )}
+                        {lookupResult.lodging.roomType && (
+                          <div>
+                            <span className="text-muted-foreground text-[10px]">Type</span>
+                            <p className="font-medium leading-tight capitalize">
+                              {lookupResult.lodging.roomType.replace("_", " ")}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-2">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                        <DoorOpen className="h-3.5 w-3.5" />
+                        No lodging assignment
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        Day camper or not yet assigned.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <Button
+              className="w-full shrink-0 gap-2 h-12 text-base"
+              onClick={() => { setLookupResult(null); setError(""); }}
+            >
+              <RefreshCw className="h-4 w-4" /> Next Lookup
+            </Button>
+          </div>
         )}
       </div>
     </div>

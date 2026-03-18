@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -231,157 +230,163 @@ export function StaffScanner({ eventId, role, stationLabel, onLogout }: StaffSca
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 py-3">
+    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
+      {/* Header — compact */}
+      <div className="shrink-0 bg-background/95 backdrop-blur border-b px-3 py-2">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold">{roleLabel}</h1>
-            <p className="text-xs text-muted-foreground">{stationLabel}</p>
+          <div className="min-w-0">
+            <h1 className="text-sm font-bold leading-tight">{roleLabel}</h1>
+            <p className="text-[10px] text-muted-foreground truncate">{stationLabel}</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onLogout} className="gap-1 text-xs">
+          <Button variant="ghost" size="sm" onClick={onLogout} className="gap-1 text-[10px] h-7 px-2 shrink-0">
             <LogOut className="h-3 w-3" /> Exit
           </Button>
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
-        {/* Service Selector */}
-        {services.length > 0 && (
-          <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
-            <SelectTrigger className="h-12">
-              <SelectValue placeholder="Select service" />
-            </SelectTrigger>
-            <SelectContent>
-              {services.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  <span className="flex items-center gap-2">
-                    {s.service_name}
-                    {s.service_date && (
-                      <Badge variant="outline" className="text-[10px]">
-                        {new Date(s.service_date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                      </Badge>
+      {/* Controls bar — service selector + mode toggle */}
+      {services.length > 0 && !scanResult && (
+        <div className="shrink-0 px-3 pt-2 pb-1 space-y-2 max-w-lg mx-auto w-full">
+          <div className="flex gap-2 items-center">
+            <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
+              <SelectTrigger className="h-9 text-xs flex-1">
+                <SelectValue placeholder="Select service" />
+              </SelectTrigger>
+              <SelectContent>
+                {services.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    <span className="flex items-center gap-2">
+                      {s.service_name}
+                      {s.service_date && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {new Date(s.service_date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                        </Badge>
+                      )}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-1 shrink-0">
+              <Button
+                variant={inputMode === "camera" ? "default" : "outline"}
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => setInputMode("camera")}
+              >
+                <Camera className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={inputMode === "manual" ? "default" : "outline"}
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => setInputMode("manual")}
+              >
+                <Keyboard className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Manual Entry */}
+          {inputMode === "manual" && (
+            <form onSubmit={handleManualSubmit} className="flex gap-2">
+              <Input
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+                placeholder="MW26-HR-10927"
+                className="font-mono text-center h-9 text-sm"
+                autoFocus
+                autoComplete="off"
+              />
+              <Button type="submit" size="sm" className="h-9 px-4" disabled={!manualCode.trim() || scanning || !selectedServiceId}>
+                {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : "Scan"}
+              </Button>
+            </form>
+          )}
+        </div>
+      )}
+
+      {services.length === 0 && (
+        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm px-4">
+          No services available for your role.
+        </div>
+      )}
+
+      {/* Main area — camera OR scan result (fills remaining space) */}
+      <div className="flex-1 min-h-0 flex flex-col max-w-lg mx-auto w-full px-3 pb-3">
+        {!scanResult ? (
+          /* Camera fills remaining viewport */
+          inputMode === "camera" && services.length > 0 ? (
+            <div className="flex-1 min-h-0 rounded-lg overflow-hidden border bg-black mt-2">
+              <div id="staff-qr-reader" className="h-full" style={{ width: "100%" }} />
+            </div>
+          ) : (
+            /* Empty state for manual mode */
+            services.length > 0 && (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                Enter a confirmation code above
+              </div>
+            )
+          )
+        ) : (
+          /* Scan result — replaces camera/input area */
+          <div className="flex-1 min-h-0 flex flex-col mt-2 gap-2">
+            <div className={`flex-1 min-h-0 rounded-lg border-2 overflow-auto ${RESULT_COLORS[scanResult.result] || ""}`}>
+              <div className="p-3">
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 pt-0.5">
+                    {RESULT_ICONS[scanResult.result]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-lg capitalize leading-tight">{scanResult.result.replace("_", " ")}</p>
+                    {scanResult.reason && (
+                      <p className="text-sm text-muted-foreground">{scanResult.reason}</p>
                     )}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {services.length === 0 && (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              No services available for your role.
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Input Mode Toggle */}
-        {services.length > 0 && (
-          <div className="flex gap-2">
-            <Button
-              variant={inputMode === "camera" ? "default" : "outline"}
-              size="sm"
-              className="flex-1 gap-1"
-              onClick={() => setInputMode("camera")}
-            >
-              <Camera className="h-4 w-4" /> Camera
-            </Button>
-            <Button
-              variant={inputMode === "manual" ? "default" : "outline"}
-              size="sm"
-              className="flex-1 gap-1"
-              onClick={() => setInputMode("manual")}
-            >
-              <Keyboard className="h-4 w-4" /> Manual
-            </Button>
-          </div>
-        )}
-
-        {/* Camera Scanner */}
-        {inputMode === "camera" && (
-          <div className="rounded-lg overflow-hidden border bg-black">
-            <div id="staff-qr-reader" style={{ width: "100%" }} />
-          </div>
-        )}
-
-        {/* Manual Entry */}
-        {inputMode === "manual" && services.length > 0 && (
-          <form onSubmit={handleManualSubmit} className="flex gap-2">
-            <Input
-              value={manualCode}
-              onChange={(e) => setManualCode(e.target.value)}
-              placeholder="MW26-HR-10927"
-              className="font-mono text-center h-12"
-              autoFocus
-              autoComplete="off"
-            />
-            <Button type="submit" size="lg" disabled={!manualCode.trim() || scanning || !selectedServiceId}>
-              {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : "Scan"}
-            </Button>
-          </form>
-        )}
-
-        {/* Scan Result */}
-        {scanResult && (
-          <Card className={`border-2 transition-all ${RESULT_COLORS[scanResult.result] || ""}`}>
-            <CardContent className="py-4">
-              <div className="flex items-start gap-3">
-                <div className="pt-1">{RESULT_ICONS[scanResult.result]}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-lg capitalize">{scanResult.result.replace("_", " ")}</p>
-                  {scanResult.reason && (
-                    <p className="text-sm text-muted-foreground">{scanResult.reason}</p>
-                  )}
-                  {scanResult.registration && (
-                    <div className="mt-2 space-y-1">
-                      <p className="font-semibold text-base">
-                        {scanResult.registration.firstName} {scanResult.registration.lastName}
-                      </p>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        {scanResult.registration.confirmationCode}
-                      </p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        <Badge variant="outline" className="text-[10px]">
-                          {scanResult.registration.category}
-                        </Badge>
-                        <Badge variant="outline" className="text-[10px]">
-                          {scanResult.registration.attendanceType?.replace("_", " ")}
-                        </Badge>
+                    {scanResult.registration && (
+                      <div className="mt-2 space-y-1">
+                        <p className="font-semibold">
+                          {scanResult.registration.firstName} {scanResult.registration.lastName}
+                        </p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {scanResult.registration.confirmationCode}
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="outline" className="text-[10px]">
+                            {scanResult.registration.category}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px]">
+                            {scanResult.registration.attendanceType?.replace("_", " ")}
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {scanResult.service && (
-                    <p className="text-xs mt-1 text-muted-foreground">
-                      Service: {scanResult.service.name}
-                    </p>
-                  )}
-                  {scanResult.usage && (
-                    <p className="text-xs text-muted-foreground">
-                      Usage: {scanResult.usage.quantityUsed}/{scanResult.usage.quantityAllowed}
-                    </p>
-                  )}
-                  {scanResult.lastUsedAt && (
-                    <p className="text-xs text-muted-foreground">
-                      Last used: {new Date(scanResult.lastUsedAt).toLocaleTimeString()}
-                    </p>
-                  )}
+                    )}
+                    {scanResult.service && (
+                      <p className="text-xs mt-1 text-muted-foreground">
+                        Service: {scanResult.service.name}
+                      </p>
+                    )}
+                    {scanResult.usage && (
+                      <p className="text-xs text-muted-foreground">
+                        Usage: {scanResult.usage.quantityUsed}/{scanResult.usage.quantityAllowed}
+                      </p>
+                    )}
+                    {scanResult.lastUsedAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Last used: {new Date(scanResult.lastUsedAt).toLocaleTimeString()}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
 
-        {/* Clear / Refresh */}
-        {scanResult && (
-          <Button
-            variant="outline"
-            className="w-full gap-2"
-            onClick={() => setScanResult(null)}
-          >
-            <RefreshCw className="h-4 w-4" /> Ready for Next Scan
-          </Button>
+            <Button
+              className="w-full shrink-0 gap-2 h-12 text-base"
+              onClick={() => setScanResult(null)}
+            >
+              <RefreshCw className="h-4 w-4" /> Next Scan
+            </Button>
+          </div>
         )}
       </div>
     </div>
