@@ -241,7 +241,6 @@ export async function generateRegistrationBadgePDF(
   if (badge.dormName) detailLines.push(["Dorm", badge.dormName]);
   if (badge.bedLabel) detailLines.push(["Bed", badge.bedLabel]);
   if (badge.mealCount && badge.mealCount > 0) detailLines.push(["Meals", `${badge.mealCount} meal(s) purchased`]);
-  if (badge.tshirtSize) detailLines.push(["T-Shirt", badge.tshirtSize]);
 
   const VAL_FONT_SIZE = 10;
   const LINE_H = 16;
