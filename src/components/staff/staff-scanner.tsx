@@ -110,7 +110,8 @@ export function StaffScanner({ eventId, role, stationLabel, onLogout }: StaffSca
   const [scanResult, setScanResult] = useState<ScanResultData | null>(null);
   const [loading, setLoading] = useState(true);
   const lastScanRef = useRef(0);
-  const scannerRef = useRef<{ stop?: () => void } | null>(null);
+  const scannerInstanceRef = useRef<InstanceType<typeof import("html5-qrcode").Html5Qrcode> | null>(null);
+  const scannerBusyRef = useRef(false);
   const { playSuccess, playError } = useScanAudio();
 
   const pin = typeof window !== "undefined" ? sessionStorage.getItem("staff_pin") || "" : "";
@@ -177,36 +178,68 @@ export function StaffScanner({ eventId, role, stationLabel, onLogout }: StaffSca
     setScanning(false);
   }, [selectedServiceId, eventId, pin, stationLabel, playSuccess, playError]);
 
-  // QR Camera
+  // QR Camera — transition-safe start/stop
   useEffect(() => {
-    if (inputMode !== "camera") {
-      if (scannerRef.current?.stop) scannerRef.current.stop();
-      return;
+    let cancelled = false;
+
+    async function stopExisting() {
+      if (scannerBusyRef.current) return;
+      const instance = scannerInstanceRef.current;
+      if (instance) {
+        scannerBusyRef.current = true;
+        try {
+          const state = instance.getState();
+          if (state === 2 /* SCANNING */ || state === 3 /* PAUSED */) {
+            await instance.stop();
+          }
+          instance.clear();
+        } catch {
+          // ignore — may already be stopped
+        }
+        scannerInstanceRef.current = null;
+        scannerBusyRef.current = false;
+      }
     }
 
-    let stopped = false;
-    async function startScanner() {
+    async function manage() {
+      await stopExisting();
+      if (cancelled || inputMode !== "camera") return;
+
+      scannerBusyRef.current = true;
       try {
         const { Html5Qrcode } = await import("html5-qrcode");
+        if (cancelled) { scannerBusyRef.current = false; return; }
+
         const scanner = new Html5Qrcode("staff-qr-reader");
-        scannerRef.current = { stop: () => { stopped = true; scanner.stop().catch(() => {}); } };
+        scannerInstanceRef.current = scanner;
 
         await scanner.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decoded) => {
-            if (!stopped) performScan(decoded);
-          },
+          (decoded) => { if (!cancelled) performScan(decoded); },
           () => {}
         );
       } catch {
-        setInputMode("manual");
+        if (!cancelled) setInputMode("manual");
       }
+      scannerBusyRef.current = false;
     }
-    startScanner();
+
+    manage();
 
     return () => {
-      if (scannerRef.current?.stop) scannerRef.current.stop();
+      cancelled = true;
+      const instance = scannerInstanceRef.current;
+      if (instance) {
+        try {
+          const state = instance.getState();
+          if (state === 2 || state === 3) {
+            instance.stop().catch(() => {});
+          }
+          instance.clear();
+        } catch { /* ignore */ }
+        scannerInstanceRef.current = null;
+      }
     };
   }, [inputMode, performScan]);
 
