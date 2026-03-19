@@ -52,10 +52,27 @@ export async function GET(
 
     const toArray = (v: unknown) => (Array.isArray(v) ? v : v ? [v] : []);
 
+    // Compute meal total from selected_meal_ids
+    let mealTotal = 0;
+    const mealIds = raw.selected_meal_ids as string[] | null;
+    if (mealIds && mealIds.length > 0) {
+      const { data: pricing } = await supabase
+        .from("pricing_config")
+        .select("meal_price_adult, meal_price_child")
+        .eq("event_id", raw.event_id as string)
+        .single();
+      if (pricing) {
+        const category = raw.category as string;
+        const pricePerMeal = category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+        mealTotal = mealIds.length * pricePerMeal;
+      }
+    }
+
     // Normalize arrays
     const normalized = {
       ...raw,
       church_name_resolved: churchName,
+      meal_total: mealTotal,
       payments: toArray(raw.payments),
       check_ins: toArray(raw.check_ins),
       service_entitlements: toArray(raw.service_entitlements),

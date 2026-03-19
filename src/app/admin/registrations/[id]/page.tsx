@@ -113,6 +113,7 @@ type DetailData = {
   selected_meal_ids: string[] | null;
   tshirt_size: string | null;
   computed_amount: number;
+  meal_total: number;
   explanation_code: string;
   explanation_detail: string;
   event_id: string;
@@ -197,6 +198,8 @@ export default function RegistrationDetailPage({
   }
 
   const isFree = Number(data.computed_amount) === 0;
+  const mealTotal = data.meal_total || 0;
+  const grandTotal = Number(data.computed_amount) + mealTotal;
 
   return (
     <div className="space-y-6">
@@ -326,20 +329,22 @@ export default function RegistrationDetailPage({
           <CardContent className="space-y-2.5">
             <Row label="Rule" value={getExplanationLabel(data.explanation_code as ExplanationCode)} />
             <Row label="Explanation" value={data.explanation_detail || "—"} />
-            {data.selected_meal_ids && data.selected_meal_ids.length > 0 && (
+            <Separator className="my-2" />
+            <Row label="Registration Fee" value={isFree ? "FREE" : `$${Number(data.computed_amount).toFixed(2)}`} />
+            {mealTotal > 0 && (
               <>
-                <Separator className="my-2" />
-                <div className="flex items-center gap-2 text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 rounded-lg px-3 py-2">
-                  <UtensilsCrossed className="h-4 w-4" />
-                  <span className="text-sm font-semibold">{data.selected_meal_ids.length} Meal(s) Purchased</span>
+                <Row label="Meal Charges" value={`$${mealTotal.toFixed(2)}`} />
+                <div className="flex items-center gap-2 text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 rounded-lg px-3 py-2 text-xs">
+                  <UtensilsCrossed className="h-3.5 w-3.5" />
+                  <span className="font-medium">{data.selected_meal_ids?.length || 0} meal(s) × ${(mealTotal / (data.selected_meal_ids?.length || 1)).toFixed(2)} each</span>
                 </div>
               </>
             )}
             <Separator className="my-2" />
             <div className="text-center pt-2">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-1">Amount</p>
-              <p className={`text-3xl font-bold ${isFree ? "text-green-600" : "text-primary"}`}>
-                {isFree ? "FREE" : `$${Number(data.computed_amount).toFixed(2)}`}
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-1">Total Amount</p>
+              <p className={`text-3xl font-bold ${grandTotal === 0 ? "text-green-600" : "text-primary"}`}>
+                {grandTotal === 0 ? "FREE" : `$${grandTotal.toFixed(2)}`}
               </p>
             </div>
           </CardContent>
