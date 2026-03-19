@@ -35,15 +35,44 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    // Normalize: ensure payments is always an array for each registration
-    const normalized = (data || []).map((reg: Record<string, unknown>) => ({
-      ...reg,
-      payments: Array.isArray(reg.payments)
-        ? reg.payments
-        : reg.payments
-        ? [reg.payments]
-        : [],
-    }));
+    // Get pricing config for meal calculations
+    const eventIds = [...new Set((data || []).map((r: Record<string, unknown>) => r.event_id as string))];
+    const pricingMap = new Map<string, { meal_price_adult: number; meal_price_child: number }>();
+    
+    for (const eventId of eventIds) {
+      const { data: pricing } = await supabase
+        .from("pricing_config")
+        .select("meal_price_adult, meal_price_child")
+        .eq("event_id", eventId)
+        .single();
+      if (pricing) {
+        pricingMap.set(eventId, pricing);
+      }
+    }
+
+    // Normalize: ensure payments is always an array and compute meal_total for each registration
+    const normalized = (data || []).map((reg: Record<string, unknown>) => {
+      let mealTotal = 0;
+      const mealIds = reg.selected_meal_ids as string[] | null;
+      if (mealIds && mealIds.length > 0) {
+        const pricing = pricingMap.get(reg.event_id as string);
+        if (pricing) {
+          const category = reg.category as string;
+          const pricePerMeal = category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+          mealTotal = mealIds.length * pricePerMeal;
+        }
+      }
+
+      return {
+        ...reg,
+        meal_total: mealTotal,
+        payments: Array.isArray(reg.payments)
+          ? reg.payments
+          : reg.payments
+          ? [reg.payments]
+          : [],
+      };
+    });
 
     return NextResponse.json({
       registrations: normalized,

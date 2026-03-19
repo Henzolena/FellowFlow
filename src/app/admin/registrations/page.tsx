@@ -36,6 +36,7 @@ type RegistrationRow = {
   email: string;
   category: string;
   computed_amount: number;
+  meal_total: number;
   status: string;
   is_full_duration: boolean;
   num_days: number | null;
@@ -238,7 +239,7 @@ function RegistrationsContent() {
                       {reg.payment_waived ? (
                         <span className="text-green-600 text-xs font-semibold">WAIVED</span>
                       ) : (
-                        `$${Number(reg.computed_amount).toFixed(2)}`
+                        `$${(Number(reg.computed_amount) + (reg.meal_total || 0)).toFixed(2)}`
                       )}
                     </TableCell>
                     <TableCell>
