@@ -54,16 +54,37 @@ export function createEmptyRegistrant(): Registrant {
   };
 }
 
-export function getRegistrantErrors(r: Registrant): Record<string, string> {
+export type ValidationLabels = {
+  firstNameRequired: string; lastNameRequired: string; ageRangeRequired: string;
+  genderRequired: string; cityRequired: string; attendanceTypeRequired: string;
+  selectAtLeastOneDay: string; emailRequired: string; validEmailRequired: string;
+  phoneRequired: string; validPhoneRequired: string;
+};
+
+const defaultValidationLabels: ValidationLabels = {
+  firstNameRequired: "First name is required",
+  lastNameRequired: "Last name is required",
+  ageRangeRequired: "Age range is required",
+  genderRequired: "Gender is required",
+  cityRequired: "City is required",
+  attendanceTypeRequired: "Attendance type is required",
+  selectAtLeastOneDay: "Select at least one day",
+  emailRequired: "Email is required",
+  validEmailRequired: "Please enter a valid email address",
+  phoneRequired: "Phone number is required",
+  validPhoneRequired: "Please enter a valid phone number",
+};
+
+export function getRegistrantErrors(r: Registrant, labels: ValidationLabels = defaultValidationLabels): Record<string, string> {
   const errors: Record<string, string> = {};
-  if (!r.firstName.trim()) errors.firstName = "First name is required";
-  if (!r.lastName.trim()) errors.lastName = "Last name is required";
-  if (!r.ageRange) errors.ageRange = "Age range is required";
-  if (!r.gender) errors.gender = "Gender is required";
-  if (!r.city.trim()) errors.city = "City is required";
-  if (!r.attendanceType) errors.attendanceType = "Attendance type is required";
+  if (!r.firstName.trim()) errors.firstName = labels.firstNameRequired;
+  if (!r.lastName.trim()) errors.lastName = labels.lastNameRequired;
+  if (!r.ageRange) errors.ageRange = labels.ageRangeRequired;
+  if (!r.gender) errors.gender = labels.genderRequired;
+  if (!r.city.trim()) errors.city = labels.cityRequired;
+  if (!r.attendanceType) errors.attendanceType = labels.attendanceTypeRequired;
   if (r.attendanceType && r.attendanceType !== "full_conference" && r.selectedDays.length < 1) {
-    errors.selectedDays = "Select at least one day";
+    errors.selectedDays = labels.selectAtLeastOneDay;
   }
   return errors;
 }
@@ -75,17 +96,17 @@ export function isRegistrantComplete(r: Registrant): boolean {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[\d\s()\-+.]{7,20}$/;
 
-export function getContactErrors(c: ContactInfo): Record<string, string> {
+export function getContactErrors(c: ContactInfo, labels: ValidationLabels = defaultValidationLabels): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!c.email.trim()) {
-    errors.email = "Email is required";
+    errors.email = labels.emailRequired;
   } else if (!EMAIL_REGEX.test(c.email.trim())) {
-    errors.email = "Please enter a valid email address";
+    errors.email = labels.validEmailRequired;
   }
   if (!c.phone.trim()) {
-    errors.phone = "Phone number is required";
+    errors.phone = labels.phoneRequired;
   } else if (!PHONE_REGEX.test(c.phone.trim())) {
-    errors.phone = "Please enter a valid phone number";
+    errors.phone = labels.validPhoneRequired;
   }
   return errors;
 }
@@ -117,7 +138,7 @@ export function useWizardState() {
   const [attemptedStep0, setAttemptedStep0] = useState(false);
   const [attemptedStep1, setAttemptedStep1] = useState(false);
 
-  const allRegistrantsComplete = registrants.every(isRegistrantComplete);
+  const allRegistrantsComplete = registrants.every((r) => Object.keys(getRegistrantErrors(r)).length === 0);
   const canProceedStep0 = allRegistrantsComplete;
   const contactErrors = getContactErrors(contact);
   const canProceedStep1 = Object.keys(contactErrors).length === 0;
@@ -126,7 +147,7 @@ export function useWizardState() {
     setAttemptedStep0(true);
     if (!allRegistrantsComplete) {
       // Expand the first incomplete registrant
-      const idx = registrants.findIndex((r) => !isRegistrantComplete(r));
+      const idx = registrants.findIndex((r) => Object.keys(getRegistrantErrors(r)).length > 0);
       if (idx >= 0) setExpandedIdx(idx);
       return false;
     }

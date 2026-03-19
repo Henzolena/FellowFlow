@@ -205,7 +205,7 @@ function ReviewContent() {
                 {reg.selected_meal_ids && reg.selected_meal_ids.length > 0 && (
                   <p className="text-xs text-amber-600 ml-6 flex items-center gap-1">
                     <UtensilsCrossed className="h-3 w-3" />
-                    {reg.selected_meal_ids.length} meal(s) purchased
+                    {reg.selected_meal_ids.length} {dict.wizard.meal}
                   </p>
                 )}
                 {!isGroup && (
@@ -237,7 +237,7 @@ function ReviewContent() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground flex items-center gap-1">
                       <UtensilsCrossed className="h-3.5 w-3.5" />
-                      Meals
+                      {dict.wizard.meal}
                     </span>
                     <span className="text-amber-600">+${(groupPricing.mealTotal ?? 0).toFixed(2)}</span>
                   </div>

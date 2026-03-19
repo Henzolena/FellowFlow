@@ -15,7 +15,7 @@ import { DuplicateRegistrationDialog } from "./duplicate-dialog";
 import { ArrowLeft, ArrowRight, Loader2, Check, Plus, Trash2, User, Users, Church, MapPin, Baby, GraduationCap, Calendar, UtensilsCrossed } from "lucide-react";
 import type { Event, PricingConfig, Church as ChurchType } from "@/types/database";
 import { useTranslation } from "@/lib/i18n/context";
-import { useWizardState, type Registrant, type AttendanceTypeKey, type GenderKey } from "./hooks/use-wizard-state";
+import { useWizardState, getContactErrors, type Registrant, type AttendanceTypeKey, type GenderKey } from "./hooks/use-wizard-state";
 import { useGroupQuote, getAgeRangeOptions, syntheticDob } from "./hooks/use-group-quote";
 import { useDuplicateCheck } from "./hooks/use-duplicate-check";
 import { formatSelectedDays } from "@/lib/date-utils";
@@ -28,26 +28,29 @@ type WizardProps = {
 };
 
 // Helper to generate day details with dates
-function getDayDetails(eventStartDate: string, dayNumber: number) {
+function getDayDetails(eventStartDate: string, dayNumber: number, locale: string = 'en') {
   // Parse date in local timezone to avoid UTC offset issues
   const [year, month, day] = eventStartDate.split('-').map(Number);
   const start = new Date(year, month - 1, day);
   const targetDate = new Date(start);
   targetDate.setDate(start.getDate() + dayNumber - 1);
-  
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  
+
+  const dateLocale = locale === 'am' ? 'am-ET' : 'en-US';
+  const dayName = targetDate.toLocaleDateString(dateLocale, { weekday: 'short' });
+  const monthName = targetDate.toLocaleDateString(dateLocale, { month: 'short' });
+  const dayNum = targetDate.getDate();
+
   return {
-    dayName: dayNames[targetDate.getDay()],
-    monthDay: `${monthNames[targetDate.getMonth()]} ${targetDate.getDate()}`,
-    fullDate: targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+    dayName,
+    monthDay: `${monthName} ${dayNum}`,
+    fullDate: targetDate.toLocaleDateString(dateLocale, { weekday: 'short', month: 'short', day: 'numeric' }),
   };
 }
 
 export function RegistrationWizard({ event, pricing }: WizardProps) {
   const router = useRouter();
-  const { dict } = useTranslation();
+  const { dict, locale } = useTranslation();
+  const dateLocale = locale === 'am' ? 'am-ET' : 'en-US';
   const STEPS = dict.wizard.steps;
   const ageLabels = { infant: dict.wizard.infantLabel, child: dict.wizard.childLabel, youth: dict.wizard.youthLabel, adult: dict.wizard.adultLabel };
 
@@ -149,7 +152,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
     const isExpanded = expandedIdx === idx;
     const isComplete = isRegistrantComplete(reg);
     const quote = groupQuote?.items?.[idx];
-    const errors = attemptedStep0 ? getRegistrantErrors(reg) : {};
+    const errors = attemptedStep0 ? getRegistrantErrors(reg, dict.validation) : {};
 
     return (
       <Card key={reg.id} className={`transition-all ${isExpanded ? "ring-2 ring-primary/20" : ""}`}>
@@ -175,7 +178,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 )}
                 {!isComplete && Object.keys(errors).length > 0 && !isExpanded && (
                   <p className="text-xs text-destructive">
-                    {Object.keys(errors).length} field{Object.keys(errors).length > 1 ? "s" : ""} need attention
+                    {dict.wizard.fieldsNeedAttention.replace("{count}", String(Object.keys(errors).length))}
                   </p>
                 )}
               </div>
@@ -344,7 +347,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   {errors.city && <p className="text-xs text-destructive">{errors.city}</p>}
                   {reg.churchId && (
                     <p className="text-xs text-muted-foreground">
-                      Auto-filled from church
+                      {dict.wizard.autoFilledFromChurch}
                     </p>
                   )}
                 </div>
@@ -352,16 +355,16 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 {/* T-Shirt Size (optional, not for infants) */}
                 {reg.ageRange && reg.ageRange !== "infant" && (
                   <div className="space-y-2">
-                    <Label>T-Shirt Size <span className="text-muted-foreground font-normal text-xs">(optional — for planning purposes only)</span></Label>
+                    <Label>{dict.wizard.tshirtSize} <span className="text-muted-foreground font-normal text-xs">{dict.wizard.tshirtOptional}</span></Label>
                     <Select
                       value={reg.tshirtSize || "__none"}
                       onValueChange={(v) => updateRegistrant(idx, { tshirtSize: v === "__none" ? "" : v })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select size" />
+                        <SelectValue placeholder={dict.wizard.selectSize} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none">No preference</SelectItem>
+                        <SelectItem value="__none">{dict.wizard.noPreference}</SelectItem>
                         <SelectItem value="XS">XS</SelectItem>
                         <SelectItem value="S">S</SelectItem>
                         <SelectItem value="M">M</SelectItem>
@@ -434,7 +437,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {Array.from({ length: event.duration_days }, (_, i) => i + 1).map((d) => {
                           const selected = reg.selectedDays.includes(d);
-                          const dayInfo = getDayDetails(event.start_date, d);
+                          const dayInfo = getDayDetails(event.start_date, d, locale);
                           return (
                             <button
                               key={d}
@@ -471,7 +474,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       </div>
                       {errors.selectedDays && <p className="text-xs text-destructive">{errors.selectedDays}</p>}
                       <p className="text-[11px] text-muted-foreground">
-                        Tap each day you plan to attend
+                        {dict.wizard.tapDaysToAttend}
                       </p>
 
                       {/* ─── KOTE Meal Selection ─── */}
@@ -498,10 +501,10 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                         }
 
                         const mealTypeLabel = (t: string | null) => {
-                          if (t === "breakfast") return "Breakfast";
-                          if (t === "lunch") return "Lunch";
-                          if (t === "dinner") return "Dinner";
-                          return t || "Meal";
+                          if (t === "breakfast") return dict.wizard.breakfast;
+                          if (t === "lunch") return dict.wizard.lunch;
+                          if (t === "dinner") return dict.wizard.dinner;
+                          return t || dict.wizard.meal;
                         };
                         const mealPrice = (reg.ageRange === "child" || reg.ageRange === "infant") ? pricing.meal_price_child : pricing.meal_price_adult;
 
@@ -510,22 +513,22 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <UtensilsCrossed className="h-4 w-4 text-amber-600" />
-                                <Label className="text-amber-800 dark:text-amber-300 font-semibold text-sm">Add Meals (Optional)</Label>
+                                <Label className="text-amber-800 dark:text-amber-300 font-semibold text-sm">{dict.wizard.addMealsOptional}</Label>
                               </div>
                               {reg.selectedMealIds.length > 0 && (
                                 <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                                  {reg.selectedMealIds.length} meal{reg.selectedMealIds.length !== 1 ? "s" : ""} · ${(reg.selectedMealIds.length * mealPrice).toFixed(0)}
+                                  {reg.selectedMealIds.length} {dict.wizard.meal} · ${(reg.selectedMealIds.length * mealPrice).toFixed(0)}
                                 </Badge>
                               )}
                             </div>
                             <p className="text-[11px] text-muted-foreground">
-                              ${mealPrice}/meal · Select meals you&apos;d like to purchase
+                              {dict.wizard.perMealSelectMeals.replace("${price}", String(mealPrice))}
                             </p>
 
                             {Array.from(mealsByDate.entries()).map(([date, meals]) => {
                               const [y, m, d] = date.split("-").map(Number);
                               const dt = new Date(y, m - 1, d);
-                              const dayLabel = dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+                              const dayLabel = dt.toLocaleDateString(dateLocale, { weekday: "short", month: "short", day: "numeric" });
                               const allSelected = meals.every((meal) => reg.selectedMealIds.includes(meal.id));
 
                               return (
@@ -547,7 +550,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                                         }
                                       }}
                                     >
-                                      {allSelected ? "Deselect all" : "Select all"}
+                                      {allSelected ? dict.wizard.deselect : dict.wizard.selectAll}
                                     </button>
                                   </div>
                                   <div className="grid grid-cols-3 gap-1.5">
@@ -701,7 +704,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       className={attemptedStep1 && contactErrors.email ? "border-destructive" : ""}
                     />
                     {attemptedStep1 && contactErrors.email ? (
-                      <p className="text-xs text-destructive">{contactErrors.email}</p>
+                      <p className="text-xs text-destructive">{getContactErrors(contact, dict.validation).email}</p>
                     ) : (
                       <p className="text-xs text-muted-foreground">
                         {dict.wizard.emailHint}
@@ -720,7 +723,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       className={attemptedStep1 && contactErrors.phone ? "border-destructive" : ""}
                     />
                     {attemptedStep1 && contactErrors.phone && (
-                      <p className="text-xs text-destructive">{contactErrors.phone}</p>
+                      <p className="text-xs text-destructive">{getContactErrors(contact, dict.validation).phone}</p>
                     )}
                   </div>
                 </CardContent>
@@ -786,7 +789,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                             </p>
                             {q && q.mealCount > 0 && (
                               <p className="text-xs text-amber-600 mt-0.5 ml-6">
-                                🍽️ {q.mealCount} meal{q.mealCount !== 1 ? "s" : ""} (+${q.mealTotal.toFixed(2)})
+                                🍽️ {q.mealCount} {dict.wizard.meal} (+${q.mealTotal.toFixed(2)})
                               </p>
                             )}
                           </div>
@@ -795,7 +798,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                               {q ? (q.amount === 0 ? dict.common.free : `$${q.amount.toFixed(2)}`) : "—"}
                             </p>
                             {q && q.mealTotal > 0 && (
-                              <p className="text-xs text-amber-600">+${q.mealTotal.toFixed(2)} meals</p>
+                              <p className="text-xs text-amber-600">+${q.mealTotal.toFixed(2)} {dict.wizard.meal}</p>
                             )}
                           </div>
                         </div>
@@ -820,7 +823,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       )}
                       {groupQuote.mealTotal > 0 && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">🍽️ Meals</span>
+                          <span className="text-muted-foreground">🍽️ {dict.wizard.meal}</span>
                           <span className="text-amber-600">+${groupQuote.mealTotal.toFixed(2)}</span>
                         </div>
                       )}
@@ -919,7 +922,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
 
                 {groupQuote.mealTotal > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground text-xs">🍽️ Meals</span>
+                    <span className="text-muted-foreground text-xs">🍽️ {dict.wizard.meal}</span>
                     <span className="text-amber-600">+${groupQuote.mealTotal.toFixed(2)}</span>
                   </div>
                 )}

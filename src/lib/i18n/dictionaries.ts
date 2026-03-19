@@ -52,6 +52,18 @@ export type Dictionary = {
     emailHint: string; reviewAndSubmit: string; reviewDesc: string;
     completeRegistration: string; proceedToPayment: string; priceSummary: string;
     addDetailsToSee: string; nDays: string;
+    autoFilledFromChurch: string; tapDaysToAttend: string;
+    tshirtSize: string; tshirtOptional: string; selectSize: string; noPreference: string;
+    addMealsOptional: string; perMealSelectMeals: string;
+    breakfast: string; lunch: string; dinner: string; meal: string;
+    selectAll: string; deselect: string;
+    fieldsNeedAttention: string;
+  };
+  validation: {
+    firstNameRequired: string; lastNameRequired: string; ageRangeRequired: string;
+    genderRequired: string; cityRequired: string; attendanceTypeRequired: string;
+    selectAtLeastOneDay: string; emailRequired: string; validEmailRequired: string;
+    phoneRequired: string; validPhoneRequired: string;
   };
   review: {
     title: string; descriptionGroup: string; descriptionSolo: string;
@@ -246,6 +258,35 @@ const en: Dictionary = {
     priceSummary: "Price Summary",
     addDetailsToSee: "Add registrant details to see pricing",
     nDays: "Day(s)",
+    autoFilledFromChurch: "Auto-filled from church",
+    tapDaysToAttend: "Tap each day you plan to attend",
+    tshirtSize: "T-Shirt Size",
+    tshirtOptional: "(optional — for planning purposes only)",
+    selectSize: "Select size",
+    noPreference: "No preference",
+    addMealsOptional: "Add Meals (Optional)",
+    perMealSelectMeals: "${price}/meal · Select meals you'd like to purchase",
+    breakfast: "Breakfast",
+    lunch: "Lunch",
+    dinner: "Dinner",
+    meal: "Meal",
+    selectAll: "Select All",
+    deselect: "Deselect",
+    fieldsNeedAttention: "{count} field(s) need attention",
+  },
+
+  validation: {
+    firstNameRequired: "First name is required",
+    lastNameRequired: "Last name is required",
+    ageRangeRequired: "Age range is required",
+    genderRequired: "Gender is required",
+    cityRequired: "City is required",
+    attendanceTypeRequired: "Attendance type is required",
+    selectAtLeastOneDay: "Select at least one day",
+    emailRequired: "Email is required",
+    validEmailRequired: "Please enter a valid email address",
+    phoneRequired: "Phone number is required",
+    validPhoneRequired: "Please enter a valid phone number",
   },
 
   review: {
@@ -488,6 +529,35 @@ const am: Dictionary = {
     priceSummary: "የዋጋ ማጠቃለያ",
     addDetailsToSee: "ዋጋ ለማየት የተመዝጋቢ ዝርዝሮችን ያክሉ",
     nDays: "ቀን(ዎች)",
+    autoFilledFromChurch: "ከቤተ ክርስቲያን በራስ-ሰር የተሞላ",
+    tapDaysToAttend: "ለመገኘት የሚፈልጉትን ቀን ይምረጡ",
+    tshirtSize: "የቲሸርት መጠን",
+    tshirtOptional: "(ለዕቅድ ዓላማ ብቻ — አማራጭ)",
+    selectSize: "መጠን ይምረጡ",
+    noPreference: "ምርጫ የለኝም",
+    addMealsOptional: "ምግብ ያክሉ (አማራጭ)",
+    perMealSelectMeals: "${price}/ምግብ · ሊገዙ የሚፈልጉትን ምግብ ይምረጡ",
+    breakfast: "ቁርስ",
+    lunch: "ምሳ",
+    dinner: "እራት",
+    meal: "ምግብ",
+    selectAll: "ሁሉንም ምረጥ",
+    deselect: "አትምረጥ",
+    fieldsNeedAttention: "{count} መስክ(ዎች) ትኩረት ያስፈልጋቸዋል",
+  },
+
+  validation: {
+    firstNameRequired: "ስም ያስፈልጋል",
+    lastNameRequired: "የአባት ስም ያስፈልጋል",
+    ageRangeRequired: "የዕድሜ ክልል ያስፈልጋል",
+    genderRequired: "ጾታ ያስፈልጋል",
+    cityRequired: "ከተማ ያስፈልጋል",
+    attendanceTypeRequired: "የተሳትፎ ዓይነት ያስፈልጋል",
+    selectAtLeastOneDay: "ቢያንስ አንድ ቀን ይምረጡ",
+    emailRequired: "ኢሜይል ያስፈልጋል",
+    validEmailRequired: "እባክዎ ትክክለኛ ኢሜይል ያስገቡ",
+    phoneRequired: "ስልክ ቁጥር ያስፈልጋል",
+    validPhoneRequired: "እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ",
   },
 
   review: {
