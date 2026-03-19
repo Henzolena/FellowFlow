@@ -60,7 +60,7 @@ export const groupRegistrantSchema = z.object({
 export const groupRegistrationSchema = z.object({
   eventId: z.string().uuid("Invalid event ID"),
   email: z.string().email("Valid email is required"),
-  phone: z.string().min(1, "Phone number is required"),
+  phone: z.string().min(7, "Phone number must be at least 7 characters").max(20, "Phone number is too long").regex(/^[\d\s()\-+.]+$/, "Please enter a valid phone number"),
   registrants: z.array(groupRegistrantSchema).min(1, "At least one registrant is required").max(20, "Maximum 20 registrants per group"),
 });
 

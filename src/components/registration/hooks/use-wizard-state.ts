@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 type AgeRangeKey = "infant" | "child" | "youth" | "adult" | "";
 export type AttendanceTypeKey = "full_conference" | "partial" | "kote" | "";
@@ -54,20 +54,40 @@ export function createEmptyRegistrant(): Registrant {
   };
 }
 
-export function isRegistrantComplete(r: Registrant): boolean {
-  if (!r.firstName.trim() || !r.lastName.trim() || !r.ageRange) return false;
-  if (!r.gender) return false;
-  if (!r.city.trim()) return false;
-  if (!r.attendanceType) return false;
+export function getRegistrantErrors(r: Registrant): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!r.firstName.trim()) errors.firstName = "First name is required";
+  if (!r.lastName.trim()) errors.lastName = "Last name is required";
+  if (!r.ageRange) errors.ageRange = "Age range is required";
+  if (!r.gender) errors.gender = "Gender is required";
+  if (!r.city.trim()) errors.city = "City is required";
+  if (!r.attendanceType) errors.attendanceType = "Attendance type is required";
+  if (r.attendanceType && r.attendanceType !== "full_conference" && r.selectedDays.length < 1) {
+    errors.selectedDays = "Select at least one day";
+  }
+  return errors;
+}
 
-  if (r.attendanceType === "full_conference") {
-    return true;
+export function isRegistrantComplete(r: Registrant): boolean {
+  return Object.keys(getRegistrantErrors(r)).length === 0;
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[\d\s()\-+.]{7,20}$/;
+
+export function getContactErrors(c: ContactInfo): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!c.email.trim()) {
+    errors.email = "Email is required";
+  } else if (!EMAIL_REGEX.test(c.email.trim())) {
+    errors.email = "Please enter a valid email address";
   }
-  if (r.attendanceType === "kote") {
-    return r.selectedDays.length >= 1;
+  if (!c.phone.trim()) {
+    errors.phone = "Phone number is required";
+  } else if (!PHONE_REGEX.test(c.phone.trim())) {
+    errors.phone = "Please enter a valid phone number";
   }
-  // partial: needs at least one day selected
-  return r.selectedDays.length >= 1;
+  return errors;
 }
 
 export function useWizardState() {
@@ -94,9 +114,29 @@ export function useWizardState() {
     setExpandedIdx(Math.min(expandedIdx, registrants.length - 2));
   }
 
+  const [attemptedStep0, setAttemptedStep0] = useState(false);
+  const [attemptedStep1, setAttemptedStep1] = useState(false);
+
   const allRegistrantsComplete = registrants.every(isRegistrantComplete);
   const canProceedStep0 = allRegistrantsComplete;
-  const canProceedStep1 = contact.email.trim() !== "" && contact.phone.trim() !== "";
+  const contactErrors = getContactErrors(contact);
+  const canProceedStep1 = Object.keys(contactErrors).length === 0;
+
+  const tryProceedStep0 = useCallback(() => {
+    setAttemptedStep0(true);
+    if (!allRegistrantsComplete) {
+      // Expand the first incomplete registrant
+      const idx = registrants.findIndex((r) => !isRegistrantComplete(r));
+      if (idx >= 0) setExpandedIdx(idx);
+      return false;
+    }
+    return true;
+  }, [allRegistrantsComplete, registrants, setExpandedIdx]);
+
+  const tryProceedStep1 = useCallback(() => {
+    setAttemptedStep1(true);
+    return canProceedStep1;
+  }, [canProceedStep1]);
 
   return {
     step,
@@ -116,5 +156,11 @@ export function useWizardState() {
     canProceedStep0,
     canProceedStep1,
     isRegistrantComplete,
+    getRegistrantErrors,
+    attemptedStep0,
+    attemptedStep1,
+    tryProceedStep0,
+    tryProceedStep1,
+    contactErrors,
   };
 }

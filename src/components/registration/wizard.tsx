@@ -75,6 +75,8 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
     registrants, expandedIdx, setExpandedIdx, contact, setContact,
     updateRegistrant, addRegistrant, removeRegistrant,
     canProceedStep0, canProceedStep1, isRegistrantComplete,
+    getRegistrantErrors, attemptedStep0, attemptedStep1,
+    tryProceedStep0, tryProceedStep1, contactErrors,
   } = useWizardState();
 
   const { groupQuote, quoteLoading, quoteError } = useGroupQuote(event, registrants, ageLabels);
@@ -147,6 +149,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
     const isExpanded = expandedIdx === idx;
     const isComplete = isRegistrantComplete(reg);
     const quote = groupQuote?.items?.[idx];
+    const errors = attemptedStep0 ? getRegistrantErrors(reg) : {};
 
     return (
       <Card key={reg.id} className={`transition-all ${isExpanded ? "ring-2 ring-primary/20" : ""}`}>
@@ -156,7 +159,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${isComplete ? "brand-gradient text-white" : "bg-muted text-muted-foreground"}`}>
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${isComplete ? "brand-gradient text-white" : Object.keys(errors).length > 0 ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>
                 {isComplete ? <Check className="h-4 w-4" /> : idx + 1}
               </div>
               <div>
@@ -168,6 +171,11 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 {isComplete && quote && (
                   <p className="text-xs text-muted-foreground">
                     {quote.category} — {quote.amount === 0 ? dict.common.free_lower : `$${quote.amount.toFixed(2)}`}
+                  </p>
+                )}
+                {!isComplete && Object.keys(errors).length > 0 && !isExpanded && (
+                  <p className="text-xs text-destructive">
+                    {Object.keys(errors).length} field{Object.keys(errors).length > 1 ? "s" : ""} need attention
                   </p>
                 )}
               </div>
@@ -208,7 +216,9 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       value={reg.firstName}
                       onChange={(e) => updateRegistrant(idx, { firstName: e.target.value })}
                       placeholder="John"
+                      className={errors.firstName ? "border-destructive" : ""}
                     />
+                    {errors.firstName && <p className="text-xs text-destructive">{errors.firstName}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label>{dict.wizard.lastName} *</Label>
@@ -216,12 +226,15 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       value={reg.lastName}
                       onChange={(e) => updateRegistrant(idx, { lastName: e.target.value })}
                       placeholder="Doe"
+                      className={errors.lastName ? "border-destructive" : ""}
                     />
+                    {errors.lastName && <p className="text-xs text-destructive">{errors.lastName}</p>}
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label>{dict.wizard.ageRange} *</Label>
+                  {errors.ageRange && <p className="text-xs text-destructive">{errors.ageRange}</p>}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {getAgeRangeOptions(event, ageLabels).map((opt) => {
                       const selected = reg.ageRange === opt.key;
@@ -269,7 +282,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                     value={reg.gender}
                     onValueChange={(v) => updateRegistrant(idx, { gender: v as GenderKey })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={errors.gender ? "border-destructive" : ""}>
                       <SelectValue placeholder={dict.wizard.selectGender} />
                     </SelectTrigger>
                     <SelectContent>
@@ -277,6 +290,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       <SelectItem value="female">{dict.wizard.female}</SelectItem>
                     </SelectContent>
                   </Select>
+                  {errors.gender && <p className="text-xs text-destructive">{errors.gender}</p>}
                 </div>
 
                 {/* Church */}
@@ -325,8 +339,9 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                     onChange={(e) => updateRegistrant(idx, { city: e.target.value })}
                     placeholder="Dallas, TX"
                     disabled={!!reg.churchId}
-                    className={reg.churchId ? "bg-muted cursor-not-allowed" : ""}
+                    className={reg.churchId ? "bg-muted cursor-not-allowed" : errors.city ? "border-destructive" : ""}
                   />
+                  {errors.city && <p className="text-xs text-destructive">{errors.city}</p>}
                   {reg.churchId && (
                     <p className="text-xs text-muted-foreground">
                       Auto-filled from church
@@ -362,6 +377,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 {/* Attendance Type */}
                 <div className="space-y-3">
                   <Label>{dict.wizard.attendanceType} *</Label>
+                  {errors.attendanceType && <p className="text-xs text-destructive">{errors.attendanceType}</p>}
                   <RadioGroup
                     value={reg.attendanceType}
                     onValueChange={(v) => {
@@ -453,6 +469,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                           );
                         })}
                       </div>
+                      {errors.selectedDays && <p className="text-xs text-destructive">{errors.selectedDays}</p>}
                       <p className="text-[11px] text-muted-foreground">
                         Tap each day you plan to attend
                       </p>
@@ -681,10 +698,15 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                         dup.resetBypass();
                       }}
                       placeholder="john@example.com"
+                      className={attemptedStep1 && contactErrors.email ? "border-destructive" : ""}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      {dict.wizard.emailHint}
-                    </p>
+                    {attemptedStep1 && contactErrors.email ? (
+                      <p className="text-xs text-destructive">{contactErrors.email}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        {dict.wizard.emailHint}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">{dict.wizard.phoneRequired}</Label>
@@ -695,7 +717,11 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       onChange={(e) => setContact((prev) => ({ ...prev, phone: e.target.value }))}
                       placeholder="(555) 123-4567"
                       required
+                      className={attemptedStep1 && contactErrors.phone ? "border-destructive" : ""}
                     />
+                    {attemptedStep1 && contactErrors.phone && (
+                      <p className="text-xs text-destructive">{contactErrors.phone}</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -827,14 +853,17 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
           {step < STEPS.length - 1 ? (
             <Button
               onClick={async () => {
-                // Duplicate check when moving from Contact (step 1) → Review (step 2)
+                if (step === 0) {
+                  if (!tryProceedStep0()) return;
+                }
                 if (step === 1) {
+                  if (!tryProceedStep1()) return;
                   const canProceed = await dup.checkDuplicate(contact.email);
                   if (!canProceed) return;
                 }
                 setStep((s) => s + 1);
               }}
-              disabled={(step === 0 ? !canProceedStep0 : !canProceedStep1) || dup.dupChecking}
+              disabled={dup.dupChecking}
             >
               {dup.dupChecking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {dict.common.next}
