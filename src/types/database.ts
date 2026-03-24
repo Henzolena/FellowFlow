@@ -462,6 +462,48 @@ export type StaffAccessCode = {
   updated_at: string;
 };
 
+/* ── Conference Org Structure ──────────────────────────────────────── */
+
+export type ConferenceDepartment = {
+  id: string;
+  event_id: string;
+  slug: string;
+  name_en: string;
+  name_am: string;
+  member_count: number;
+  sort_order: number;
+  created_at: string;
+};
+
+export type ConferenceCommitteeMember = {
+  id: string;
+  event_id: string;
+  name_en: string;
+  name_am: string;
+  role_en: string;
+  role_am: string;
+  department_id: string | null;
+  sort_order: number;
+  created_at: string;
+};
+
+export type DepartmentResponsibility = {
+  id: string;
+  department_id: string;
+  description_en: string;
+  description_am: string;
+  sort_order: number;
+  created_at: string;
+};
+
+export type DepartmentWithResponsibilities = ConferenceDepartment & {
+  department_responsibilities: DepartmentResponsibility[];
+};
+
+export type CommitteeMemberWithDepartment = ConferenceCommitteeMember & {
+  conference_departments: Pick<ConferenceDepartment, "slug" | "name_en" | "name_am"> | null;
+};
+
 /* ── Composite types ─────────────────────────────────────────────── */
 
 export type EventWithPricing = Event & {

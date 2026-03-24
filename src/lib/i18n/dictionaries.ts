@@ -91,6 +91,16 @@ export type Dictionary = {
   };
   login: {
     signInDesc: string; emailLabel: string; passwordLabel: string; signIn: string;
+    forgotPassword: string; backToLogin: string;
+    forgotTitle: string; forgotDesc: string; sendResetLink: string;
+    resetEmailSent: string; resetEmailSentDesc: string; checkInbox: string;
+    resetTitle: string; resetDesc: string; newPassword: string; confirmPassword: string;
+    updatePassword: string; passwordUpdated: string; passwordUpdatedDesc: string;
+    passwordMinLength: string; passwordsDoNotMatch: string;
+    otpTitle: string; otpDesc: string; sendCode: string;
+    otpSent: string; otpSentDesc: string; enterCode: string; verifyCode: string;
+    otpCodePlaceholder: string; /* 6-8 digits depending on Supabase config */ resendCode: string;
+    usePassword: string; useOtp: string; or: string;
   };
   priceSummary: {
     title: string; fullConference: string; completeForm: string;
@@ -355,6 +365,35 @@ const en: Dictionary = {
     emailLabel: "Email",
     passwordLabel: "Password",
     signIn: "Sign In",
+    forgotPassword: "Forgot password?",
+    backToLogin: "Back to sign in",
+    forgotTitle: "Reset your password",
+    forgotDesc: "Enter your email and we'll send a password reset link.",
+    sendResetLink: "Send Reset Link",
+    resetEmailSent: "Check your email",
+    resetEmailSentDesc: "We sent a password reset link to your email address.",
+    checkInbox: "Check your inbox and click the link to reset your password.",
+    resetTitle: "Set new password",
+    resetDesc: "Enter your new password below.",
+    newPassword: "New password",
+    confirmPassword: "Confirm password",
+    updatePassword: "Update Password",
+    passwordUpdated: "Password updated",
+    passwordUpdatedDesc: "Your password has been successfully updated. You can now sign in.",
+    passwordMinLength: "Password must be at least 8 characters.",
+    passwordsDoNotMatch: "Passwords do not match.",
+    otpTitle: "Sign in with email code",
+    otpDesc: "We'll send a one-time login code to your email.",
+    sendCode: "Send Login Code",
+    otpSent: "Code sent",
+    otpSentDesc: "Enter the 8-digit code we sent to your email.",
+    enterCode: "One-time code",
+    verifyCode: "Verify & Sign In",
+    otpCodePlaceholder: "00000000",
+    resendCode: "Resend code",
+    usePassword: "Sign in with password",
+    useOtp: "Sign in with email code",
+    or: "or",
   },
 
   priceSummary: {
@@ -626,6 +665,35 @@ const am: Dictionary = {
     emailLabel: "ኢሜይል",
     passwordLabel: "የይለፍ ቃል",
     signIn: "ግባ",
+    forgotPassword: "የይለፍ ቃል ረሱ?",
+    backToLogin: "ወደ መግቢያ ተመለስ",
+    forgotTitle: "የይለፍ ቃልዎን ያስቀይሩ",
+    forgotDesc: "ኢሜይልዎን ያስገቡ እና የይለፍ ቃል ማስቀየሪያ ሊንክ እንልክልዎታለን።",
+    sendResetLink: "ማስቀየሪያ ሊንክ ላክ",
+    resetEmailSent: "ኢሜይልዎን ይመልከቱ",
+    resetEmailSentDesc: "የይለፍ ቃል ማስቀየሪያ ሊንክ ወደ ኢሜይልዎ ተልኳል።",
+    checkInbox: "ኢሜይልዎን ከፍተው ሊንኩን ይጫኑ።",
+    resetTitle: "አዲስ የይለፍ ቃል ያስገቡ",
+    resetDesc: "ከታች አዲስ የይለፍ ቃልዎን ያስገቡ።",
+    newPassword: "አዲስ የይለፍ ቃል",
+    confirmPassword: "የይለፍ ቃል ያረጋግጡ",
+    updatePassword: "የይለፍ ቃል ያዘምኑ",
+    passwordUpdated: "የይለፍ ቃል ተዘምኗል",
+    passwordUpdatedDesc: "የይለፍ ቃልዎ በተሳካ ሁኔታ ተዘምኗል። አሁን መግባት ይችላሉ።",
+    passwordMinLength: "የይለፍ ቃል ቢያንስ 8 ፊደላት መሆን አለበት።",
+    passwordsDoNotMatch: "የይለፍ ቃሎቹ አይገጣጠሙም።",
+    otpTitle: "በኢሜይል ኮድ ይግቡ",
+    otpDesc: "የአንድ ጊዜ የመግቢያ ኮድ ወደ ኢሜይልዎ እንልካለን።",
+    sendCode: "የመግቢያ ኮድ ላክ",
+    otpSent: "ኮድ ተልኳል",
+    otpSentDesc: "ወደ ኢሜይልዎ የተላከውን 8-አኃዝ ኮድ ያስገቡ።",
+    enterCode: "የአንድ ጊዜ ኮድ",
+    verifyCode: "አረጋግጥ እና ግባ",
+    otpCodePlaceholder: "00000000",
+    resendCode: "ኮድ እንደገና ላክ",
+    usePassword: "በይለፍ ቃል ግባ",
+    useOtp: "በኢሜይል ኮድ ግባ",
+    or: "ወይም",
   },
 
   priceSummary: {

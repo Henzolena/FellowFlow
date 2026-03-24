@@ -27,6 +27,7 @@ import {
   BarChart3,
   MapPin,
   KeyRound,
+  Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
@@ -47,6 +48,7 @@ const navItems: NavItem[] = [
   { href: "/admin/service-stats", label: "Service Stats", icon: BarChart3 },
   { href: "/admin/motels", label: "Motels", icon: Hotel },
   { href: "/admin/bed-assignments", label: "Bed Assignments", icon: BedDouble },
+  { href: "/admin/departments", label: "Departments", icon: Briefcase },
   { href: "/admin/venue", label: "Venue Info", icon: MapPin },
   { href: "/admin/staff-codes", label: "Staff Codes", icon: KeyRound },
   { href: "/admin/settings", label: "Event Settings", icon: Settings },

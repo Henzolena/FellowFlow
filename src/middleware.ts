@@ -29,10 +29,12 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Skip auth for login and callback routes
+  // Skip auth for public auth routes
   if (
     request.nextUrl.pathname.startsWith("/auth/login") ||
-    request.nextUrl.pathname.startsWith("/auth/callback")
+    request.nextUrl.pathname.startsWith("/auth/callback") ||
+    request.nextUrl.pathname.startsWith("/auth/forgot-password") ||
+    request.nextUrl.pathname.startsWith("/auth/reset-password")
   ) {
     return supabaseResponse;
   }
