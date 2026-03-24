@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { RegistrationWizard } from "@/components/registration/wizard";
-import type { EventWithImages } from "@/types/database";
+import type { EventWithImages, Church } from "@/types/database";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 import { getServerDictionary } from "@/lib/i18n/server";
+
+const BASE_URL = "https://fellowflow.org";
 
 export async function generateMetadata({
   params,
@@ -17,7 +19,7 @@ export async function generateMetadata({
   const supabase = await createClient();
   const { data: event } = await supabase
     .from("events")
-    .select("name, description, event_images(url, alt_text, image_type)")
+    .select("name, description, start_date, end_date, event_images(url, alt_text, image_type)")
     .eq("id", eventId)
     .eq("is_active", true)
     .single();
@@ -27,14 +29,26 @@ export async function generateMetadata({
   const cover = (event.event_images as Array<{ url: string; alt_text: string | null; image_type: string }>)?.find(
     (img) => img.image_type === "cover"
   );
+  const pageUrl = `${BASE_URL}/register/${eventId}`;
+  const title = `Register — ${event.name}`;
+  const description = event.description || `Register for ${event.name} with FellowFlow.`;
 
   return {
-    title: `Register — ${event.name}`,
-    description: event.description || `Register for ${event.name} with FellowFlow.`,
+    title,
+    description,
+    alternates: { canonical: pageUrl },
     openGraph: {
       title: event.name,
-      description: event.description || `Register for ${event.name}`,
-      ...(cover && { images: [{ url: cover.url, alt: cover.alt_text || event.name }] }),
+      description,
+      url: pageUrl,
+      type: "website",
+      ...(cover && { images: [{ url: cover.url, alt: cover.alt_text || event.name, width: 1200, height: 630 }] }),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: event.name,
+      description,
+      ...(cover && { images: [cover.url] }),
     },
   };
 }
@@ -48,14 +62,32 @@ export default async function RegisterForEventPage({
   const dict = await getServerDictionary();
   const supabase = await createClient();
 
-  const { data: event, error } = await supabase
-    .from("events")
-    .select("*, pricing_config(*), event_images(*)")
-    .eq("id", eventId)
-    .eq("is_active", true)
-    .single<EventWithImages>();
+  // Parallel fetches: event + churches + meals
+  const [eventResult, churchesResult, mealsResult] = await Promise.all([
+    supabase
+      .from("events")
+      .select("*, pricing_config(*), event_images(*)")
+      .eq("id", eventId)
+      .eq("is_active", true)
+      .single<EventWithImages>(),
+    supabase
+      .from("churches")
+      .select("*")
+      .eq("is_active", true)
+      .order("name", { ascending: true })
+      .returns<Church[]>(),
+    supabase
+      .from("service_catalog")
+      .select("id, service_name, service_code, service_category, meal_type, service_date, start_time, end_time, display_order")
+      .eq("event_id", eventId)
+      .eq("service_category", "meal")
+      .eq("is_active", true)
+      .order("service_date", { ascending: true, nullsFirst: false })
+      .order("display_order", { ascending: true }),
+  ]);
 
-  if (error || !event) {
+  const event = eventResult.data;
+  if (eventResult.error || !event) {
     notFound();
   }
 
@@ -82,9 +114,44 @@ export default async function RegisterForEventPage({
   }
 
   const coverImage = event.event_images?.find((img) => img.image_type === "cover");
+  const churches = churchesResult.data ?? [];
+  const meals = (mealsResult.data ?? []) as Array<{
+    id: string; service_name: string; service_code: string;
+    meal_type: string | null; service_date: string | null;
+    start_time: string | null; display_order: number;
+  }>;
+
+  // JSON-LD for this specific event registration page
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: event.name,
+    description: event.description,
+    startDate: event.start_date,
+    endDate: event.end_date,
+    eventStatus: "https://schema.org/EventScheduled",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    ...(coverImage && { image: coverImage.url }),
+    offers: {
+      "@type": "Offer",
+      url: `${BASE_URL}/register/${eventId}`,
+      availability: "https://schema.org/InStock",
+      priceCurrency: "USD",
+    },
+    organizer: {
+      "@type": "Organization",
+      name: "FellowFlow",
+      url: BASE_URL,
+    },
+  };
 
   return (
     <div className="min-h-screen bg-muted/30">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       {/* Cover photo banner */}
       {coverImage && (
         <div className="relative h-48 sm:h-64 md:h-72 w-full overflow-hidden">
@@ -113,7 +180,12 @@ export default async function RegisterForEventPage({
             <p className="mt-2 text-muted-foreground">{event.description}</p>
           )}
         </div>
-        <RegistrationWizard event={event} pricing={pricingConfig} />
+        <RegistrationWizard
+          event={event}
+          pricing={pricingConfig}
+          churches={churches}
+          availableMeals={meals}
+        />
       </div>
     </div>
   );

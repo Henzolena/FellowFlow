@@ -115,6 +115,7 @@ export function EventSearch({ events }: Props) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-10"
+            aria-label={dict.events.searchPlaceholder}
           />
         </div>
         <Select
@@ -135,7 +136,7 @@ export function EventSearch({ events }: Props) {
       </div>
 
       {/* Results count */}
-      <p className="text-[13px] text-muted-foreground/70 tracking-wide">
+      <p className="text-[13px] text-muted-foreground/70 tracking-wide" aria-live="polite" role="status">
         {filtered.length === 0
           ? dict.common.noEventsFound
           : dict.common.showingEvents.replace("{count}", String(filtered.length)).replace("{s}", filtered.length !== 1 ? "s" : "")}

@@ -1,11 +1,5 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { format, parseISO, isPast } from "date-fns";
-import { Calendar, MapPin, ArrowRight, Clock, Users } from "lucide-react";
-import Link from "next/link";
 import type { EventWithImages } from "@/types/database";
 import { EventSearch } from "@/components/registration/event-search";
 import { getServerDictionary } from "@/lib/i18n/server";
@@ -14,6 +8,18 @@ export const metadata: Metadata = {
   title: "Register for Events",
   description:
     "Browse upcoming conferences and register your group. Secure payment, instant confirmation.",
+  alternates: { canonical: "https://fellowflow.org/register" },
+  openGraph: {
+    title: "Register for Events — FellowFlow",
+    description: "Browse upcoming conferences and register your group. Secure payment, instant confirmation.",
+    url: "https://fellowflow.org/register",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Register for Events — FellowFlow",
+    description: "Browse upcoming conferences and register your group.",
+  },
 };
 
 export default async function EventsListingPage() {
