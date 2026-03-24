@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -172,10 +173,12 @@ export function EventSearch({ events }: Props) {
                 {/* ── Cover image / fallback banner ── */}
                 <div className="relative h-44 sm:h-48 overflow-hidden">
                   {cover ? (
-                    <img
+                    <Image
                       src={cover.url}
                       alt={cover.alt_text || event.name}
-                      className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                      fill
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                     />
                   ) : (
                     <div className="h-full w-full bg-gradient-to-br from-primary via-primary/85 to-brand-teal/60">

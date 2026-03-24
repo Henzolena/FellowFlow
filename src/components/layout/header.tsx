@@ -23,7 +23,7 @@ export function Header() {
             priority
           />
         </Link>
-        <nav className="flex items-center gap-3">
+        <nav aria-label="Main navigation" className="flex items-center gap-3">
           <LanguageSwitcher />
           <Link href="/register">
             <Button size="sm" className="gap-1.5 text-xs sm:text-sm shadow-brand-sm hover:shadow-brand-md transition-shadow">

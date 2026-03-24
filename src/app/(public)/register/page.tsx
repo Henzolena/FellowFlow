@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,12 @@ import Link from "next/link";
 import type { EventWithImages } from "@/types/database";
 import { EventSearch } from "@/components/registration/event-search";
 import { getServerDictionary } from "@/lib/i18n/server";
+
+export const metadata: Metadata = {
+  title: "Register for Events",
+  description:
+    "Browse upcoming conferences and register your group. Secure payment, instant confirmation.",
+};
 
 export default async function EventsListingPage() {
   const dict = await getServerDictionary();

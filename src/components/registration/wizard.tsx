@@ -189,6 +189,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                  aria-label={`Remove ${reg.firstName || `person ${idx + 1}`}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     removeRegistrant(idx);
@@ -214,30 +215,36 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 <Separator />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>{dict.wizard.firstName} *</Label>
+                    <Label htmlFor={`firstName-${idx}`}>{dict.wizard.firstName} *</Label>
                     <Input
+                      id={`firstName-${idx}`}
                       value={reg.firstName}
                       onChange={(e) => updateRegistrant(idx, { firstName: e.target.value })}
                       placeholder="John"
+                      aria-invalid={!!errors.firstName}
+                      aria-describedby={errors.firstName ? `firstName-err-${idx}` : undefined}
                       className={errors.firstName ? "border-destructive" : ""}
                     />
-                    {errors.firstName && <p className="text-xs text-destructive">{errors.firstName}</p>}
+                    {errors.firstName && <p id={`firstName-err-${idx}`} className="text-xs text-destructive" role="alert">{errors.firstName}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label>{dict.wizard.lastName} *</Label>
+                    <Label htmlFor={`lastName-${idx}`}>{dict.wizard.lastName} *</Label>
                     <Input
+                      id={`lastName-${idx}`}
                       value={reg.lastName}
                       onChange={(e) => updateRegistrant(idx, { lastName: e.target.value })}
                       placeholder="Doe"
+                      aria-invalid={!!errors.lastName}
+                      aria-describedby={errors.lastName ? `lastName-err-${idx}` : undefined}
                       className={errors.lastName ? "border-destructive" : ""}
                     />
-                    {errors.lastName && <p className="text-xs text-destructive">{errors.lastName}</p>}
+                    {errors.lastName && <p id={`lastName-err-${idx}`} className="text-xs text-destructive" role="alert">{errors.lastName}</p>}
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label>{dict.wizard.ageRange} *</Label>
-                  {errors.ageRange && <p className="text-xs text-destructive">{errors.ageRange}</p>}
+                  {errors.ageRange && <p className="text-xs text-destructive" role="alert">{errors.ageRange}</p>}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {getAgeRangeOptions(event, ageLabels).map((opt) => {
                       const selected = reg.ageRange === opt.key;
@@ -251,6 +258,9 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                         <button
                           key={opt.key}
                           type="button"
+                          role="radio"
+                          aria-checked={reg.ageRange === opt.key}
+                          aria-label={`${opt.name} (${opt.range} ${dict.wizard.yearsAbbr})`}
                           onClick={() => updateRegistrant(idx, { ageRange: opt.key as AgeRangeKey })}
                           className={`relative flex flex-col items-center gap-1 rounded-xl border-2 px-2 py-3 text-center transition-all ${
                             selected
@@ -293,7 +303,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                       <SelectItem value="female">{dict.wizard.female}</SelectItem>
                     </SelectContent>
                   </Select>
-                  {errors.gender && <p className="text-xs text-destructive">{errors.gender}</p>}
+                  {errors.gender && <p className="text-xs text-destructive" role="alert">{errors.gender}</p>}
                 </div>
 
                 {/* Church */}
@@ -380,7 +390,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 {/* Attendance Type */}
                 <div className="space-y-3">
                   <Label>{dict.wizard.attendanceType} *</Label>
-                  {errors.attendanceType && <p className="text-xs text-destructive">{errors.attendanceType}</p>}
+                  {errors.attendanceType && <p className="text-xs text-destructive" role="alert">{errors.attendanceType}</p>}
                   <RadioGroup
                     value={reg.attendanceType}
                     onValueChange={(v) => {
@@ -442,6 +452,8 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                             <button
                               key={d}
                               type="button"
+                              aria-pressed={selected}
+                              aria-label={`${dayInfo.fullDate}${selected ? ' (selected)' : ''}`}
                               onClick={() => {
                                 const days = selected
                                   ? reg.selectedDays.filter((x) => x !== d)
@@ -472,7 +484,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                           );
                         })}
                       </div>
-                      {errors.selectedDays && <p className="text-xs text-destructive">{errors.selectedDays}</p>}
+                      {errors.selectedDays && <p className="text-xs text-destructive" role="alert">{errors.selectedDays}</p>}
                       <p className="text-[11px] text-muted-foreground">
                         {dict.wizard.tapDaysToAttend}
                       </p>
@@ -610,7 +622,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
     <div className="grid gap-8 lg:grid-cols-3">
       <div className="lg:col-span-2 space-y-6 pb-24 lg:pb-0">
         {/* Progress bar */}
-        <div className="h-1 rounded-full bg-muted overflow-hidden">
+        <div className="h-1 rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuenow={step + 1} aria-valuemin={1} aria-valuemax={STEPS.length} aria-label={`Registration step ${step + 1} of ${STEPS.length}`}>
           <div
             className="h-full brand-gradient rounded-full transition-all duration-500 ease-out"
             style={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
@@ -620,7 +632,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
         {/* Step indicator */}
         <div className="flex items-center justify-between">
           {STEPS.map((label, i) => (
-            <div key={label} className="flex items-center gap-2">
+            <div key={label} className="flex items-center gap-2" aria-current={i === step ? "step" : undefined}>
               <div
                 className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-all ${
                   i < step
@@ -629,6 +641,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                     ? "bg-primary text-primary-foreground ring-4 ring-primary/15"
                     : "bg-muted text-muted-foreground"
                 }`}
+                aria-label={`Step ${i + 1}: ${label}${i < step ? ' (completed)' : i === step ? ' (current)' : ''}`}
               >
                 {i < step ? <Check className="h-4 w-4" /> : i + 1}
               </div>
@@ -741,7 +754,7 @@ export function RegistrationWizard({ event, pricing }: WizardProps) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {error && (
-                    <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                    <div role="alert" aria-live="assertive" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
                       {error}
                     </div>
                   )}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
@@ -22,7 +23,7 @@ export default async function Home() {
   const supabase = await createClient();
   const { data: events } = await supabase
     .from("events")
-    .select("*, pricing_config(*), event_images(*)")
+    .select("id, name, description, start_date, end_date, duration_days, event_images(url, alt_text, image_type)")
     .eq("is_active", true)
     .order("start_date", { ascending: true })
     .limit(1);
@@ -30,15 +31,53 @@ export default async function Home() {
   const event = events?.[0] as EventWithImages | undefined;
   const coverImage = event?.event_images?.find((img) => img.image_type === "cover");
 
+  // JSON-LD structured data for the organization + event
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "FellowFlow",
+    url: "https://fellowflow.org",
+    description:
+      "Register and pay for conference attendance with FellowFlow.",
+    ...(event && {
+      mainEntity: {
+        "@type": "Event",
+        name: event.name,
+        description: event.description,
+        startDate: event.start_date,
+        endDate: event.end_date,
+        eventStatus: "https://schema.org/EventScheduled",
+        eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+        ...(coverImage && {
+          image: coverImage.url,
+        }),
+        offers: {
+          "@type": "Offer",
+          url: `https://fellowflow.org/register/${event.id}`,
+          availability: "https://schema.org/InStock",
+        },
+        organizer: {
+          "@type": "Organization",
+          name: "FellowFlow",
+          url: "https://fellowflow.org",
+        },
+      },
+    }),
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
       {/* Hero */}
       <HeroSection />
 
       {/* Active Event */}
       {event && (
-        <section className="py-16 sm:py-20 bg-muted/40">
+        <section aria-label="Upcoming event" className="py-16 sm:py-20 bg-muted/40">
           <div className="mx-auto max-w-7xl px-4">
             <div className="text-center mb-10">
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">{dict.home.upcomingEvent}</h2>
@@ -49,10 +88,13 @@ export default async function Home() {
               {/* ── Cover image / fallback banner ── */}
               <div className="relative h-52 sm:h-64 overflow-hidden">
                 {coverImage ? (
-                  <img
+                  <Image
                     src={coverImage.url}
                     alt={coverImage.alt_text || event.name}
-                    className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                    fill
+                    sizes="(max-width: 672px) 100vw, 672px"
+                    className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                    priority
                   />
                 ) : (
                   <div className="h-full w-full bg-gradient-to-br from-primary via-primary/85 to-brand-teal/60">
@@ -121,10 +163,10 @@ export default async function Home() {
       )}
 
       {/* Features */}
-      <section id="how-it-works" className="py-16 scroll-mt-20">
+      <section id="how-it-works" aria-labelledby="how-it-works-heading" className="py-16 scroll-mt-20">
         <div className="mx-auto max-w-7xl px-4">
           <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold">{dict.home.howItWorks}</h2>
+            <h2 id="how-it-works-heading" className="text-2xl font-bold">{dict.home.howItWorks}</h2>
             <p className="mt-2 text-muted-foreground">
               {dict.home.threeSteps}
             </p>
@@ -168,7 +210,7 @@ export default async function Home() {
       </section>
 
       {/* Trust bar */}
-      <section className="py-12 bg-muted/40">
+      <section aria-label="Trust indicators" className="py-12 bg-muted/40">
         <div className="mx-auto max-w-7xl px-4">
           <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">

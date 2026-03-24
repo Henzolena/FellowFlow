@@ -1,10 +1,43 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { RegistrationWizard } from "@/components/registration/wizard";
 import type { EventWithImages } from "@/types/database";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 import { getServerDictionary } from "@/lib/i18n/server";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ eventId: string }>;
+}): Promise<Metadata> {
+  const { eventId } = await params;
+  const supabase = await createClient();
+  const { data: event } = await supabase
+    .from("events")
+    .select("name, description, event_images(url, alt_text, image_type)")
+    .eq("id", eventId)
+    .eq("is_active", true)
+    .single();
+
+  if (!event) return { title: "Event Not Found" };
+
+  const cover = (event.event_images as Array<{ url: string; alt_text: string | null; image_type: string }>)?.find(
+    (img) => img.image_type === "cover"
+  );
+
+  return {
+    title: `Register — ${event.name}`,
+    description: event.description || `Register for ${event.name} with FellowFlow.`,
+    openGraph: {
+      title: event.name,
+      description: event.description || `Register for ${event.name}`,
+      ...(cover && { images: [{ url: cover.url, alt: cover.alt_text || event.name }] }),
+    },
+  };
+}
 
 export default async function RegisterForEventPage({
   params,
@@ -55,10 +88,13 @@ export default async function RegisterForEventPage({
       {/* Cover photo banner */}
       {coverImage && (
         <div className="relative h-48 sm:h-64 md:h-72 w-full overflow-hidden">
-          <img
+          <Image
             src={coverImage.url}
             alt={coverImage.alt_text || event.name}
-            className="h-full w-full object-cover"
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
         </div>

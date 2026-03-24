@@ -16,11 +16,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FellowFlow — Conference Registration",
-  description: "Register and pay for conference attendance with FellowFlow.",
+  metadataBase: new URL("https://fellowflow.org"),
+  title: {
+    default: "FellowFlow — Conference Registration",
+    template: "%s | FellowFlow",
+  },
+  description:
+    "Register and pay for conference attendance with FellowFlow. Simple group registration, secure payments, and instant confirmation.",
   applicationName: "FellowFlow",
   authors: [{ name: "FellowFlow" }],
-  keywords: ["conference", "registration", "event", "payment", "fellowflow"],
+  keywords: [
+    "conference",
+    "registration",
+    "event",
+    "payment",
+    "fellowflow",
+    "church conference",
+    "group registration",
+  ],
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -31,6 +44,21 @@ export const metadata: Metadata = {
     apple: [
       { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
     ],
+  },
+  openGraph: {
+    type: "website",
+    siteName: "FellowFlow",
+    title: "FellowFlow — Conference Registration",
+    description:
+      "Register and pay for conference attendance with FellowFlow. Simple group registration, secure payments, and instant confirmation.",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "FellowFlow" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "FellowFlow — Conference Registration",
+    description:
+      "Register and pay for conference attendance with FellowFlow.",
+    images: ["/og-image.png"],
   },
   appleWebApp: {
     capable: true,

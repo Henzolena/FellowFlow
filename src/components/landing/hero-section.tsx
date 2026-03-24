@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ function FloatingChip({
 }) {
   return (
     <div
-      className={`absolute z-10 hidden lg:flex items-center gap-2 rounded-full border border-white/20 bg-white/80 backdrop-blur-xl px-3.5 py-2 text-xs font-medium shadow-brand-md animate-in fade-in zoom-in-95 ${className}`}
+      className={`absolute z-10 hidden lg:flex items-center gap-2 rounded-full border border-white/20 bg-white/80 backdrop-blur-xl px-3.5 py-2 text-xs font-medium shadow-brand-md animate-in fade-in zoom-in-95 motion-reduce:animate-none ${className}`}
       style={{
         animationDelay: `${delay}ms`,
         animationDuration: "800ms",
@@ -39,29 +39,44 @@ function FloatingChip({
 export function HeroSection() {
   const { dict } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
+  const rafRef = useRef<number>(0);
+  const prefersReducedMotion = useRef(false);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (prefersReducedMotion.current) return;
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      const container = containerRef.current;
+      if (!container) return;
       const rect = container.getBoundingClientRect();
-      setMousePos({
-        x: (e.clientX - rect.left) / rect.width,
-        y: (e.clientY - rect.top) / rect.height,
-      });
-    };
-
-    container.addEventListener("mousemove", handleMouseMove);
-    return () => container.removeEventListener("mousemove", handleMouseMove);
+      const x = ((e.clientX - rect.left) / rect.width - 0.5) * 12;
+      const y = ((e.clientY - rect.top) / rect.height - 0.5) * 12;
+      container.style.setProperty("--px", `${x}px`);
+      container.style.setProperty("--py", `${y}px`);
+    });
   }, []);
 
-  const parallaxX = (mousePos.x - 0.5) * 12;
-  const parallaxY = (mousePos.y - 0.5) * 12;
+  useEffect(() => {
+    prefersReducedMotion.current = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    const container = containerRef.current;
+    if (!container || prefersReducedMotion.current) return;
+
+    container.addEventListener("mousemove", handleMouseMove, { passive: true });
+    return () => {
+      container.removeEventListener("mousemove", handleMouseMove);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [handleMouseMove]);
 
   return (
-    <section ref={containerRef} className="relative overflow-hidden min-h-[80vh] sm:min-h-[90vh] flex items-center">
+    <section
+      ref={containerRef}
+      className="relative overflow-hidden min-h-[80vh] sm:min-h-[90vh] flex items-center"
+      style={{ "--px": "0px", "--py": "0px" } as React.CSSProperties}
+    >
       {/* === Background layers === */}
 
       {/* Base gradient mesh */}
@@ -69,24 +84,24 @@ export function HeroSection() {
         <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-muted/60" />
       </div>
 
-      {/* Animated gradient orbs */}
+      {/* Animated gradient orbs — driven by CSS custom props, no re-renders */}
       <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
         <div
-          className="hero-orb hero-orb-1"
+          className="hero-orb hero-orb-1 will-change-transform motion-reduce:!transform-none"
           style={{
-            transform: `translate(${parallaxX * 0.5}px, ${parallaxY * 0.5}px)`,
+            transform: `translate(calc(var(--px) * 0.5), calc(var(--py) * 0.5))`,
           }}
         />
         <div
-          className="hero-orb hero-orb-2"
+          className="hero-orb hero-orb-2 will-change-transform motion-reduce:!transform-none"
           style={{
-            transform: `translate(${parallaxX * -0.3}px, ${parallaxY * -0.3}px)`,
+            transform: `translate(calc(var(--px) * -0.3), calc(var(--py) * -0.3))`,
           }}
         />
         <div
-          className="hero-orb hero-orb-3"
+          className="hero-orb hero-orb-3 will-change-transform motion-reduce:!transform-none"
           style={{
-            transform: `translate(${parallaxX * 0.4}px, ${parallaxY * -0.4}px)`,
+            transform: `translate(calc(var(--px) * 0.4), calc(var(--py) * -0.4))`,
           }}
         />
       </div>
@@ -199,18 +214,18 @@ export function HeroSection() {
           <div className="relative order-1 lg:order-2">
             {/* Glow ring behind image */}
             <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] aspect-square rounded-full hero-figure-glow"
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] aspect-square rounded-full hero-figure-glow will-change-transform motion-reduce:!transform-none"
               style={{
-                transform: `translate(calc(-50% + ${parallaxX * 0.2}px), calc(-50% + ${parallaxY * 0.2}px))`,
+                transform: `translate(calc(-50% + var(--px) * 0.2), calc(-50% + var(--py) * 0.2))`,
               }}
               aria-hidden="true"
             />
 
             {/* Hero figure */}
             <div
-              className="relative mx-auto max-w-md sm:max-w-lg lg:max-w-xl"
+              className="relative mx-auto max-w-md sm:max-w-lg lg:max-w-xl will-change-transform motion-reduce:!transform-none"
               style={{
-                transform: `translate(${parallaxX * 0.15}px, ${parallaxY * 0.15}px)`,
+                transform: `translate(calc(var(--px) * 0.15), calc(var(--py) * 0.15))`,
                 transition: "transform 0.3s ease-out",
               }}
             >

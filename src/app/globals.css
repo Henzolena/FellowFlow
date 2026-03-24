@@ -356,4 +356,18 @@
     opacity: 0.4;
     animation: gradient-shift 8s ease-in-out infinite;
   }
+
+  /* === Reduced motion: disable all hero animations === */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-float,
+    .animate-float-slow,
+    .animate-float-slow-reverse,
+    .hero-orb,
+    .hero-figure-glow,
+    .hero-gradient-text,
+    .hero-gradient-text-enhanced,
+    .hero-gradient-text-enhanced::before {
+      animation: none !important;
+    }
+  }
 }
