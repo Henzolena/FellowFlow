@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
             registrationId: registration.id,
             eventId: v.eventId,
             city,
+            gender: v.gender ?? null,
             assignedBy: auth.userId,
             checkInDate: event.start_date,
             checkOutDate: event.end_date,

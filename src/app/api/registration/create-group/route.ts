@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { computeGroupPricing } from "@/lib/pricing/engine";
+import { computeGroupPricing, computeMealPrice } from "@/lib/pricing/engine";
 import { groupRegistrationSchema } from "@/lib/validations/registration";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendConfirmationEmail, sendGroupReceiptEmail } from "@/lib/email/resend";
@@ -90,12 +90,11 @@ export async function POST(request: NextRequest) {
       pricing
     );
 
-    // Compute meal costs per registrant
+    // Compute meal costs per registrant (age-based pricing)
     const mealCostsPerRegistrant = data.registrants.map((reg, i) => {
       const mealCount = reg.mealServiceIds?.length ?? 0;
-      const pricePerMeal = groupPricing.items[i].category === "child"
-        ? pricing.meal_price_child
-        : pricing.meal_price_adult;
+      const attendanceType = reg.attendanceType ?? (reg.isFullDuration ? "full_conference" : "partial");
+      const pricePerMeal = computeMealPrice(groupPricing.items[i].ageAtEvent, attendanceType, pricing);
       return mealCount * pricePerMeal;
     });
     const mealGrandTotal = mealCostsPerRegistrant.reduce((s, c) => s + c, 0);
@@ -243,6 +242,7 @@ export async function POST(request: NextRequest) {
             registrationId: reg.id,
             eventId: data.eventId,
             city,
+            gender: reg.gender ?? null,
             assignedBy: "system_public_registration",
           });
           if (result) {
@@ -304,7 +304,7 @@ export async function POST(request: NextRequest) {
             mealTotal: (() => {
               const ids = r.selected_meal_ids;
               if (!ids || ids.length === 0) return 0;
-              const price = r.category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+              const price = computeMealPrice(r.age_at_event, r.attendance_type, pricing);
               return ids.length * price;
             })(),
             tshirtSize: r.tshirt_size ?? null,

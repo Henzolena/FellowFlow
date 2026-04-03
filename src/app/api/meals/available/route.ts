@@ -37,16 +37,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Meals are already included in your registration. Only KOTE (day camper) attendees need to purchase meals separately." }, { status: 400 });
     }
 
-    // Fetch pricing config for meal prices
+    // Fetch pricing config — KOTE attendees pay flat kote meal price
     const { data: pricing } = await supabase
       .from("pricing_config")
-      .select("meal_price_adult, meal_price_child")
+      .select("meal_price_adult, meal_price_child, meal_price_kote")
       .eq("event_id", reg.event_id)
       .single();
 
-    const mealPriceAdult = pricing?.meal_price_adult ?? 12;
-    const mealPriceChild = pricing?.meal_price_child ?? 8;
-    const unitPrice = reg.category === "child" ? mealPriceChild : mealPriceAdult;
+    const unitPrice = Number(pricing?.meal_price_kote ?? 10);
 
     // Fetch all meal services for this event
     const { data: meals } = await supabase

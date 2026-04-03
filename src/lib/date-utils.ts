@@ -55,6 +55,28 @@ export function formatSelectedDaysShort(eventStartDate: string, selectedDays: nu
 }
 
 /**
+ * Check if a 1-indexed day number falls on a Sunday.
+ */
+export function isDaySunday(eventStartDate: string, dayNumber: number): boolean {
+  return dayNumberToDate(eventStartDate, dayNumber).getDay() === 0;
+}
+
+/**
+ * Count how many of the selected days are NOT Sundays (i.e., chargeable dorm nights).
+ * If selectedDays is null/empty, returns numDays as-is (conservative fallback).
+ */
+export function countChargeableNights(
+  eventStartDate: string,
+  selectedDays: number[] | null | undefined,
+  numDays: number
+): number {
+  if (!selectedDays || selectedDays.length === 0) {
+    return numDays;
+  }
+  return selectedDays.filter((d) => !isDaySunday(eventStartDate, d)).length;
+}
+
+/**
  * Convert selected_days (1-indexed) to actual ISO date strings (YYYY-MM-DD).
  * Used for matching against service_catalog.service_date.
  */

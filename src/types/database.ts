@@ -83,7 +83,11 @@ export type PricingConfig = {
   kote_daily_price: number;
   lodging_fee: number;
   meal_price_adult: number;
+  meal_price_youth: number;
   meal_price_child: number;
+  meal_price_kote: number;
+  meal_free_age_threshold: number;
+  meal_child_max_age: number;
   late_surcharge_tiers: SurchargeTier[];
   created_at: string;
   updated_at: string;
@@ -190,6 +194,7 @@ export type Motel = {
   total_rooms: number;
   is_active: boolean;
   auto_assignable: boolean;
+  gender: 'male' | 'female' | null;
   created_at: string;
   updated_at: string;
 };
@@ -272,6 +277,7 @@ export type ServiceCatalogItem = {
   requires_payment: boolean;
   notes: string | null;
   display_order: number;
+  age_group: 'youth' | 'adult' | null;
   created_at: string;
   updated_at: string;
 };

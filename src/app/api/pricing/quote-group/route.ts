@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { computeGroupPricing } from "@/lib/pricing/engine";
+import { computeGroupPricing, computeMealPrice } from "@/lib/pricing/engine";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import type { Event, PricingConfig } from "@/types/database";
 import { z } from "zod";
@@ -93,11 +93,12 @@ export async function POST(request: NextRequest) {
       pricing
     );
 
-    // Compute meal costs per registrant
+    // Compute meal costs per registrant (age-based pricing)
     const mealCounts = registrants.map((r) => r.mealServiceIds?.length ?? 0);
     const mealItems = result.items.map((item, i) => {
       const count = mealCounts[i];
-      const pricePerMeal = item.category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+      const attendanceType = registrants[i].attendanceType ?? (registrants[i].isFullDuration ? "full_conference" : "partial");
+      const pricePerMeal = computeMealPrice(item.ageAtEvent, attendanceType, pricing);
       return { mealCount: count, mealPriceEach: pricePerMeal, mealTotal: count * pricePerMeal };
     });
     const mealGrandTotal = mealItems.reduce((sum, m) => sum + m.mealTotal, 0);

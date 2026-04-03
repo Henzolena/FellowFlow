@@ -5,6 +5,7 @@ import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { createRequestLogger } from "@/lib/logger";
 import { recomputeSoloPricing, recomputeGroupPricing } from "@/lib/services/pricing-recomputer";
 import { reuseExistingSession, createAndPersistSession } from "@/lib/services/session-manager";
+import { computeMealPrice } from "@/lib/pricing/engine";
 import type { Registration, Event, PricingConfig } from "@/types/database";
 
 const RATE_LIMIT = 10;
@@ -166,26 +167,28 @@ async function handleGroupPayment(
   const groupResult = await recomputeGroupPricing(supabase, registrations, pricing, log);
   const { surcharge, surchargeLabel, grandTotal } = groupResult;
 
-  // Compute meal costs from stored selected_meal_ids
+  // Compute meal costs from stored selected_meal_ids (age-based pricing)
   let mealGrandTotal = 0;
   const mealLineItems: { price_data: { currency: string; product_data: { name: string; description: string }; unit_amount: number }; quantity: number }[] = [];
   for (const r of registrations as Registration[]) {
     const mealIds = r.selected_meal_ids;
     if (mealIds && mealIds.length > 0) {
-      const pricePerMeal = r.category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+      const pricePerMeal = computeMealPrice(r.age_at_event, r.attendance_type, pricing);
       const mealTotal = mealIds.length * pricePerMeal;
       mealGrandTotal += mealTotal;
-      mealLineItems.push({
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: `Meals: ${r.first_name} ${r.last_name}`,
-            description: `${mealIds.length} meal(s) × $${pricePerMeal.toFixed(2)}`,
+      if (mealTotal > 0) {
+        mealLineItems.push({
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `Meals: ${r.first_name} ${r.last_name}`,
+              description: `${mealIds.length} meal(s) × $${pricePerMeal.toFixed(2)}`,
+            },
+            unit_amount: Math.round(mealTotal * 100),
           },
-          unit_amount: Math.round(mealTotal * 100),
-        },
-        quantity: 1,
-      });
+          quantity: 1,
+        });
+      }
     }
   }
 
@@ -201,18 +204,29 @@ async function handleGroupPayment(
     return NextResponse.json(existing);
   }
 
-  // Build line items from recomputed amounts
-  const lineItems = registrations.map((r: Registration, i: number) => ({
-    price_data: {
-      currency: "usd",
-      product_data: {
-        name: `${r.first_name} ${r.last_name}`,
-        description: groupResult.items[i].explanationDetail || `Registration for ${eventData.name}`,
+  // Build line items from recomputed amounts — label by category (Dorm / KOTE / Registration)
+  const lineItems = registrations.map((r: Registration, i: number) => {
+    const item = groupResult.items[i];
+    let label: string;
+    if (r.attendance_type === "kote") {
+      label = `KOTE: ${r.first_name} ${r.last_name}`;
+    } else if (r.attendance_type === "partial") {
+      label = `Dorm: ${r.first_name} ${r.last_name}`;
+    } else {
+      label = `Registration: ${r.first_name} ${r.last_name}`;
+    }
+    return {
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: label,
+          description: item.explanationDetail || `Registration for ${eventData.name}`,
+        },
+        unit_amount: Math.round(item.amount * 100),
       },
-      unit_amount: Math.round(groupResult.items[i].amount * 100),
-    },
-    quantity: 1,
-  }));
+      quantity: 1,
+    };
+  });
 
   if (surcharge > 0) {
     lineItems.push({

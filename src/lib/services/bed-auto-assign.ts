@@ -16,34 +16,53 @@ export async function autoAssignBed(
     registrationId: string;
     eventId: string;
     city: string;
+    gender?: string | null;
     assignedBy?: string;
     checkInDate?: string;
     checkOutDate?: string;
   }
 ): Promise<{ bedId: string; motelName: string; bedLabel: string } | null> {
-  const { registrationId, eventId, city, assignedBy, checkInDate, checkOutDate } = params;
+  const { registrationId, eventId, city, gender, assignedBy, checkInDate, checkOutDate } = params;
 
   // 1. Get city→dorm mappings: first try exact city, then fall back to __default__
   const { data: cityMappings } = await supabase
     .from("city_dorm_assignments")
-    .select("motel_id, priority, city, motels(name)")
+    .select("motel_id, priority, city, motels(name, gender)")
     .eq("event_id", eventId)
     .eq("city", city)
     .order("priority", { ascending: true });
 
   const { data: defaultMappings } = await supabase
     .from("city_dorm_assignments")
-    .select("motel_id, priority, city, motels(name)")
+    .select("motel_id, priority, city, motels(name, gender)")
     .eq("event_id", eventId)
     .eq("city", "__default__")
     .order("priority", { ascending: true });
 
   // City-specific first, then defaults as overflow
-  const mappings = [...(cityMappings || []), ...(defaultMappings || [])];
+  let mappings = [...(cityMappings || []), ...(defaultMappings || [])];
 
   if (!mappings.length) return null;
 
-  // 2. For each mapped dorm, find an available bed
+  // 2. Filter by gender: only consider dorms matching registrant's gender (or ungendered dorms)
+  if (gender) {
+    mappings = mappings.filter((m) => {
+      const dormGender = (m.motels as unknown as { name: string; gender: string | null })?.gender;
+      return dormGender === null || dormGender === gender;
+    });
+    // Sort so gender-matched dorms come first, then ungendered
+    mappings.sort((a, b) => {
+      const aGender = (a.motels as unknown as { name: string; gender: string | null })?.gender;
+      const bGender = (b.motels as unknown as { name: string; gender: string | null })?.gender;
+      if (aGender === gender && bGender !== gender) return -1;
+      if (bGender === gender && aGender !== gender) return 1;
+      return 0;
+    });
+  }
+
+  if (!mappings.length) return null;
+
+  // 3. For each mapped dorm, find an available bed
   for (const mapping of mappings) {
     const motelId = mapping.motel_id;
     const motelName = (mapping.motels as unknown as { name: string })?.name || "Unknown";

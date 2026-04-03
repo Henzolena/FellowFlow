@@ -5,6 +5,7 @@ import {
   findSurchargeTier,
   computePricing,
   computeGroupPricing,
+  computeMealPrice,
   getExplanationLabel,
 } from "./engine";
 import type { Event, PricingConfig, SurchargeTier } from "@/types/database";
@@ -43,7 +44,11 @@ function makePricing(overrides: Partial<PricingConfig> = {}): PricingConfig {
     kote_daily_price: 10,
     lodging_fee: 0,
     meal_price_adult: 12,
+    meal_price_youth: 10,
     meal_price_child: 8,
+    meal_price_kote: 10,
+    meal_free_age_threshold: 2,
+    meal_child_max_age: 10,
     late_surcharge_tiers: [],
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
@@ -547,5 +552,127 @@ describe("getExplanationLabel", () => {
 
   it("handles legacy FULL_MOTEL_FREE code", () => {
     expect(getExplanationLabel("FULL_MOTEL_FREE")).toBe("Full Conference + Motel (Free)");
+  });
+});
+
+// ─── computeMealPrice ───
+
+describe("computeMealPrice", () => {
+  const pricing = makePricing();
+
+  it("returns 0 for children under meal_free_age_threshold", () => {
+    expect(computeMealPrice(0, "full_conference", pricing)).toBe(0);
+    expect(computeMealPrice(1, "full_conference", pricing)).toBe(0);
+  });
+
+  it("returns child price for ages 2-10", () => {
+    expect(computeMealPrice(2, "full_conference", pricing)).toBe(8);
+    expect(computeMealPrice(5, "full_conference", pricing)).toBe(8);
+    expect(computeMealPrice(10, "full_conference", pricing)).toBe(8);
+  });
+
+  it("returns youth price for ages 11-17", () => {
+    expect(computeMealPrice(11, "full_conference", pricing)).toBe(10);
+    expect(computeMealPrice(14, "full_conference", pricing)).toBe(10);
+    expect(computeMealPrice(17, "partial", pricing)).toBe(10);
+  });
+
+  it("returns adult price for ages 18+ (non-kote)", () => {
+    expect(computeMealPrice(18, "full_conference", pricing)).toBe(12);
+    expect(computeMealPrice(30, "partial", pricing)).toBe(12);
+    expect(computeMealPrice(65, "full_conference", pricing)).toBe(12);
+  });
+
+  it("returns kote flat rate for kote attendees regardless of age", () => {
+    expect(computeMealPrice(5, "kote", pricing)).toBe(10);
+    expect(computeMealPrice(18, "kote", pricing)).toBe(10);
+    expect(computeMealPrice(30, "kote", pricing)).toBe(10);
+  });
+
+  it("returns 0 for infant kote (under free threshold)", () => {
+    expect(computeMealPrice(0, "kote", pricing)).toBe(0);
+    expect(computeMealPrice(1, "kote", pricing)).toBe(0);
+  });
+
+  it("uses custom thresholds from pricing config", () => {
+    const custom = makePricing({
+      meal_free_age_threshold: 3,
+      meal_child_max_age: 12,
+      meal_price_youth: 9,
+      meal_price_kote: 15,
+    });
+    expect(computeMealPrice(2, "full_conference", custom)).toBe(0);  // under 3 = free
+    expect(computeMealPrice(3, "full_conference", custom)).toBe(8);  // 3-12 = child
+    expect(computeMealPrice(12, "full_conference", custom)).toBe(8);
+    expect(computeMealPrice(13, "full_conference", custom)).toBe(9);  // 13-17 = youth
+    expect(computeMealPrice(17, "full_conference", custom)).toBe(9);
+    expect(computeMealPrice(18, "full_conference", custom)).toBe(12); // 18+ = adult
+    expect(computeMealPrice(10, "kote", custom)).toBe(15); // kote custom rate
+  });
+});
+
+// ─── Sunday exclusion for partial pricing ───
+
+describe("partial pricing — Sunday exclusion", () => {
+  // Event: Thu Jul 30 – Sun Aug 2, 2026
+  // Day 1 = Thu Jul 30, Day 2 = Fri Jul 31, Day 3 = Sat Aug 1, Day 4 = Sun Aug 2
+  const sundayEvent = makeEvent({
+    start_date: "2026-07-30",
+    end_date: "2026-08-02",
+    duration_days: 4,
+  });
+  const flatPricing = makePricing({
+    adult_daily_price: 38,
+    youth_daily_price: 38,
+    child_daily_price: 38,
+  });
+
+  it("excludes Sunday from chargeable nights (days 1-4, Sunday is day 4)", () => {
+    const result = computePricing(
+      { dateOfBirth: "1990-01-01", isFullDuration: false, numDays: 4, selectedDays: [1, 2, 3, 4], registrationDate: "2026-01-15" },
+      sundayEvent,
+      flatPricing
+    );
+    // 3 chargeable nights (Thu, Fri, Sat) × $38 = $114
+    expect(result.baseAmount).toBe(114);
+    expect(result.explanationCode).toBe("PARTIAL_ADULT");
+  });
+
+  it("charges $0 for Sunday-only attendance", () => {
+    const result = computePricing(
+      { dateOfBirth: "1990-01-01", isFullDuration: false, numDays: 1, selectedDays: [4], registrationDate: "2026-01-15" },
+      sundayEvent,
+      flatPricing
+    );
+    expect(result.baseAmount).toBe(0); // Sunday excluded
+  });
+
+  it("charges full rate for non-Sunday days", () => {
+    const result = computePricing(
+      { dateOfBirth: "1990-01-01", isFullDuration: false, numDays: 2, selectedDays: [1, 2], registrationDate: "2026-01-15" },
+      sundayEvent,
+      flatPricing
+    );
+    expect(result.baseAmount).toBe(76); // 2 × $38
+  });
+
+  it("flat $38/night applies to all age categories", () => {
+    // Youth
+    const youthResult = computePricing(
+      { dateOfBirth: "2012-01-01", isFullDuration: false, numDays: 2, selectedDays: [1, 2], registrationDate: "2026-01-15" },
+      sundayEvent,
+      flatPricing
+    );
+    expect(youthResult.baseAmount).toBe(76);
+    expect(youthResult.explanationCode).toBe("PARTIAL_YOUTH");
+
+    // Child (above infant threshold)
+    const childResult = computePricing(
+      { dateOfBirth: "2022-01-01", isFullDuration: false, numDays: 2, selectedDays: [1, 2], registrationDate: "2026-01-15" },
+      sundayEvent,
+      flatPricing
+    );
+    expect(childResult.baseAmount).toBe(76);
+    expect(childResult.explanationCode).toBe("PARTIAL_CHILD");
   });
 });
