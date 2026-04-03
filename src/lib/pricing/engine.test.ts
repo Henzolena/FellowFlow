@@ -571,22 +571,27 @@ describe("computeMealPrice", () => {
     expect(computeMealPrice(10, "full_conference", pricing)).toBe(8);
   });
 
-  it("returns youth price for ages 11-17", () => {
-    expect(computeMealPrice(11, "full_conference", pricing)).toBe(10);
-    expect(computeMealPrice(14, "full_conference", pricing)).toBe(10);
-    expect(computeMealPrice(17, "partial", pricing)).toBe(10);
+  it("returns adult price for youth ages 11-17", () => {
+    expect(computeMealPrice(11, "full_conference", pricing)).toBe(12);
+    expect(computeMealPrice(14, "full_conference", pricing)).toBe(12);
+    expect(computeMealPrice(17, "partial", pricing)).toBe(12);
   });
 
-  it("returns adult price for ages 18+ (non-kote)", () => {
+  it("returns adult price for ages 18+", () => {
     expect(computeMealPrice(18, "full_conference", pricing)).toBe(12);
     expect(computeMealPrice(30, "partial", pricing)).toBe(12);
     expect(computeMealPrice(65, "full_conference", pricing)).toBe(12);
   });
 
-  it("returns kote flat rate for kote attendees regardless of age", () => {
-    expect(computeMealPrice(5, "kote", pricing)).toBe(10);
-    expect(computeMealPrice(18, "kote", pricing)).toBe(10);
-    expect(computeMealPrice(30, "kote", pricing)).toBe(10);
+  it("returns same age-based pricing for kote attendees (child)", () => {
+    expect(computeMealPrice(5, "kote", pricing)).toBe(8);   // child price
+    expect(computeMealPrice(10, "kote", pricing)).toBe(8);   // child price
+  });
+
+  it("returns same age-based pricing for kote attendees (youth/adult)", () => {
+    expect(computeMealPrice(11, "kote", pricing)).toBe(12);  // adult price
+    expect(computeMealPrice(18, "kote", pricing)).toBe(12);  // adult price
+    expect(computeMealPrice(30, "kote", pricing)).toBe(12);  // adult price
   });
 
   it("returns 0 for infant kote (under free threshold)", () => {
@@ -598,16 +603,16 @@ describe("computeMealPrice", () => {
     const custom = makePricing({
       meal_free_age_threshold: 3,
       meal_child_max_age: 12,
-      meal_price_youth: 9,
-      meal_price_kote: 15,
+      meal_price_youth: 9,  // This field is now ignored - youth pays adult price
     });
     expect(computeMealPrice(2, "full_conference", custom)).toBe(0);  // under 3 = free
     expect(computeMealPrice(3, "full_conference", custom)).toBe(8);  // 3-12 = child
     expect(computeMealPrice(12, "full_conference", custom)).toBe(8);
-    expect(computeMealPrice(13, "full_conference", custom)).toBe(9);  // 13-17 = youth
-    expect(computeMealPrice(17, "full_conference", custom)).toBe(9);
+    expect(computeMealPrice(13, "full_conference", custom)).toBe(12); // 13-17 = youth (pays adult price)
+    expect(computeMealPrice(17, "full_conference", custom)).toBe(12); // 13-17 = youth (pays adult price)
     expect(computeMealPrice(18, "full_conference", custom)).toBe(12); // 18+ = adult
-    expect(computeMealPrice(10, "kote", custom)).toBe(15); // kote custom rate
+    expect(computeMealPrice(10, "kote", custom)).toBe(8);   // kote child = same child price
+    expect(computeMealPrice(18, "kote", custom)).toBe(12);  // kote adult = same adult price
   });
 });
 
