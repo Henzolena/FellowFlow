@@ -6,6 +6,12 @@ import { generateEntitlements } from "@/lib/services/entitlement-generator";
 import { autoAssignBed } from "@/lib/services/bed-auto-assign";
 import { sendConfirmationEmail } from "@/lib/email/resend";
 import { createLogger } from "@/lib/logger";
+import {
+  getRepresentativeAge,
+  getCategory,
+  syntheticDob,
+  CANONICAL_BAND_KEYS,
+} from "@/lib/registration/age-bands";
 
 const registerSchema = z.object({
   eventId: z.string().uuid(),
@@ -26,7 +32,11 @@ const registerSchema = z.object({
   notes: z.string().optional(),
   sendEmail: z.boolean().default(true),
   tshirtSize: z.enum(["XS", "S", "M", "L", "XL", "2XL", "3XL"]).optional().nullable(),
+  serviceLanguage: z.enum(["amharic", "english"]).optional().nullable(),
+  serviceAgeBand: z.string().max(20).optional().nullable(),
+  gradeLevel: z.enum(["7th-8th", "9th-10th", "11th", "12th", "college_career"]).optional().nullable(),
 });
+
 
 // POST /api/admin/registrations/register — unified admin registration (auto-confirmed, payment waived)
 export async function POST(request: NextRequest) {
@@ -62,18 +72,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Map ageRange to category and compute synthetic DOB
-    const ageRangeMap: Record<string, { category: "adult" | "youth" | "child"; representativeAge: number }> = {
-      infant: { category: "child", representativeAge: Math.max(0, Math.floor((event.infant_age_threshold ?? 3) / 2)) },
-      child:  { category: "child", representativeAge: Math.floor(((event.infant_age_threshold ?? 3) + 1 + (event.youth_age_threshold ?? 13) - 1) / 2) },
-      youth:  { category: "youth", representativeAge: Math.floor(((event.youth_age_threshold ?? 13) + (event.adult_age_threshold ?? 18) - 1) / 2) },
-      adult:  { category: "adult", representativeAge: (event.adult_age_threshold ?? 18) + 10 },
+    // Map canonical ageRange to category and representative age.
+    const eventThresholds = {
+      infant: event.infant_age_threshold ?? 3,
+      youth: event.youth_age_threshold ?? 13,
+      adult: event.adult_age_threshold ?? 18,
     };
-    const ageInfo = ageRangeMap[v.ageRange] ?? ageRangeMap.adult;
-    const category = ageInfo.category;
-    const ageAtEvent = ageInfo.representativeAge;
-    const eventYear = new Date(event.start_date).getFullYear();
-    const dateOfBirth = v.dateOfBirth || `${eventYear - ageAtEvent}-01-01`;
+    const category = getCategory(v.ageRange, eventThresholds);
+    const ageAtEvent = getRepresentativeAge(v.ageRange, eventThresholds);
+    const dateOfBirth = v.dateOfBirth || syntheticDob(ageAtEvent, event.start_date);
 
     // Determine attendance details
     const isFullDuration = v.attendanceType === "full_conference";
@@ -167,6 +174,9 @@ export async function POST(request: NextRequest) {
         admin_notes: v.notes || null,
         invited_by_admin: adminIdentity,
         tshirt_size: v.tshirtSize || null,
+        service_language: v.serviceLanguage || null,
+        service_age_band: v.serviceAgeBand || null,
+        grade_level: v.gradeLevel || null,
       })
       .select()
       .single();

@@ -58,12 +58,16 @@ export type Dictionary = {
     breakfast: string; lunch: string; dinner: string; meal: string;
     selectAll: string; deselect: string;
     fieldsNeedAttention: string;
+    serviceLanguage: string; selectService: string;
+    amharicService: string; englishService: string;
+    gradeLevel: string; selectGradeLevel: string;
   };
   validation: {
     firstNameRequired: string; lastNameRequired: string; ageRangeRequired: string;
     genderRequired: string; cityRequired: string; attendanceTypeRequired: string;
     selectAtLeastOneDay: string; emailRequired: string; validEmailRequired: string;
     phoneRequired: string; validPhoneRequired: string;
+    serviceLanguageRequired: string; gradeLevelRequired: string;
   };
   review: {
     title: string; descriptionGroup: string; descriptionSolo: string;
@@ -283,6 +287,12 @@ const en: Dictionary = {
     selectAll: "Select All",
     deselect: "Deselect",
     fieldsNeedAttention: "{count} field(s) need attention",
+    serviceLanguage: "Service",
+    selectService: "Select service",
+    amharicService: "Amharic",
+    englishService: "English",
+    gradeLevel: "Grade / Level",
+    selectGradeLevel: "Select grade or level",
   },
 
   validation: {
@@ -297,6 +307,8 @@ const en: Dictionary = {
     validEmailRequired: "Please enter a valid email address",
     phoneRequired: "Phone number is required",
     validPhoneRequired: "Please enter a valid phone number",
+    serviceLanguageRequired: "Service selection is required",
+    gradeLevelRequired: "Grade / level is required",
   },
 
   review: {
@@ -583,6 +595,12 @@ const am: Dictionary = {
     selectAll: "ሁሉንም ምረጥ",
     deselect: "አትምረጥ",
     fieldsNeedAttention: "{count} መስክ(ዎች) ትኩረት ያስፈልጋቸዋል",
+    serviceLanguage: "አገልግሎት",
+    selectService: "አገልግሎት ይምረጡ",
+    amharicService: "አማርኛ",
+    englishService: "English",
+    gradeLevel: "ክፍል / ደረጃ",
+    selectGradeLevel: "ክፍል ወይም ደረጃ ይምረጡ",
   },
 
   validation: {
@@ -597,6 +615,8 @@ const am: Dictionary = {
     validEmailRequired: "እባክዎ ትክክለኛ ኢሜይል ያስገቡ",
     phoneRequired: "ስልክ ቁጥር ያስፈልጋል",
     validPhoneRequired: "እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ",
+    serviceLanguageRequired: "አገልግሎት ምርጫ ያስፈልጋል",
+    gradeLevelRequired: "ክፍል / ደረጃ ያስፈልጋል",
   },
 
   review: {

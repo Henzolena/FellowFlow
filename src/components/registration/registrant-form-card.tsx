@@ -25,9 +25,9 @@ import {
   Users,
 } from "lucide-react";
 import type { Event, PricingConfig, Church } from "@/types/database";
-import type { Registrant, AttendanceTypeKey, GenderKey } from "./hooks/use-wizard-state";
+import type { Registrant, AttendanceTypeKey, GenderKey, ServiceLanguageKey, GradeLevelKey } from "./hooks/use-wizard-state";
 import type { ItemQuote } from "./hooks/use-group-quote";
-import { getAgeRangeOptions } from "./hooks/use-group-quote";
+import { getAgeRangeOptions, getEnglishSubBandOptions, getGradeLevelOptions, shouldShowGradeSelector } from "./hooks/use-group-quote";
 import { MealSelector, type MealService } from "./meal-selector";
 
 type AgeRangeKey = "infant" | "child" | "youth" | "adult" | "";
@@ -228,64 +228,43 @@ export const RegistrantFormCard = memo(function RegistrantFormCard({
                 </div>
               </div>
 
-              {/* Age Range */}
+              {/* Service Language */}
               <div className="space-y-2">
-                <Label id={`ageRange-label-${idx}`}>{dict.wizard.ageRange} *</Label>
-                {errors.ageRange && (
+                <Label id={`service-label-${idx}`}>{dict.wizard.serviceLanguage} *</Label>
+                {errors.serviceLanguage && (
                   <p className="text-xs text-destructive" role="alert">
-                    {errors.ageRange}
+                    {errors.serviceLanguage}
                   </p>
                 )}
-                <div
-                  className="grid grid-cols-2 sm:grid-cols-4 gap-2"
-                  role="radiogroup"
-                  aria-labelledby={`ageRange-label-${idx}`}
-                >
-                  {getAgeRangeOptions(event, ageLabels).map((opt) => {
-                    const selected = reg.ageRange === opt.key;
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-labelledby={`service-label-${idx}`}>
+                  {([
+                    { key: "amharic" as const, label: dict.wizard.amharicService },
+                    { key: "english" as const, label: dict.wizard.englishService },
+                  ]).map((svc) => {
+                    const selected = reg.serviceLanguage === svc.key;
                     return (
                       <button
-                        key={opt.key}
+                        key={svc.key}
                         type="button"
                         role="radio"
                         aria-checked={selected}
-                        aria-label={`${opt.name} (${opt.range} ${dict.wizard.yearsAbbr})`}
                         onClick={() =>
-                          onUpdate({ ageRange: opt.key as AgeRangeKey })
+                          onUpdate({
+                            serviceLanguage: svc.key as ServiceLanguageKey,
+                            ageRange: "" as AgeRangeKey,
+                            serviceAgeBand: "",
+                            gradeLevel: "" as GradeLevelKey,
+                          })
                         }
-                        className={`relative flex flex-col items-center gap-1 rounded-xl border-2 px-2 py-3 text-center transition-all ${
+                        className={`flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 text-sm font-semibold transition-all ${
                           selected
-                            ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                            : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20 text-primary"
+                            : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50 text-foreground"
                         }`}
                       >
-                        <span
-                          className={
-                            selected
-                              ? "text-primary"
-                              : "text-muted-foreground"
-                          }
-                        >
-                          {AGE_ICONS[opt.key]}
-                        </span>
-                        <span
-                          className={`text-xs font-semibold leading-tight ${
-                            selected ? "text-primary" : "text-foreground"
-                          }`}
-                        >
-                          {opt.name}
-                        </span>
-                        <span
-                          className={`text-[10px] leading-tight ${
-                            selected
-                              ? "text-primary/70"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {opt.range} {dict.wizard.yearsAbbr}
-                        </span>
+                        {svc.label}
                         {selected && (
-                          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white">
+                          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white">
                             <Check className="h-2.5 w-2.5" />
                           </span>
                         )}
@@ -294,6 +273,140 @@ export const RegistrantFormCard = memo(function RegistrantFormCard({
                   })}
                 </div>
               </div>
+
+              {/* Age Range — ALWAYS canonical bands, regardless of service language */}
+              {reg.serviceLanguage && (
+                <div className="space-y-2">
+                  <Label id={`ageRange-label-${idx}`}>{dict.wizard.ageRange} *</Label>
+                  {errors.ageRange && (
+                    <p className="text-xs text-destructive" role="alert">
+                      {errors.ageRange}
+                    </p>
+                  )}
+                  <div
+                    className="grid grid-cols-2 sm:grid-cols-4 gap-2"
+                    role="radiogroup"
+                    aria-labelledby={`ageRange-label-${idx}`}
+                  >
+                    {getAgeRangeOptions(event, ageLabels).map((opt) => {
+                      const selected = reg.ageRange === opt.key;
+                      return (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          aria-label={`${opt.name} (${opt.range} ${dict.wizard.yearsAbbr})`}
+                          onClick={() => {
+                            const subBands = reg.serviceLanguage === "english" ? getEnglishSubBandOptions(opt.key) : [];
+                            onUpdate({
+                              ageRange: opt.key as AgeRangeKey,
+                              serviceAgeBand: subBands.length === 1 ? subBands[0].key : "",
+                              gradeLevel: "" as GradeLevelKey,
+                            });
+                          }}
+                          className={`relative flex flex-col items-center gap-1 rounded-xl border-2 px-2 py-3 text-center transition-all ${
+                            selected
+                              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                              : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
+                          }`}
+                        >
+                          <span className={selected ? "text-primary" : "text-muted-foreground"}>
+                            {AGE_ICONS[opt.key]}
+                          </span>
+                          <span className={`text-xs font-semibold leading-tight ${selected ? "text-primary" : "text-foreground"}`}>
+                            {opt.name}
+                          </span>
+                          <span className={`text-[10px] leading-tight ${selected ? "text-primary/70" : "text-muted-foreground"}`}>
+                            {opt.range} {dict.wizard.yearsAbbr}
+                          </span>
+                          {selected && (
+                            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white">
+                              <Check className="h-2.5 w-2.5" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* English Sub-Band — shown after canonical selection, only for English service */}
+              {reg.serviceLanguage === "english" && reg.ageRange && getEnglishSubBandOptions(reg.ageRange).length > 1 && (
+                <div className="space-y-2">
+                  <Label id={`subBand-label-${idx}`}>{dict.wizard.serviceGroup || "Service Group"} *</Label>
+                  <div
+                    className="grid grid-cols-2 gap-2"
+                    role="radiogroup"
+                    aria-labelledby={`subBand-label-${idx}`}
+                  >
+                    {getEnglishSubBandOptions(reg.ageRange).map((sub) => {
+                      const selected = reg.serviceAgeBand === sub.key;
+                      return (
+                        <button
+                          key={sub.key}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() =>
+                            onUpdate({
+                              serviceAgeBand: sub.key,
+                              gradeLevel: "" as GradeLevelKey,
+                            })
+                          }
+                          className={`relative flex flex-col items-center gap-1 rounded-xl border-2 px-3 py-3 text-center transition-all ${
+                            selected
+                              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                              : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
+                          }`}
+                        >
+                          <span className={`text-xs font-semibold leading-tight ${selected ? "text-primary" : "text-foreground"}`}>
+                            {sub.label}
+                          </span>
+                          <span className={`text-[10px] leading-tight ${selected ? "text-primary/70" : "text-muted-foreground"}`}>
+                            {sub.range} {dict.wizard.yearsAbbr}
+                          </span>
+                          {selected && (
+                            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white">
+                              <Check className="h-2.5 w-2.5" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Grade / Level — English service, sub-bands with grade selector */}
+              {shouldShowGradeSelector(reg.serviceLanguage, reg.serviceAgeBand) && (
+                <div className="space-y-2">
+                  <Label htmlFor={`grade-${idx}`}>{dict.wizard.gradeLevel} *</Label>
+                  {errors.gradeLevel && (
+                    <p className="text-xs text-destructive" role="alert">
+                      {errors.gradeLevel}
+                    </p>
+                  )}
+                  <Select
+                    value={reg.gradeLevel || ""}
+                    onValueChange={(v) => onUpdate({ gradeLevel: v as GradeLevelKey })}
+                  >
+                    <SelectTrigger
+                      id={`grade-${idx}`}
+                      className={errors.gradeLevel ? "border-destructive" : ""}
+                      aria-invalid={!!errors.gradeLevel}
+                    >
+                      <SelectValue placeholder={dict.wizard.selectGradeLevel} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getGradeLevelOptions().map((g) => (
+                        <SelectItem key={g.key} value={g.key}>{g.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Gender */}
               <div className="space-y-2">

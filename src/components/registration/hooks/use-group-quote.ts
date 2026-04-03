@@ -3,7 +3,19 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Event } from "@/types/database";
 import type { AgeCategory } from "@/types/database";
+import {
+  getAmharicAgeBands,
+  getEnglishSubBands,
+  getRepresentativeAge as _getRepresentativeAge,
+  syntheticDob as _syntheticDob,
+  shouldShowGradeSelector as _shouldShowGradeSelector,
+  getGradeLevelOptions as _getGradeLevelOptions,
+  type AgeBandConfig,
+  type EnglishSubBand,
+  type GradeLevel,
+} from "@/lib/registration/age-bands";
 
+// Canonical age keys only — ALL registrants use these
 type AgeRangeKey = "infant" | "child" | "youth" | "adult" | "";
 
 type AttendanceTypeKey = "full_conference" | "partial" | "kote" | "";
@@ -12,6 +24,7 @@ type Registrant = {
   id: string;
   firstName: string;
   lastName: string;
+  serviceLanguage: string;
   ageRange: AgeRangeKey;
   attendanceType: AttendanceTypeKey;
   isFullDuration: boolean | null;
@@ -55,11 +68,37 @@ export function getAgeRangeOptions(event: Event, labels: AgeLabels) {
   ];
 }
 
-export function syntheticDob(representativeAge: number, eventStartDate: string): string {
-  const eventYear = new Date(eventStartDate).getFullYear();
-  const birthYear = eventYear - representativeAge;
-  return `${birthYear}-01-01`;
+// ─── Re-export helpers from centralized config ──────────────────
+export type GradeLevelKey = GradeLevel | "";
+
+/** English sub-band options for a given canonical age range (classroom grouping) */
+export function getEnglishSubBandOptions(canonicalKey: string) {
+  return getEnglishSubBands(canonicalKey);
 }
+
+/** Grade level options — delegates to centralized config */
+export const getGradeLevelOptions = _getGradeLevelOptions;
+
+/** Whether to show grade selector — delegates to centralized config */
+export const shouldShowGradeSelector = _shouldShowGradeSelector;
+
+/**
+ * Get the representative age for a canonical age band.
+ * ageRange is ALWAYS a canonical key (infant/child/youth/adult).
+ */
+export function getRepresentativeAge(
+  ageRange: string,
+  event: Event,
+): number {
+  return _getRepresentativeAge(ageRange, {
+    infant: event.infant_age_threshold ?? 3,
+    youth: event.youth_age_threshold,
+    adult: event.adult_age_threshold,
+  });
+}
+
+/** Synthetic DOB — delegates to centralized config */
+export const syntheticDob = _syntheticDob;
 
 export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels: AgeLabels) {
   const [groupQuote, setGroupQuote] = useState<GroupQuote | null>(null);
@@ -92,10 +131,10 @@ export function useGroupQuote(event: Event, registrants: Registrant[], ageLabels
         body: JSON.stringify({
           eventId: event.id,
           registrants: validRegistrants.map((r) => {
-            const opt = ageOpts.find((o: { key: string }) => o.key === r.ageRange);
+            const repAge = getRepresentativeAge(r.ageRange, event);
             const attType = r.attendanceType || (r.isFullDuration ? "full_conference" : "partial");
             return {
-              dateOfBirth: syntheticDob(opt?.representativeAge ?? 25, event.start_date),
+              dateOfBirth: syntheticDob(repAge, event.start_date),
               isFullDuration: attType === "full_conference",
               isStayingInMotel: false,
               numDays: attType !== "full_conference" ? r.selectedDays.length : undefined,

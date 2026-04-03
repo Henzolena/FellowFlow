@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Event, Church, Motel, Room, Bed } from "@/types/database";
-import { getAgeRangeOptions, syntheticDob } from "@/components/registration/hooks/use-group-quote";
+import { getAgeRangeOptions, getEnglishSubBandOptions, getGradeLevelOptions, shouldShowGradeSelector, getRepresentativeAge, syntheticDob } from "@/components/registration/hooks/use-group-quote";
 
 /* ── Types ─────────────────────────────────────────────────────────── */
 
@@ -61,6 +61,9 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState("");
   const [ageRange, setAgeRange] = useState("");
+  const [serviceLanguage, setServiceLanguage] = useState("");
+  const [serviceAgeBand, setServiceAgeBand] = useState("");
+  const [gradeLevel, setGradeLevel] = useState("");
   const [city, setCity] = useState("");
   const [churchId, setChurchId] = useState("");
   const [churchCustom, setChurchCustom] = useState("");
@@ -149,6 +152,9 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
     setPhone("");
     setGender("");
     setAgeRange("");
+    setServiceLanguage("");
+    setServiceAgeBand("");
+    setGradeLevel("");
     setCity("");
     setChurchId("");
     setChurchCustom("");
@@ -279,7 +285,7 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
           gender: gender || undefined,
           ageRange,
           dateOfBirth: selectedEvent ? syntheticDob(
-            ageRangeOptions.find(o => o.key === ageRange)?.representativeAge ?? 25,
+            getRepresentativeAge(ageRange, selectedEvent),
             selectedEvent.start_date
           ) : undefined,
           city: city.trim() || undefined,
@@ -291,6 +297,9 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
           bedId: isStayingInMotel && selectedBedId ? selectedBedId : undefined,
           notes: notes.trim() || undefined,
           sendEmail,
+          serviceLanguage: serviceLanguage || undefined,
+          serviceAgeBand: serviceAgeBand || undefined,
+          gradeLevel: gradeLevel || undefined,
         }),
       });
 
@@ -402,8 +411,43 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
               </div>
             </div>
 
-            {/* Age Range */}
+            {/* Service Language */}
             {eventId && (
+              <div className="space-y-2">
+                <Label>Service <span className="text-destructive">*</span></Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { key: "amharic", label: "Amharic" },
+                    { key: "english", label: "English" },
+                  ] as const).map((svc) => {
+                    const selected = serviceLanguage === svc.key;
+                    return (
+                      <button
+                        key={svc.key}
+                        type="button"
+                        onClick={() => {
+                          setServiceLanguage(svc.key);
+                          setAgeRange("");
+                          setServiceAgeBand("");
+                          setGradeLevel("");
+                        }}
+                        className={`flex items-center justify-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-semibold transition-all ${
+                          selected
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20 text-primary"
+                            : "border-muted hover:border-primary/40 text-foreground"
+                        }`}
+                      >
+                        {svc.label}
+                        {selected && <Check className="h-3 w-3" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Age Range — ALWAYS canonical bands */}
+            {eventId && serviceLanguage && (
               <div className="space-y-2">
                 <Label>Age Range <span className="text-destructive">*</span></Label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -413,7 +457,12 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
                       <button
                         key={opt.key}
                         type="button"
-                        onClick={() => setAgeRange(opt.key)}
+                        onClick={() => {
+                          const subs = serviceLanguage === "english" ? getEnglishSubBandOptions(opt.key) : [];
+                          setAgeRange(opt.key);
+                          setServiceAgeBand(subs.length === 1 ? subs[0].key : "");
+                          setGradeLevel("");
+                        }}
                         className={`flex flex-col items-center gap-0.5 rounded-lg border-2 px-2 py-2 text-center transition-all text-xs ${
                           selected
                             ? "border-primary bg-primary/5 ring-1 ring-primary/20"
@@ -426,6 +475,51 @@ export default function AdminRegisterDialog({ open, onOpenChange, events, church
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* English Sub-Band — shown after canonical selection */}
+            {serviceLanguage === "english" && ageRange && getEnglishSubBandOptions(ageRange).length > 1 && (
+              <div className="space-y-2">
+                <Label>Service Group <span className="text-destructive">*</span></Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {getEnglishSubBandOptions(ageRange).map((sub) => {
+                    const selected = serviceAgeBand === sub.key;
+                    return (
+                      <button
+                        key={sub.key}
+                        type="button"
+                        onClick={() => {
+                          setServiceAgeBand(sub.key);
+                          setGradeLevel("");
+                        }}
+                        className={`flex flex-col items-center gap-0.5 rounded-lg border-2 px-2 py-2 text-center transition-all text-xs ${
+                          selected
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                            : "border-muted hover:border-primary/40"
+                        }`}
+                      >
+                        <span className="font-semibold capitalize">{sub.label}</span>
+                        <span className="text-[10px] text-muted-foreground">{sub.range} yrs</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Grade / Level — English sub-bands with grade selector */}
+            {shouldShowGradeSelector(serviceLanguage, serviceAgeBand) && (
+              <div className="space-y-2">
+                <Label>Grade / Level <span className="text-destructive">*</span></Label>
+                <Select value={gradeLevel} onValueChange={setGradeLevel}>
+                  <SelectTrigger><SelectValue placeholder="Select grade or level" /></SelectTrigger>
+                  <SelectContent>
+                    {getGradeLevelOptions().map((g) => (
+                      <SelectItem key={g.key} value={g.key}>{g.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 

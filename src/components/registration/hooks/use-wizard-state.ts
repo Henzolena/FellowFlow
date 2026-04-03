@@ -2,15 +2,21 @@
 
 import { useState, useCallback } from "react";
 
+// Canonical age keys only — ALL registrants use these regardless of service language
 type AgeRangeKey = "infant" | "child" | "youth" | "adult" | "";
 export type AttendanceTypeKey = "full_conference" | "partial" | "kote" | "";
 export type GenderKey = "male" | "female" | "";
+export type ServiceLanguageKey = "amharic" | "english" | "";
+export type GradeLevelKey = "7th-8th" | "9th-10th" | "11th" | "12th" | "college_career" | "";
 
 export type Registrant = {
   id: string;
   firstName: string;
   lastName: string;
+  serviceLanguage: ServiceLanguageKey;
   ageRange: AgeRangeKey;
+  serviceAgeBand: string;
+  gradeLevel: GradeLevelKey;
   gender: GenderKey;
   city: string;
   churchId: string;
@@ -39,7 +45,10 @@ export function createEmptyRegistrant(): Registrant {
     id: genId(),
     firstName: "",
     lastName: "",
+    serviceLanguage: "",
     ageRange: "",
+    serviceAgeBand: "",
+    gradeLevel: "",
     gender: "",
     city: "",
     churchId: "",
@@ -59,6 +68,7 @@ export type ValidationLabels = {
   genderRequired: string; cityRequired: string; attendanceTypeRequired: string;
   selectAtLeastOneDay: string; emailRequired: string; validEmailRequired: string;
   phoneRequired: string; validPhoneRequired: string;
+  serviceLanguageRequired: string; gradeLevelRequired: string;
 };
 
 const defaultValidationLabels: ValidationLabels = {
@@ -73,18 +83,25 @@ const defaultValidationLabels: ValidationLabels = {
   validEmailRequired: "Please enter a valid email address",
   phoneRequired: "Phone number is required",
   validPhoneRequired: "Please enter a valid phone number",
+  serviceLanguageRequired: "Service selection is required",
+  gradeLevelRequired: "Grade / level is required",
 };
 
 export function getRegistrantErrors(r: Registrant, labels: ValidationLabels = defaultValidationLabels): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!r.firstName.trim()) errors.firstName = labels.firstNameRequired;
   if (!r.lastName.trim()) errors.lastName = labels.lastNameRequired;
+  if (!r.serviceLanguage) errors.serviceLanguage = labels.serviceLanguageRequired;
   if (!r.ageRange) errors.ageRange = labels.ageRangeRequired;
   if (!r.gender) errors.gender = labels.genderRequired;
   if (!r.city.trim()) errors.city = labels.cityRequired;
   if (!r.attendanceType) errors.attendanceType = labels.attendanceTypeRequired;
   if (r.attendanceType && r.attendanceType !== "full_conference" && r.selectedDays.length < 1) {
     errors.selectedDays = labels.selectAtLeastOneDay;
+  }
+  // Grade level required for English service sub-bands with grade selector
+  if (r.serviceLanguage === "english" && (r.serviceAgeBand === "teens" || r.serviceAgeBand === "young_adults") && !r.gradeLevel) {
+    errors.gradeLevel = labels.gradeLevelRequired;
   }
   return errors;
 }

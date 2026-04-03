@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, AlertTriangle, Calendar, Users, Building2, ShieldCheck, Lock } from "lucide-react";
 import type { Registration, Event, Church, PricingConfig } from "@/types/database";
+import { getAmharicAgeBands, syntheticDob } from "@/lib/registration/age-bands";
 
 type CompletionData = {
   registration: Registration & { events?: Event & { pricing_config?: PricingConfig[] } };
@@ -22,17 +23,13 @@ function computeAgeRanges(event: Event): AgeRange[] {
   const infant = event.infant_age_threshold ?? 3;
   const youth = event.youth_age_threshold ?? 13;
   const adult = event.adult_age_threshold ?? 18;
+  const bands = getAmharicAgeBands(infant, youth, adult);
   return [
-    { label: `Infant (0-${infant})`, min: 0, max: infant, representative: Math.floor(infant / 2) },
-    { label: `Child (${infant + 1}-${youth - 1})`, min: infant + 1, max: youth - 1, representative: Math.floor((infant + 1 + youth - 1) / 2) },
-    { label: `Youth (${youth}-${adult - 1})`, min: youth, max: adult - 1, representative: Math.floor((youth + adult - 1) / 2) },
-    { label: `Adult (${adult}+)`, min: adult, max: 99, representative: 30 },
+    { label: `Infant (0-${infant})`, min: 0, max: infant, representative: bands[0].representativeAge },
+    { label: `Child (${infant + 1}-${youth - 1})`, min: infant + 1, max: youth - 1, representative: bands[1].representativeAge },
+    { label: `Youth (${youth}-${adult - 1})`, min: youth, max: adult - 1, representative: bands[2].representativeAge },
+    { label: `Adult (${adult}+)`, min: adult, max: 99, representative: bands[3].representativeAge },
   ];
-}
-
-function syntheticDOB(representativeAge: number, eventStartDate: string): string {
-  const eventYear = new Date(eventStartDate + "T00:00:00").getFullYear();
-  return `${eventYear - representativeAge}-01-01`;
 }
 
 export default function CompletePage({ params }: { params: Promise<{ token: string }> }) {
@@ -205,7 +202,7 @@ export default function CompletePage({ params }: { params: Promise<{ token: stri
 
     const selectedRange = ageRanges[parseInt(ageRangeIdx)];
     const dateOfBirth = selectedRange
-      ? syntheticDOB(selectedRange.representative, data.event.start_date)
+      ? syntheticDob(selectedRange.representative, data.event.start_date)
       : undefined;
 
     try {

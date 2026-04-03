@@ -17,7 +17,7 @@ import type { Event, PricingConfig, Church } from "@/types/database";
 import type { MealService } from "./meal-selector";
 import { useTranslation } from "@/lib/i18n/context";
 import { useWizardState, getContactErrors } from "./hooks/use-wizard-state";
-import { useGroupQuote, getAgeRangeOptions, syntheticDob } from "./hooks/use-group-quote";
+import { useGroupQuote, getRepresentativeAge, syntheticDob } from "./hooks/use-group-quote";
 import { useDuplicateCheck } from "./hooks/use-duplicate-check";
 
 type WizardProps = {
@@ -64,12 +64,12 @@ export function RegistrationWizard({ event, pricing, churches, availableMeals }:
           email: contact.email,
           phone: contact.phone || undefined,
           registrants: registrants.map((r) => {
-            const opt = getAgeRangeOptions(event, ageLabels).find((o) => o.key === r.ageRange);
+            const repAge = getRepresentativeAge(r.ageRange, event);
             const attType = r.attendanceType || "full_conference";
             return {
               firstName: r.firstName,
               lastName: r.lastName,
-              dateOfBirth: syntheticDob(opt?.representativeAge ?? 25, event.start_date),
+              dateOfBirth: syntheticDob(repAge, event.start_date),
               gender: r.gender || undefined,
               city: r.city || undefined,
               churchId: r.churchId || undefined,
@@ -80,6 +80,9 @@ export function RegistrationWizard({ event, pricing, churches, availableMeals }:
               selectedDays: attType !== "full_conference" ? r.selectedDays : undefined,
               mealServiceIds: r.selectedMealIds.length > 0 ? r.selectedMealIds : undefined,
               tshirtSize: r.tshirtSize || undefined,
+              serviceLanguage: r.serviceLanguage || undefined,
+              serviceAgeBand: r.serviceAgeBand || undefined,
+              gradeLevel: r.gradeLevel || undefined,
             };
           }),
         }),

@@ -60,6 +60,14 @@ export type AccessTier = 'FULL_ACCESS' | 'KOTE_ACCESS' | 'MOTEL_ACCESS' | 'MEAL_
 
 export type Gender = 'male' | 'female';
 
+export type ServiceLanguage = 'amharic' | 'english';
+
+// Amharic canonical bands: '0-1' | '2-10' | '11-17' | '18+'
+// English display bands: '0-2' | '3-12' | '13-17' | '18-24' | '25+'
+export type ServiceAgeBand = string;
+
+export type GradeLevel = '7th-8th' | '9th-10th' | '11th' | '12th' | 'college_career';
+
 export type RegistrationStatus = 'draft' | 'invited' | 'pending' | 'confirmed' | 'cancelled' | 'refunded';
 
 export type RegistrationSource = 'self' | 'admin_prefill' | 'admin_direct';
@@ -144,6 +152,9 @@ export type Registration = {
   invitation_code: string | null;
   selected_meal_ids: string[] | null;
   tshirt_size: TshirtSize | null;
+  service_language: ServiceLanguage | null;
+  service_age_band: ServiceAgeBand | null;
+  grade_level: GradeLevel | null;
   checked_in: boolean;
   checked_in_at: string | null;
   created_at: string;
