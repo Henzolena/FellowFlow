@@ -103,6 +103,7 @@ export default function SellMealsDialog({
           const evt = events.find((e: { id: string }) => e.id === eventId);
           if (evt?.pricing_config) {
             const pc = Array.isArray(evt.pricing_config) ? evt.pricing_config[0] : evt.pricing_config;
+            // Child pays child price, youth and adult both pay adult price
             const price = category === "child" ? (pc.meal_price_child ?? 8) : (pc.meal_price_adult ?? 12);
             setUnitPrice(price);
           }

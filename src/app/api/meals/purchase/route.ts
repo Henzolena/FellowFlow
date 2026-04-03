@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
+import { computeAge, computeMealPrice } from "@/lib/pricing/engine";
+import type { PricingConfig } from "@/types/database";
 import { z } from "zod";
 
 const purchaseSchema = z.object({
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
     // Find the registration by secure_token (preferred) or confirmation code (fallback)
     let regQuery = supabase
       .from("registrations")
-      .select("id, first_name, last_name, email, category, event_id, status, public_confirmation_code, secure_token, attendance_type")
+      .select("id, first_name, last_name, email, category, date_of_birth, event_id, status, public_confirmation_code, secure_token, attendance_type")
       .eq("status", "confirmed");
 
     if (secureToken) {
@@ -44,14 +46,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Meals are already included in your registration" }, { status: 400 });
     }
 
-    // Fetch pricing — KOTE attendees pay flat kote meal price
-    const { data: pricing } = await supabase
-      .from("pricing_config")
-      .select("meal_price_adult, meal_price_child, meal_price_kote")
-      .eq("event_id", reg.event_id)
-      .single();
+    // Fetch event and pricing config for age-based meal pricing
+    const [{ data: event }, { data: pricing }] = await Promise.all([
+      supabase.from("events").select("start_date").eq("id", reg.event_id).single(),
+      supabase.from("pricing_config").select("*").eq("event_id", reg.event_id).single<PricingConfig>(),
+    ]);
 
-    const unitPrice = Number(pricing?.meal_price_kote ?? 10);
+    if (!event || !pricing) {
+      return NextResponse.json({ error: "Event or pricing not found" }, { status: 404 });
+    }
+
+    const ageAtEvent = computeAge(reg.date_of_birth, event.start_date);
+    const unitPrice = computeMealPrice(ageAtEvent, "kote", pricing);
 
     // Validate services
     const { data: services } = await supabase

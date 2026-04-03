@@ -190,6 +190,9 @@ export async function POST(request: NextRequest) {
         access_tier: deriveAccessTier(attType),
         selected_meal_ids: reg.mealServiceIds?.length ? reg.mealServiceIds : null,
         tshirt_size: reg.tshirtSize ?? null,
+        service_language: reg.serviceLanguage ?? null,
+        service_age_band: reg.serviceAgeBand ?? null,
+        grade_level: reg.gradeLevel ?? null,
       };
     });
 

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendConfirmationEmail, sendGroupReceiptEmail, sendAdminNotificationEmail } from "@/lib/email/resend";
 import type { AdminNotificationMember } from "@/lib/email/resend";
-import { computeGroupPricing } from "@/lib/pricing/engine";
+import { computeGroupPricing, computeAge, computeMealPrice } from "@/lib/pricing/engine";
 import type { Logger } from "@/lib/logger";
 import type { Registration, Event, PricingConfig } from "@/types/database";
 import { formatSelectedDays } from "@/lib/date-utils";
@@ -55,17 +55,18 @@ export async function dispatchSoloConfirmation(
 
     const lodging = extractLodging(reg);
 
-    // Compute meal total for solo registrant
+    // Compute meal total for solo registrant using age-based pricing
     let soloMealTotal = 0;
     const mealIds = reg.selected_meal_ids as string[] | null;
     if (mealIds && mealIds.length > 0) {
       const { data: pricing } = await supabase
         .from("pricing_config")
-        .select("meal_price_adult, meal_price_child")
+        .select("*")
         .eq("event_id", reg.event_id as string)
-        .single();
-      if (pricing) {
-        const pricePerMeal = (reg.category as string) === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+        .single<PricingConfig>();
+      if (pricing && evtData?.start_date && reg.date_of_birth) {
+        const ageAtEvent = computeAge(reg.date_of_birth as string, evtData.start_date);
+        const pricePerMeal = computeMealPrice(ageAtEvent, (reg.attendance_type as string) as "full_conference" | "partial" | "kote", pricing);
         soloMealTotal = mealIds.length * pricePerMeal;
       }
     }
@@ -207,17 +208,18 @@ export async function dispatchGroupConfirmation(
       const churchName = await resolveChurch(primaryReg.church_id, primaryReg.church_name_custom);
       const soloLodging = extractLodging(primaryReg);
 
-      // Compute meal total for solo-in-group
+      // Compute meal total for solo-in-group using age-based pricing
       let soloGroupMealTotal = 0;
       const soloMealIds = primaryReg.selected_meal_ids as string[] | null;
       if (soloMealIds && soloMealIds.length > 0) {
         const { data: soloPricing } = await supabase
           .from("pricing_config")
-          .select("meal_price_adult, meal_price_child")
+          .select("*")
           .eq("event_id", primaryReg.event_id as string)
-          .single();
-        if (soloPricing) {
-          const pricePerMeal = (primaryReg.category as string) === "child" ? soloPricing.meal_price_child : soloPricing.meal_price_adult;
+          .single<PricingConfig>();
+        if (soloPricing && evtData?.start_date && primaryReg.date_of_birth) {
+          const soloAge = computeAge(primaryReg.date_of_birth as string, evtData.start_date);
+          const pricePerMeal = computeMealPrice(soloAge, (primaryReg.attendance_type as string) as "full_conference" | "partial" | "kote", soloPricing);
           soloGroupMealTotal = soloMealIds.length * pricePerMeal;
         }
       }
@@ -378,13 +380,14 @@ export async function dispatchGroupConfirmation(
       })
     );
 
-    // Compute meal total from selected_meal_ids
+    // Compute meal total from selected_meal_ids using age-based pricing
     let mealTotal = 0;
-    if (pricing) {
+    if (pricing && evtData?.start_date) {
       for (const r of rows as unknown as Registration[]) {
         const mealIds = r.selected_meal_ids;
-        if (mealIds && mealIds.length > 0) {
-          const pricePerMeal = r.category === "child" ? pricing.meal_price_child : pricing.meal_price_adult;
+        if (mealIds && mealIds.length > 0 && r.date_of_birth) {
+          const age = computeAge(r.date_of_birth, evtData.start_date);
+          const pricePerMeal = computeMealPrice(age, (r.attendance_type ?? "full_conference") as "full_conference" | "partial" | "kote", pricing);
           mealTotal += mealIds.length * pricePerMeal;
         }
       }

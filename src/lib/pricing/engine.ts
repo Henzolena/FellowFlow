@@ -239,18 +239,16 @@ export function computeGroupPricing(
 }
 
 /**
- * Compute meal price per person based on age, attendance type, and pricing config.
+ * Compute meal price per person based on age and pricing config.
  *
- * Age brackets:
- * - Under meal_free_age_threshold (default 2): FREE
+ * Age brackets (same for ALL attendance types including KOTE):
+ * - Under meal_free_age_threshold (default 2): FREE ($0)
  * - meal_free_age_threshold to meal_child_max_age (default 2–10): child price ($8)
- * - 11–17: youth price ($10)
- * - 18+: adult price ($12)
- * - KOTE attendees: flat kote meal price ($10) regardless of age (unless under free threshold)
+ * - 11+ (youth and adult): adult price ($12)
  */
 export function computeMealPrice(
   ageAtEvent: number,
-  attendanceType: AttendanceType,
+  _attendanceType: AttendanceType,
   pricing: PricingConfig
 ): number {
   const freeThreshold = pricing.meal_free_age_threshold ?? 2;
@@ -258,21 +256,12 @@ export function computeMealPrice(
     return 0;
   }
 
-  if (attendanceType === "kote") {
-    return Number(pricing.meal_price_kote ?? 10);
-  }
-
   const childMaxAge = pricing.meal_child_max_age ?? 10;
   if (ageAtEvent <= childMaxAge) {
     return Number(pricing.meal_price_child);
   }
 
-  // Youth: 11–17
-  if (ageAtEvent <= 17) {
-    return Number(pricing.meal_price_youth ?? 10);
-  }
-
-  // Adult: 18+
+  // Youth (11–17) and Adult (18+) both pay adult price
   return Number(pricing.meal_price_adult);
 }
 

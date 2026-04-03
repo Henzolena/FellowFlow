@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/admin-guard";
+import { computeAge, computeMealPrice } from "@/lib/pricing/engine";
 import { z } from "zod";
 
 const sellMealsSchema = z.object({
@@ -55,10 +56,10 @@ export async function POST(request: NextRequest) {
     const { registrationId, eventId, serviceIds, paymentMethod, notes } = parsed.data;
     const supabase = await createClient();
 
-    // Fetch registration to determine meal price (adult vs child)
+    // Fetch registration and event details to compute meal price
     const { data: reg } = await supabase
       .from("registrations")
-      .select("category, event_id")
+      .select("date_of_birth, event_id")
       .eq("id", registrationId)
       .single();
 
@@ -66,16 +67,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Registration not found" }, { status: 404 });
     }
 
-    // Fetch pricing config for meal prices
-    const { data: pricing } = await supabase
-      .from("pricing_config")
-      .select("meal_price_adult, meal_price_child")
-      .eq("event_id", eventId)
-      .single();
+    // Fetch event and pricing config
+    const [{ data: event }, { data: pricing }] = await Promise.all([
+      supabase.from("events").select("start_date").eq("id", eventId).single(),
+      supabase.from("pricing_config").select("*").eq("event_id", eventId).single(),
+    ]);
 
-    const mealPriceAdult = pricing?.meal_price_adult ?? 12;
-    const mealPriceChild = pricing?.meal_price_child ?? 8;
-    const unitPrice = reg.category === "child" ? mealPriceChild : mealPriceAdult;
+    if (!event || !pricing) {
+      return NextResponse.json({ error: "Event or pricing not found" }, { status: 404 });
+    }
+
+    // Compute meal price using centralized logic (youth pays adult price)
+    const ageAtEvent = computeAge(reg.date_of_birth, event.start_date);
+    const unitPrice = computeMealPrice(ageAtEvent, "full_conference", pricing);
 
     // Verify these services exist and are meals
     const { data: services } = await supabase

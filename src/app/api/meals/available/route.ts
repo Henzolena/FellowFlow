@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { computeAge, computeMealPrice } from "@/lib/pricing/engine";
+import type { PricingConfig } from "@/types/database";
 
 // GET /api/meals/available?token=UUID  (secure links)
 // GET /api/meals/available?code=FF26-HENOK-1234  (manual lookup fallback)
@@ -17,7 +19,7 @@ export async function GET(request: NextRequest) {
     // Find the registration by secure_token (preferred) or public_confirmation_code (manual lookup)
     let query = supabase
       .from("registrations")
-      .select("id, first_name, last_name, email, category, event_id, attendance_type, status, public_confirmation_code, secure_token, events(name, start_date, end_date)")
+      .select("id, first_name, last_name, email, category, date_of_birth, event_id, attendance_type, status, public_confirmation_code, secure_token, events(name, start_date, end_date)")
       .eq("status", "confirmed");
 
     if (token) {
@@ -37,14 +39,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Meals are already included in your registration. Only KOTE (day camper) attendees need to purchase meals separately." }, { status: 400 });
     }
 
-    // Fetch pricing config — KOTE attendees pay flat kote meal price
+    // Fetch pricing config for age-based meal pricing
     const { data: pricing } = await supabase
       .from("pricing_config")
-      .select("meal_price_adult, meal_price_child, meal_price_kote")
+      .select("*")
       .eq("event_id", reg.event_id)
-      .single();
+      .single<PricingConfig>();
 
-    const unitPrice = Number(pricing?.meal_price_kote ?? 10);
+    const event = Array.isArray(reg.events) ? reg.events[0] : reg.events;
+    const ageAtEvent = computeAge(reg.date_of_birth, event?.start_date ?? "");
+    const unitPrice = pricing ? computeMealPrice(ageAtEvent, "kote", pricing) : 12;
 
     // Fetch all meal services for this event
     const { data: meals } = await supabase
@@ -103,8 +107,6 @@ export async function GET(request: NextRequest) {
         canPurchase: isFuture && !isPurchased,
       };
     });
-
-    const event = Array.isArray(reg.events) ? reg.events[0] : reg.events;
 
     return NextResponse.json({
       registration: {

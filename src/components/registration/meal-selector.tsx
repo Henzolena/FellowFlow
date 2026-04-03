@@ -68,10 +68,13 @@ export function MealSelector({
     if (t === "dinner") return dict.wizard.dinner;
     return t || dict.wizard.meal;
   };
-  const mealPrice =
-    ageRange === "child" || ageRange === "infant"
-      ? pricing.meal_price_child
-      : pricing.meal_price_adult;
+  // Meal pricing based on canonical age range (same for ALL attendance types)
+  // Infant: FREE, Child: $8, Youth/Adult: $12
+  const mealPrice = (() => {
+    if (ageRange === "infant") return 0;
+    if (ageRange === "child") return Number(pricing.meal_price_child ?? 8);
+    return Number(pricing.meal_price_adult ?? 12);
+  })();
 
   return (
     <div className="space-y-3 mt-4 pt-4 border-t border-amber-200/60">
