@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const attendanceTypeEnum = z.enum(["full_conference", "partial", "kote"]);
 export const genderEnum = z.enum(["male", "female"]);
+export const serviceLanguageEnum = z.enum(["amharic", "english"]);
+export const gradeLevelEnum = z.enum(["7th-8th", "9th-10th", "11th", "12th", "college_career"]);
 
 export const personalInfoSchema = z.object({
   firstName: z.string().min(1, "First name is required").max(100),
@@ -45,7 +47,7 @@ export const groupRegistrantSchema = z.object({
   lastName: z.string().min(1, "Last name is required").max(100),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
   gender: genderEnum.optional(),
-  city: z.string().min(1, "City is required").max(200),
+  city: z.string().max(200).optional(),
   churchId: z.string().uuid().optional().nullable(),
   churchNameCustom: z.string().max(200).optional().nullable(),
   isFullDuration: z.boolean(),
@@ -55,6 +57,9 @@ export const groupRegistrantSchema = z.object({
   attendanceType: attendanceTypeEnum.optional(),
   mealServiceIds: z.array(z.string().uuid()).optional(),
   tshirtSize: z.enum(["XS", "S", "M", "L", "XL", "2XL", "3XL"]).optional().nullable(),
+  serviceLanguage: serviceLanguageEnum.optional().nullable(),
+  serviceAgeBand: z.string().max(20).optional().nullable(),
+  gradeLevel: gradeLevelEnum.optional().nullable(),
 });
 
 export const groupRegistrationSchema = z.object({
