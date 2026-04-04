@@ -115,14 +115,10 @@ async function handleSoloPayment(
   lineItems.push({
     price_data: {
       currency: "usd",
-      ...(regProduct
-        ? { product: regProduct }
-        : { 
-            product_data: { 
-              name: `Registration: ${registration.events.name}`,
-              description: `${attendeeInfo}\n${recomputed.explanationDetail}\n${eventDates}` 
-            } 
-          }),
+      product_data: { 
+        name: `Registration: ${registration.events.name}`,
+        description: `${attendeeInfo}\n${recomputed.explanationDetail}\n${eventDates}` 
+      },
       unit_amount: Math.round(recomputed.baseAmount * 100),
     },
     quantity: 1,
@@ -134,7 +130,8 @@ async function handleSoloPayment(
       event_name: registration.events.name,
       category: registration.category,
       is_full_duration: registration.is_full_duration.toString(),
-      num_days: registration.num_days?.toString() || 'N/A'
+      num_days: registration.num_days?.toString() || 'N/A',
+      stripe_product_id: regProduct || 'dynamic' // Keep reference for dashboard tracking
     }
   });
 
@@ -144,9 +141,10 @@ async function handleSoloPayment(
     lineItems.push({
       price_data: {
         currency: "usd",
-        ...(surProduct
-          ? { product: surProduct }
-          : { product_data: { name: recomputed.surchargeLabel || "Late Registration Surcharge", description: `Applied to registration for ${attendeeInfo}` } }),
+        product_data: { 
+          name: recomputed.surchargeLabel || "Late Registration Surcharge", 
+          description: `Applied to registration for ${attendeeInfo}` 
+        },
         unit_amount: Math.round(recomputed.surcharge * 100),
       },
       quantity: 1,
@@ -156,7 +154,8 @@ async function handleSoloPayment(
         registration_id: registration.id,
         event_name: registration.events.name,
         base_amount: recomputed.baseAmount.toString(),
-        surcharge_amount: recomputed.surcharge.toString()
+        surcharge_amount: recomputed.surcharge.toString(),
+        stripe_product_id: surProduct || 'dynamic' // Keep reference for dashboard tracking
       }
     });
   }
@@ -227,10 +226,24 @@ async function handleGroupPayment(
         // Create one line item per meal service linked to the Stripe meal product
         for (const serviceId of mealIds) {
           const mealProd = mealProductId(serviceId);
+          // Fetch meal service details for description
+          const { data: service } = await supabase
+            .from("service_catalog")
+            .select("name, meal_date, meal_name")
+            .eq("id", serviceId)
+            .single();
+          
+          const mealDescription = service 
+            ? `${r.first_name} ${r.last_name} - ${service.meal_name} on ${new Date(service.meal_date).toLocaleDateString()}`
+            : `${r.first_name} ${r.last_name} - Meal`;
+          
           mealLineItems.push({
             price_data: {
               currency: "usd",
-              product: mealProd,
+              product_data: {
+                name: `Meal: ${service?.meal_name || 'Meal'}`,
+                description: mealDescription
+              },
               unit_amount: Math.round(pricePerMeal * 100),
             },
             quantity: 1,
@@ -242,7 +255,8 @@ async function handleGroupPayment(
               meal_price: pricePerMeal.toString(),
               age_at_event: r.age_at_event?.toString() || '',
               attendance_type: r.attendance_type,
-              group_id: groupId || ''
+              group_id: groupId || '',
+              stripe_product_id: mealProd || 'dynamic' // Keep reference for dashboard tracking
             }
           });
           mealGrandTotal += pricePerMeal;
@@ -278,9 +292,10 @@ async function handleGroupPayment(
     lineItems.push({
       price_data: {
         currency: "usd",
-        ...(regProduct
-          ? { product: regProduct }
-          : { product_data: { name: `Registration: ${r.first_name} ${r.last_name}`, description: `${attendeeInfo}\n${item.explanationDetail || `Registration for ${eventData.name}`}\n${eventDates}` } }),
+        product_data: { 
+          name: `Registration: ${r.first_name} ${r.last_name}`,
+          description: `${attendeeInfo}\n${item.explanationDetail || `Registration for ${eventData.name}`}\n${eventDates}` 
+        },
         unit_amount: Math.round(item.amount * 100),
       },
       quantity: 1,
@@ -293,7 +308,8 @@ async function handleGroupPayment(
         category: r.category,
         is_full_duration: r.is_full_duration.toString(),
         num_days: r.num_days?.toString() || 'N/A',
-        group_id: groupId || ''
+        group_id: groupId || '',
+        stripe_product_id: regProduct || 'dynamic' // Keep reference for dashboard tracking
       }
     });
   }
@@ -303,9 +319,10 @@ async function handleGroupPayment(
     lineItems.push({
       price_data: {
         currency: "usd",
-        ...(surProduct
-          ? { product: surProduct }
-          : { product_data: { name: surchargeLabel || "Late Registration Surcharge", description: `Applied once to group total for ${registrations.length} registrants` } }),
+        product_data: { 
+          name: surchargeLabel || "Late Registration Surcharge", 
+          description: `Applied once to group total for ${registrations.length} registrants` 
+        },
         unit_amount: Math.round(surcharge * 100),
       },
       quantity: 1,
@@ -315,7 +332,8 @@ async function handleGroupPayment(
         event_name: eventData.name,
         num_registrants: registrations.length.toString(),
         grand_total: grandTotal.toString(),
-        surcharge_amount: surcharge.toString()
+        surcharge_amount: surcharge.toString(),
+        stripe_product_id: surProduct || 'dynamic' // Keep reference for dashboard tracking
       }
     });
   }
