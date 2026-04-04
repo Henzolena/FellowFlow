@@ -19,6 +19,7 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import puppeteer, { type Browser } from "puppeteer";
 
 /* ================================================================== */
 /*  Config & constants                                                 */
@@ -63,37 +64,19 @@ const CITY_DORMS: Record<string, string> = {
   "Irving, TX": "Heavenly Sunshine Dorm",
 };
 
-/* ── Stripe Price IDs from product catalog ── */
-const STRIPE_PRICES = {
-  // Registration bands
-  adultFull:  "price_1TIW73RBcPvrbWl9NIOT3KGD",  // $150
-  adultDaily: "price_1TIW74RBcPvrbWl9HpuBzwRd",  // $38
-  youthFull:  "price_1TIW74RBcPvrbWl9RPrZSF8V",  // $100
-  youthDaily: "price_1TIW75RBcPvrbWl9Td9ITOAa",  // $38
-  childFull:  "price_1TIW79RBcPvrbWl9DTr5wYr3",  // $50
-  childDaily: "price_1TIW7ARBcPvrbWl9ZhZnG4Cd",  // $38
-  koteDaily:  "price_1TIW7BRBcPvrbWl9aYLAMaU5",  // $10
-  // Meals — adult ($12)
-  thuDinnerAdult:    "price_1TIW7SRBcPvrbWl9GfBKvVjN",
-  friBreakfastAdult: "price_1TIW7VRBcPvrbWl9T8KmOlPJ",
-  friLunchAdult:     "price_1TIW7bRBcPvrbWl90x2KTaAq",
-  friDinnerAdult:    "price_1TIW7eRBcPvrbWl9vi78uVa6",
-  satBreakfastAdult: "price_1TIW7lRBcPvrbWl9DWyNCjrI",
-  satLunchAdult:     "price_1TIW7nRBcPvrbWl9f6Ug1Nr5",
-  satDinnerAdult:    "price_1TIW7tRBcPvrbWl9MvgUadd6",
-  sunBreakfastAdult: "price_1TIW7vRBcPvrbWl9YsmGg8KQ",
-  sunLunchAdult:     "price_1TIW81RBcPvrbWl9mMtu4WIQ",
-  // Meals — child ($8)
-  thuDinnerChild:    "price_1TIW7RRBcPvrbWl99Ag2sfaI",
-  friBreakfastChild: "price_1TIW7TRBcPvrbWl9eR4u6J9m",
-  friLunchChild:     "price_1TIW7bRBcPvrbWl9gYCkavUl",
-  friDinnerChild:    "price_1TIW7dRBcPvrbWl9iMw94YHx",
-  satBreakfastChild: "price_1TIW7kRBcPvrbWl9379g80eG",
-  satLunchChild:     "price_1TIW7nRBcPvrbWl9chz76HTO",
-  satDinnerChild:    "price_1TIW7tRBcPvrbWl9cz9EsCeD",
-  sunBreakfastChild: "price_1TIW7uRBcPvrbWl9nBMlTWHm",
-  sunLunchChild:     "price_1TIW81RBcPvrbWl9sdYyVJCw",
-};
+/* ── Headless browser for completing Stripe Checkout ── */
+let browser: Browser | null = null;
+
+async function initBrowser() {
+  if (!browser) {
+    browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox", "--disable-blink-features=AutomationControlled"] });
+  }
+  return browser;
+}
+
+async function closeBrowser() {
+  if (browser) { await browser.close(); browser = null; }
+}
 
 /* ── Active meal service IDs (Jul 30 – Aug 2) ── */
 const MEAL_IDS = {
@@ -278,71 +261,73 @@ async function cleanup() {
 }
 
 /* ================================================================== */
-/*  Invoice-based Stripe payment (linked to product catalog)           */
+/*  Complete Stripe Checkout via headless browser                      */
 /* ================================================================== */
 
-async function createInvoicePayment(opts: {
-  customerName: string;
-  customerEmail: string;
-  lineItems: Array<{ priceId: string; quantity: number }>;
-  description: string;
-  metadata?: Record<string, string>;
-}): Promise<{ paymentIntent: Stripe.PaymentIntent; invoiceId: string; customerId: string }> {
-  // 1. Create customer
-  const customer = await stripe.customers.create({
-    name: opts.customerName,
-    email: opts.customerEmail,
-    metadata: { test: "true", ...(opts.metadata ?? {}) },
-  });
+async function completeCheckoutSession(sessionId: string): Promise<{ paymentIntentId: string }> {
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  const checkoutUrl = session.url;
+  if (!checkoutUrl) throw new Error(`No URL for session ${sessionId}`);
 
-  // 2. Attach test card as default payment method
-  const pm = await stripe.paymentMethods.create({ type: "card", card: { token: "tok_visa" } });
-  await stripe.paymentMethods.attach(pm.id, { customer: customer.id });
-  await stripe.customers.update(customer.id, {
-    invoice_settings: { default_payment_method: pm.id },
-  });
+  const b = await initBrowser();
+  const page = await b.newPage();
 
-  // 3. Create invoice
-  const invoice = await stripe.invoices.create({
-    customer: customer.id,
-    description: opts.description,
-    metadata: opts.metadata ?? {},
-    auto_advance: false,
-  });
+  try {
+    // Set realistic viewport and user agent so Stripe renders the full checkout form
+    await page.setViewport({ width: 1280, height: 900 });
+    await page.setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36");
 
-  // 4. Add line items referencing real catalog prices
-  // Use raw fetch with older API version so top-level 'price' field is populated
-  // (basil API's pricing.price doesn't populate the field the dashboard reads)
-  for (const item of opts.lineItems) {
-    const res = await fetch("https://api.stripe.com/v1/invoiceitems", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
-        "Stripe-Version": "2024-12-18.acacia",
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        customer: customer.id,
-        invoice: invoice.id!,
-        price: item.priceId,
-        quantity: String(item.quantity),
-      }),
+    await page.goto(checkoutUrl, { waitUntil: "networkidle0", timeout: 45000 });
+
+    // Switch currency to USD if MXN is selected (click the currency toggle)
+    const currencyToggled = await page.evaluate(() => {
+      const toggle = document.querySelector("#equal-presentment-currency-toggle-toggles button");
+      if (toggle && toggle.textContent?.includes("US$")) {
+        (toggle as HTMLElement).click();
+        return true;
+      }
+      return false;
     });
-    if (!res.ok) throw new Error(`InvoiceItem create failed: ${await res.text()}`);
+    if (currencyToggled) await new Promise(r => setTimeout(r, 1500));
+
+    // Email is pre-filled by our API, no need to type it
+
+    // Fill card details
+    await page.waitForSelector("#cardNumber", { visible: true, timeout: 10000 });
+    await page.type("#cardNumber", "4242424242424242", { delay: 20 });
+    await page.type("#cardExpiry", "1230", { delay: 20 });
+    await page.type("#cardCvc", "123", { delay: 20 });
+    await page.type("#billingName", "E2E Test", { delay: 20 });
+
+    // Set country to US (it defaults to Mexico)
+    await page.select("#billingCountry", "US");
+    await new Promise(r => setTimeout(r, 500)); // wait for country change
+
+    // Fill ZIP code (field appears after country selection)
+    await page.waitForSelector("#billingPostalCode", { visible: true, timeout: 5000 });
+    await page.type("#billingPostalCode", "78701", { delay: 20 });
+
+    // Click Pay button
+    await page.waitForSelector("button.SubmitButton", { visible: true, timeout: 5000 });
+    await page.click("button.SubmitButton");
+
+    // Wait for navigation away from checkout (success redirect)
+    await page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 45000 });
+  } finally {
+    await page.close();
   }
 
-  // 5. Finalize and pay
-  await stripe.invoices.finalizeInvoice(invoice.id!);
-  await stripe.invoices.pay(invoice.id!);
+  // Retrieve the completed session to get the PaymentIntent
+  const completed = await stripe.checkout.sessions.retrieve(sessionId);
+  if (completed.status !== "complete" || completed.payment_status !== "paid") {
+    throw new Error(`Session ${sessionId} not complete: status=${completed.status} payment=${completed.payment_status}`);
+  }
+  const piId = typeof completed.payment_intent === "string"
+    ? completed.payment_intent
+    : (completed.payment_intent as Stripe.PaymentIntent)?.id;
+  if (!piId) throw new Error(`No payment_intent on completed session ${sessionId}`);
 
-  // 6. Retrieve the PaymentIntent via the charge on this invoice
-  const charges = await stripe.charges.list({ customer: customer.id, limit: 1 });
-  const charge = charges.data[0];
-  if (!charge?.payment_intent) throw new Error(`No charge/PI found for invoice ${invoice.id}`);
-  const piId = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent.id;
-  const pi = await stripe.paymentIntents.retrieve(piId);
-
-  return { paymentIntent: pi, invoiceId: invoice.id!, customerId: customer.id };
+  return { paymentIntentId: piId };
 }
 
 /* ================================================================== */
@@ -369,10 +354,6 @@ async function createPaymentAndVerify(opts: {
   productSubstring: string;
   expectedLineItems: number;
   eventId?: string;
-  description?: string;
-  customerName: string;
-  customerEmail: string;
-  invoiceItems: Array<{ priceId: string; quantity: number }>;
 }) {
   const body = opts.groupId ? { groupId: opts.groupId } : { registrationId: opts.registrationId };
   const payRes = await apiPost("/api/payment/create-session", body);
@@ -397,24 +378,11 @@ async function createPaymentAndVerify(opts: {
   assert("Payment record in DB", !!payment);
   assert("Payment status = pending", payment?.status === "pending");
 
-  // Create REAL invoice-based charge linked to product catalog
-  step("Creating invoice payment linked to product catalog…");
-  const invoiceResult = await createInvoicePayment({
-    customerName: opts.customerName,
-    customerEmail: opts.customerEmail,
-    lineItems: opts.invoiceItems,
-    description: opts.description || "E2E Test Payment",
-    metadata: {
-      event_id: opts.eventId || EVENT_ID,
-      ...(opts.registrationId ? { registration_id: opts.registrationId } : {}),
-      ...(opts.groupId ? { group_id: opts.groupId } : {}),
-      checkout_session_id: sessionId,
-      test: "true",
-    },
-  });
-  const realPI = invoiceResult.paymentIntent;
-  assert("Real Stripe charge succeeded", realPI.status === "succeeded");
-  step(`PaymentIntent: ${realPI.id} ($${(realPI.amount / 100).toFixed(2)}) → Invoice: ${invoiceResult.invoiceId}`);
+  // Complete REAL Stripe Checkout via headless browser (links to product catalog)
+  step("Completing Stripe Checkout via headless browser…");
+  const { paymentIntentId } = await completeCheckoutSession(sessionId);
+  assert("Real Stripe checkout completed", !!paymentIntentId);
+  step(`PaymentIntent: ${paymentIntentId}`);
 
   // Send webhook with real PI ID so DB links correctly
   step("Sending checkout.session.completed webhook…");
@@ -426,7 +394,7 @@ async function createPaymentAndVerify(opts: {
     if (firstReg) metadata.registration_id = firstReg.id;
   }
 
-  const webhookRes = await sendWebhook(buildCheckoutCompletedEvent({ sessionId, paymentIntentId: realPI.id, amountTotal: opts.expectedCents, metadata }));
+  const webhookRes = await sendWebhook(buildCheckoutCompletedEvent({ sessionId, paymentIntentId, amountTotal: opts.expectedCents, metadata }));
   assert("Webhook accepted", webhookRes.ok, `status=${webhookRes.status}`);
 
   await new Promise((r) => setTimeout(r, 2500));
@@ -434,7 +402,7 @@ async function createPaymentAndVerify(opts: {
   const finalPayment = await getPayment(sessionId);
   assert("Payment status = completed", finalPayment?.status === "completed", `got ${finalPayment?.status}`);
 
-  return { sessionId, stripeSession, lineItems, paymentIntentId: realPI.id };
+  return { sessionId, stripeSession, lineItems, paymentIntentId };
 }
 
 /* ================================================================== */
@@ -513,10 +481,6 @@ async function flow1_soloAdultFull() {
     expectedCents: 15000,
     productSubstring: "adult-full",
     expectedLineItems: 1,
-    description: "E2E Flow 1: Solo Adult Full ($150) — Amharic, Austin",
-    customerName: "Henok TestAdult",
-    customerEmail: "henokrobale@gmail.com",
-    invoiceItems: [{ priceId: STRIPE_PRICES.adultFull, quantity: 1 }],
   });
 
   // Verify final state
@@ -587,10 +551,6 @@ async function flow2_soloYouthEnglish() {
     expectedCents: 10000,
     productSubstring: "youth-full",
     expectedLineItems: 1,
-    description: "E2E Flow 2: Solo Youth Full ($100) — English, Allen",
-    customerName: "Harmony TestYouth",
-    customerEmail: "harmonika.hn@gmail.com",
-    invoiceItems: [{ priceId: STRIPE_PRICES.youthFull, quantity: 1 }],
   });
 
   const finalReg = await getRegistration(reg.id);
@@ -713,33 +673,18 @@ async function flow3_groupFamily() {
   const lineItems = stripeSession.line_items?.data ?? [];
   assert("7 line items (2 reg + 5 meals, infant excluded)", lineItems.length === 7, `got ${lineItems.length}`);
 
-  // Create real invoice payment linked to product catalog
-  step("Creating invoice payment linked to product catalog…");
-  const groupInvoice = await createInvoicePayment({
-    customerName: "Parent TestGroup",
-    customerEmail: "henzolina.s.j@gmail.com",
-    lineItems: [
-      { priceId: STRIPE_PRICES.adultFull, quantity: 1 },
-      { priceId: STRIPE_PRICES.childFull, quantity: 1 },
-      { priceId: STRIPE_PRICES.thuDinnerAdult, quantity: 1 },
-      { priceId: STRIPE_PRICES.friBreakfastAdult, quantity: 1 },
-      { priceId: STRIPE_PRICES.friLunchAdult, quantity: 1 },
-      { priceId: STRIPE_PRICES.friBreakfastChild, quantity: 1 },
-      { priceId: STRIPE_PRICES.friLunchChild, quantity: 1 },
-    ],
-    description: "E2E Flow 3: Group (Adult $150 + Child $50 + 5 Meals $52)",
-    metadata: { group_id: groupId, event_id: EVENT_ID, checkout_session_id: sessionId, test: "true" },
-  });
-  const groupPI = groupInvoice.paymentIntent;
-  assert("Real Stripe charge succeeded", groupPI.status === "succeeded");
-  step(`PaymentIntent: ${groupPI.id} ($${(groupPI.amount / 100).toFixed(2)}) → Invoice: ${groupInvoice.invoiceId}`);
+  // Complete real Stripe Checkout via headless browser (links to product catalog)
+  step("Completing Stripe Checkout via headless browser…");
+  const { paymentIntentId: groupPIid } = await completeCheckoutSession(sessionId);
+  assert("Real Stripe checkout completed", !!groupPIid);
+  step(`PaymentIntent: ${groupPIid}`);
 
   // Webhook
   step("Sending checkout.session.completed webhook…");
   const firstRegId = regs[0].id as string;
   await sendWebhook(buildCheckoutCompletedEvent({
     sessionId,
-    paymentIntentId: groupPI.id,
+    paymentIntentId: groupPIid,
     amountTotal: 25200,
     metadata: { registration_id: firstRegId, group_id: groupId, event_id: EVENT_ID },
   }));
@@ -818,10 +763,6 @@ async function flow4_kotePlusMeals() {
     expectedCents: 2000,
     productSubstring: "kote-daily",
     expectedLineItems: 1,
-    description: "E2E Flow 4: KOTE 2-day ($20) — English Young Adults",
-    customerName: "Kote TestWalker",
-    customerEmail: "henzolina2@gmail.com",
-    invoiceItems: [{ priceId: STRIPE_PRICES.koteDaily, quantity: 2 }],
   });
 
   const confirmedReg = await getRegistration(reg.id as string);
@@ -847,21 +788,11 @@ async function flow4_kotePlusMeals() {
     assert("Meal product linked (ff-sc-...)", getProductId(li)?.startsWith("ff-sc-") ?? false);
   }
 
-  // Real invoice payment for meals linked to product catalog
-  step("Creating invoice payment for meals…");
-  const mealInvoice = await createInvoicePayment({
-    customerName: "Kote TestWalker",
-    customerEmail: "henzolina2@gmail.com",
-    lineItems: [
-      { priceId: STRIPE_PRICES.friBreakfastAdult, quantity: 1 },
-      { priceId: STRIPE_PRICES.friLunchAdult, quantity: 1 },
-    ],
-    description: "E2E Flow 4: Meal Purchase (2× adult $12)",
-    metadata: { registration_id: reg.id as string, event_id: EVENT_ID, checkout_session_id: mealSessionId, type: "meal_purchase", test: "true" },
-  });
-  const mealPI = mealInvoice.paymentIntent;
-  assert("Real meal charge succeeded", mealPI.status === "succeeded");
-  step(`Meal PaymentIntent: ${mealPI.id} ($${(mealPI.amount / 100).toFixed(2)}) → Invoice: ${mealInvoice.invoiceId}`);
+  // Complete real Stripe Checkout for meals via headless browser
+  step("Completing meal Stripe Checkout via headless browser…");
+  const { paymentIntentId: mealPIid } = await completeCheckoutSession(mealSessionId);
+  assert("Real meal checkout completed", !!mealPIid);
+  step(`Meal PaymentIntent: ${mealPIid}`);
 
   // Meal webhook
   const mealPurchase = await getMealPurchase(reg.id as string);
@@ -870,7 +801,7 @@ async function flow4_kotePlusMeals() {
     step("Sending meal purchase webhook…");
     await sendWebhook(buildCheckoutCompletedEvent({
       sessionId: mealSessionId,
-      paymentIntentId: mealPI.id,
+      paymentIntentId: mealPIid,
       amountTotal: 2400,
       metadata: { registration_id: reg.id as string, meal_purchase_id: mealPurchase.id, type: "meal_purchase" },
     }));
@@ -945,10 +876,6 @@ async function flow5_partialAdult() {
     expectedCents: 7600,
     productSubstring: "adult-daily",
     expectedLineItems: 1,
-    description: "E2E Flow 5: Partial 2-day ($76) — Dallas, Garland",
-    customerName: "Partial TestDorm",
-    customerEmail: "henokrobale@gmail.com",
-    invoiceItems: [{ priceId: STRIPE_PRICES.adultDaily, quantity: 2 }],
   });
 
   const finalReg = await getRegistration(reg.id);
@@ -1008,10 +935,6 @@ async function flow6_childChurchDorm() {
     expectedCents: 5000,
     productSubstring: "child-full",
     expectedLineItems: 1,
-    description: "E2E Flow 6: Child Full ($50) — Houston Church",
-    customerName: "Kiddo TestChild",
-    customerEmail: "harmonika.hn@gmail.com",
-    invoiceItems: [{ priceId: STRIPE_PRICES.childFull, quantity: 1 }],
   });
 
   const finalReg = await getRegistration(reg.id);
@@ -1046,6 +969,10 @@ async function main() {
 
   await cleanup();
 
+  // Launch headless browser for completing Stripe Checkout sessions
+  step("Launching headless browser…");
+  await initBrowser();
+
   const flows = [
     { name: "Flow 1", fn: flow1_soloAdultFull },
     { name: "Flow 2", fn: flow2_soloYouthEnglish },
@@ -1058,6 +985,9 @@ async function main() {
   for (const { name, fn } of flows) {
     try { await fn(); } catch (e) { console.error(`  ${FAIL} ${name} threw: ${e}`); failedTests++; }
   }
+
+  // Close headless browser
+  await closeBrowser();
 
   if (!SKIP_CLEANUP) { section("Post-test Cleanup"); await cleanup(); }
   else { step("Skipping cleanup (--skip-cleanup flag set)"); }
