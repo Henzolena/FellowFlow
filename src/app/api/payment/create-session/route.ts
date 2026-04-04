@@ -104,18 +104,38 @@ async function handleSoloPayment(
   const ln = encodeURIComponent(registration.last_name);
 
   // Build line items linked to Stripe products
-  const lineItems: { price_data: { currency: string; product?: string; product_data?: { name: string; description: string }; unit_amount: number }; quantity: number }[] = [];
+  const lineItems: { price_data: { currency: string; product?: string; product_data?: { name: string; description: string }; unit_amount: number }; quantity: number; metadata?: Record<string, string> }[] = [];
 
   const regProduct = registrationProductId(pricing.id, recomputed.explanationCode);
+  const attendeeInfo = `${registration.first_name} ${registration.last_name} (${registration.category})`;
+  const eventDates = registration.events.start_date && registration.events.end_date 
+    ? `${new Date(registration.events.start_date).toLocaleDateString()} - ${new Date(registration.events.end_date).toLocaleDateString()}`
+    : '';
+  
   lineItems.push({
     price_data: {
       currency: "usd",
       ...(regProduct
         ? { product: regProduct }
-        : { product_data: { name: `Registration: ${registration.events.name}`, description: recomputed.explanationDetail } }),
+        : { 
+            product_data: { 
+              name: `Registration: ${registration.events.name}`,
+              description: `${attendeeInfo}\n${recomputed.explanationDetail}\n${eventDates}` 
+            } 
+          }),
       unit_amount: Math.round(recomputed.baseAmount * 100),
     },
     quantity: 1,
+    metadata: {
+      attendee_name: `${registration.first_name} ${registration.last_name}`,
+      attendee_email: registration.email,
+      registration_type: recomputed.explanationCode,
+      registration_id: registration.id,
+      event_name: registration.events.name,
+      category: registration.category,
+      is_full_duration: registration.is_full_duration.toString(),
+      num_days: registration.num_days?.toString() || 'N/A'
+    }
   });
 
   // Separate surcharge line item linked to the surcharge product
@@ -126,10 +146,18 @@ async function handleSoloPayment(
         currency: "usd",
         ...(surProduct
           ? { product: surProduct }
-          : { product_data: { name: recomputed.surchargeLabel || "Late Registration Surcharge", description: "Applied to registration" } }),
+          : { product_data: { name: recomputed.surchargeLabel || "Late Registration Surcharge", description: `Applied to registration for ${attendeeInfo}` } }),
         unit_amount: Math.round(recomputed.surcharge * 100),
       },
       quantity: 1,
+      metadata: {
+        surcharge_type: recomputed.surchargeLabel || 'late_fee',
+        attendee_name: `${registration.first_name} ${registration.last_name}`,
+        registration_id: registration.id,
+        event_name: registration.events.name,
+        base_amount: recomputed.baseAmount.toString(),
+        surcharge_amount: recomputed.surcharge.toString()
+      }
     });
   }
 
@@ -189,7 +217,7 @@ async function handleGroupPayment(
 
   // Compute meal costs from stored selected_meal_ids (age-based pricing)
   let mealGrandTotal = 0;
-  type LineItem = { price_data: { currency: string; product?: string; product_data?: { name: string; description: string }; unit_amount: number }; quantity: number };
+  type LineItem = { price_data: { currency: string; product?: string; product_data?: { name: string; description: string }; unit_amount: number }; quantity: number; metadata?: Record<string, string> };
   const mealLineItems: LineItem[] = [];
   for (const r of registrations as Registration[]) {
     const mealIds = r.selected_meal_ids;
@@ -206,6 +234,16 @@ async function handleGroupPayment(
               unit_amount: Math.round(pricePerMeal * 100),
             },
             quantity: 1,
+            metadata: {
+              attendee_name: `${r.first_name} ${r.last_name}`,
+              attendee_email: r.email,
+              registration_id: r.id,
+              service_id: serviceId,
+              meal_price: pricePerMeal.toString(),
+              age_at_event: r.age_at_event?.toString() || '',
+              attendance_type: r.attendance_type,
+              group_id: groupId || ''
+            }
           });
           mealGrandTotal += pricePerMeal;
         }
@@ -232,15 +270,31 @@ async function handleGroupPayment(
     const item = groupResult.items[i];
     if (item.amount === 0) continue; // FREE_INFANT — skip
     const regProduct = registrationProductId(pricing.id, item.explanationCode);
+    const attendeeInfo = `${r.first_name} ${r.last_name} (${r.category})`;
+    const eventDates = eventData.start_date && eventData.end_date 
+      ? `${new Date(eventData.start_date).toLocaleDateString()} - ${new Date(eventData.end_date).toLocaleDateString()}`
+      : '';
+    
     lineItems.push({
       price_data: {
         currency: "usd",
         ...(regProduct
           ? { product: regProduct }
-          : { product_data: { name: `Registration: ${r.first_name} ${r.last_name}`, description: item.explanationDetail || `Registration for ${eventData.name}` } }),
+          : { product_data: { name: `Registration: ${r.first_name} ${r.last_name}`, description: `${attendeeInfo}\n${item.explanationDetail || `Registration for ${eventData.name}`}\n${eventDates}` } }),
         unit_amount: Math.round(item.amount * 100),
       },
       quantity: 1,
+      metadata: {
+        attendee_name: `${r.first_name} ${r.last_name}`,
+        attendee_email: r.email,
+        registration_type: item.explanationCode,
+        registration_id: r.id,
+        event_name: eventData.name,
+        category: r.category,
+        is_full_duration: r.is_full_duration.toString(),
+        num_days: r.num_days?.toString() || 'N/A',
+        group_id: groupId || ''
+      }
     });
   }
 
@@ -251,10 +305,18 @@ async function handleGroupPayment(
         currency: "usd",
         ...(surProduct
           ? { product: surProduct }
-          : { product_data: { name: surchargeLabel || "Late Registration Surcharge", description: "Applied once to the group total" } }),
+          : { product_data: { name: surchargeLabel || "Late Registration Surcharge", description: `Applied once to group total for ${registrations.length} registrants` } }),
         unit_amount: Math.round(surcharge * 100),
       },
       quantity: 1,
+      metadata: {
+        surcharge_type: surchargeLabel || 'late_fee',
+        group_id: groupId || '',
+        event_name: eventData.name,
+        num_registrants: registrations.length.toString(),
+        grand_total: grandTotal.toString(),
+        surcharge_amount: surcharge.toString()
+      }
     });
   }
 

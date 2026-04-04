@@ -11,6 +11,7 @@ type SessionLineItem = {
     unit_amount: number;
   };
   quantity: number;
+  metadata?: Record<string, string>;
 };
 
 type CreateSessionOpts = {
