@@ -109,15 +109,30 @@ async function handleSoloPayment(
   const regProduct = registrationProductId(pricing.id, recomputed.explanationCode);
   const attendeeInfo = `${registration.first_name} ${registration.last_name} (${registration.category})`;
   const eventDates = registration.events.start_date && registration.events.end_date 
-    ? `${new Date(registration.events.start_date).toLocaleDateString()} - ${new Date(registration.events.end_date).toLocaleDateString()}`
+    ? `${new Date(registration.events.start_date).toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric' 
+      })} - ${new Date(registration.events.end_date).toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric' 
+      })}`
     : '';
+  
+  // Format the description with better structure
+  const description = [
+    `👤 ${attendeeInfo}`,
+    `📅 ${eventDates}`,
+    `🎫 ${recomputed.explanationDetail}`
+  ].join('\n');
   
   lineItems.push({
     price_data: {
       currency: "usd",
       product_data: { 
-        name: `Registration: ${registration.events.name}`,
-        description: `${attendeeInfo}\n${recomputed.explanationDetail}\n${eventDates}` 
+        name: `${registration.events.name} Registration`,
+        description: description
       },
       unit_amount: Math.round(recomputed.baseAmount * 100),
     },
@@ -138,12 +153,19 @@ async function handleSoloPayment(
   // Separate surcharge line item linked to the surcharge product
   if (recomputed.surcharge > 0) {
     const surProduct = surchargeProductId(recomputed.surchargeLabel);
-    lineItems.push({
+    const surchargeDescription = [
+    `⚠️ ${recomputed.surchargeLabel || "Late Registration Fee"}`,
+    `👤 Applied to: ${registration.first_name} ${registration.last_name}`,
+    `💰 Base fee: $${recomputed.baseAmount.toFixed(2)}`,
+    `📈 Surcharge: $${recomputed.surcharge.toFixed(2)}`
+  ].join('\n');
+  
+  lineItems.push({
       price_data: {
         currency: "usd",
         product_data: { 
-          name: recomputed.surchargeLabel || "Late Registration Surcharge", 
-          description: `Applied to registration for ${attendeeInfo}` 
+          name: recomputed.surchargeLabel || "Late Registration Fee", 
+          description: surchargeDescription
         },
         unit_amount: Math.round(recomputed.surcharge * 100),
       },
@@ -233,15 +255,26 @@ async function handleGroupPayment(
             .eq("id", serviceId)
             .single();
           
-          const mealDescription = service 
-            ? `${r.first_name} ${r.last_name} - ${service.meal_name} on ${new Date(service.meal_date).toLocaleDateString()}`
-            : `${r.first_name} ${r.last_name} - Meal`;
+          const mealDate = service?.meal_date 
+            ? new Date(service.meal_date).toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric' 
+              })
+            : 'TBD';
+          
+          const mealDescription = [
+            `🍽️ ${service?.meal_name || 'Meal'}`,
+            `👤 ${r.first_name} ${r.last_name}`,
+            `📅 ${mealDate}`,
+            `💰 $${pricePerMeal.toFixed(2)}`
+          ].join('\n');
           
           mealLineItems.push({
             price_data: {
               currency: "usd",
               product_data: {
-                name: `Meal: ${service?.meal_name || 'Meal'}`,
+                name: `${service?.meal_name || 'Meal'} - ${r.first_name}`,
                 description: mealDescription
               },
               unit_amount: Math.round(pricePerMeal * 100),
@@ -286,15 +319,30 @@ async function handleGroupPayment(
     const regProduct = registrationProductId(pricing.id, item.explanationCode);
     const attendeeInfo = `${r.first_name} ${r.last_name} (${r.category})`;
     const eventDates = eventData.start_date && eventData.end_date 
-      ? `${new Date(eventData.start_date).toLocaleDateString()} - ${new Date(eventData.end_date).toLocaleDateString()}`
+      ? `${new Date(eventData.start_date).toLocaleDateString('en-US', { 
+          weekday: 'short', 
+          month: 'short', 
+          day: 'numeric' 
+        })} - ${new Date(eventData.end_date).toLocaleDateString('en-US', { 
+          weekday: 'short', 
+          month: 'short', 
+          day: 'numeric' 
+        })}`
       : '';
+    
+    const groupDescription = [
+      `👤 ${attendeeInfo}`,
+      `📅 ${eventDates}`,
+      `🎫 ${item.explanationDetail || `Registration for ${eventData.name}`}`,
+      `👥 Group Registration`
+    ].join('\n');
     
     lineItems.push({
       price_data: {
         currency: "usd",
         product_data: { 
-          name: `Registration: ${r.first_name} ${r.last_name}`,
-          description: `${attendeeInfo}\n${item.explanationDetail || `Registration for ${eventData.name}`}\n${eventDates}` 
+          name: `${eventData.name} - ${r.first_name} ${r.last_name}`,
+          description: groupDescription
         },
         unit_amount: Math.round(item.amount * 100),
       },
@@ -316,12 +364,19 @@ async function handleGroupPayment(
 
   if (surcharge > 0) {
     const surProduct = surchargeProductId(surchargeLabel);
+    const groupSurchargeDescription = [
+      `⚠️ ${surchargeLabel || "Late Registration Fee"}`,
+      `👥 Applied to group of ${registrations.length} registrants`,
+      `💰 Group total: $${grandTotal.toFixed(2)}`,
+      `📈 Surcharge: $${surcharge.toFixed(2)}`
+    ].join('\n');
+    
     lineItems.push({
       price_data: {
         currency: "usd",
         product_data: { 
-          name: surchargeLabel || "Late Registration Surcharge", 
-          description: `Applied once to group total for ${registrations.length} registrants` 
+          name: `${surchargeLabel || "Late Registration Fee"} (Group)`, 
+          description: groupSurchargeDescription
         },
         unit_amount: Math.round(surcharge * 100),
       },
