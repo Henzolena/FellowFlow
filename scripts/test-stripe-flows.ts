@@ -311,13 +311,24 @@ async function createInvoicePayment(opts: {
   });
 
   // 4. Add line items referencing real catalog prices
+  // Use raw fetch with older API version so top-level 'price' field is populated
+  // (basil API's pricing.price doesn't populate the field the dashboard reads)
   for (const item of opts.lineItems) {
-    await stripe.invoiceItems.create({
-      customer: customer.id,
-      invoice: invoice.id!,
-      pricing: { price: item.priceId },
-      quantity: item.quantity,
+    const res = await fetch("https://api.stripe.com/v1/invoiceitems", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+        "Stripe-Version": "2024-12-18.acacia",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        customer: customer.id,
+        invoice: invoice.id!,
+        price: item.priceId,
+        quantity: String(item.quantity),
+      }),
     });
+    if (!res.ok) throw new Error(`InvoiceItem create failed: ${await res.text()}`);
   }
 
   // 5. Finalize and pay
