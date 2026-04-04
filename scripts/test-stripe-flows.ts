@@ -246,15 +246,35 @@ async function cleanup() {
 }
 
 /* ================================================================== */
+/*  Real Stripe charge helper                                          */
+/* ================================================================== */
+
+async function createRealStripeCharge(opts: {
+  amountCents: number;
+  description: string;
+  metadata?: Record<string, string>;
+}): Promise<Stripe.PaymentIntent> {
+  return stripe.paymentIntents.create({
+    amount: opts.amountCents,
+    currency: "usd",
+    payment_method: "pm_card_visa",
+    confirm: true,
+    payment_method_types: ["card"],
+    description: opts.description,
+    metadata: opts.metadata ?? {},
+  });
+}
+
+/* ================================================================== */
 /*  Webhook event builders                                             */
 /* ================================================================== */
 
-function buildCheckoutCompletedEvent(opts: { sessionId: string; amountTotal: number; metadata: Record<string, string> }) {
+function buildCheckoutCompletedEvent(opts: { sessionId: string; paymentIntentId?: string; amountTotal: number; metadata: Record<string, string> }) {
   return {
     id: `evt_test_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     object: "event",
     type: "checkout.session.completed",
-    data: { object: { id: opts.sessionId, object: "checkout.session", payment_intent: `pi_test_${Date.now()}`, amount_total: opts.amountTotal, currency: "usd", payment_status: "paid", status: "complete", metadata: opts.metadata } },
+    data: { object: { id: opts.sessionId, object: "checkout.session", payment_intent: opts.paymentIntentId ?? `pi_test_${Date.now()}`, amount_total: opts.amountTotal, currency: "usd", payment_status: "paid", status: "complete", metadata: opts.metadata } },
   };
 }
 
@@ -269,6 +289,7 @@ async function createPaymentAndVerify(opts: {
   productSubstring: string;
   expectedLineItems: number;
   eventId?: string;
+  description?: string;
 }) {
   const body = opts.groupId ? { groupId: opts.groupId } : { registrationId: opts.registrationId };
   const payRes = await apiPost("/api/payment/create-session", body);
@@ -293,18 +314,33 @@ async function createPaymentAndVerify(opts: {
   assert("Payment record in DB", !!payment);
   assert("Payment status = pending", payment?.status === "pending");
 
-  // Simulate webhook
-  step("Simulating checkout.session.completed webhook…");
+  // Create REAL Stripe charge so it shows in the dashboard
+  step("Creating real Stripe charge (pm_card_visa)…");
+  const realPI = await createRealStripeCharge({
+    amountCents: opts.expectedCents,
+    description: opts.description || "E2E Test Payment",
+    metadata: {
+      event_id: opts.eventId || EVENT_ID,
+      ...(opts.registrationId ? { registration_id: opts.registrationId } : {}),
+      ...(opts.groupId ? { group_id: opts.groupId } : {}),
+      checkout_session_id: sessionId,
+      test: "true",
+    },
+  });
+  assert("Real Stripe charge succeeded", realPI.status === "succeeded");
+  step(`PaymentIntent: ${realPI.id} ($${(realPI.amount / 100).toFixed(2)})`);
+
+  // Send webhook with real PI ID so DB links correctly
+  step("Sending checkout.session.completed webhook…");
   const metadata: Record<string, string> = { event_id: opts.eventId || EVENT_ID };
   if (opts.registrationId) metadata.registration_id = opts.registrationId;
   if (opts.groupId) {
     metadata.group_id = opts.groupId;
-    // group webhook needs registration_id of first member
     const { data: firstReg } = await supabase.from("registrations").select("id").eq("group_id", opts.groupId).limit(1).single();
     if (firstReg) metadata.registration_id = firstReg.id;
   }
 
-  const webhookRes = await sendWebhook(buildCheckoutCompletedEvent({ sessionId, amountTotal: opts.expectedCents, metadata }));
+  const webhookRes = await sendWebhook(buildCheckoutCompletedEvent({ sessionId, paymentIntentId: realPI.id, amountTotal: opts.expectedCents, metadata }));
   assert("Webhook accepted", webhookRes.ok, `status=${webhookRes.status}`);
 
   await new Promise((r) => setTimeout(r, 1500));
@@ -312,7 +348,7 @@ async function createPaymentAndVerify(opts: {
   const finalPayment = await getPayment(sessionId);
   assert("Payment status = completed", finalPayment?.status === "completed", `got ${finalPayment?.status}`);
 
-  return { sessionId, stripeSession, lineItems };
+  return { sessionId, stripeSession, lineItems, paymentIntentId: realPI.id };
 }
 
 /* ================================================================== */
@@ -391,6 +427,7 @@ async function flow1_soloAdultFull() {
     expectedCents: 15000,
     productSubstring: "adult-full",
     expectedLineItems: 1,
+    description: "E2E Flow 1: Solo Adult Full ($150) — Amharic, Austin",
   });
 
   // Verify final state
@@ -461,6 +498,7 @@ async function flow2_soloYouthEnglish() {
     expectedCents: 10000,
     productSubstring: "youth-full",
     expectedLineItems: 1,
+    description: "E2E Flow 2: Solo Youth Full ($100) — English, Allen",
   });
 
   const finalReg = await getRegistration(reg.id);
@@ -583,11 +621,22 @@ async function flow3_groupFamily() {
   const lineItems = stripeSession.line_items?.data ?? [];
   assert("7 line items (2 reg + 5 meals, infant excluded)", lineItems.length === 7, `got ${lineItems.length}`);
 
+  // Create real Stripe charge
+  step("Creating real Stripe charge (pm_card_visa)…");
+  const groupPI = await createRealStripeCharge({
+    amountCents: 25200,
+    description: "E2E Flow 3: Group (Adult $150 + Child $50 + 5 Meals $52)",
+    metadata: { group_id: groupId, event_id: EVENT_ID, checkout_session_id: sessionId, test: "true" },
+  });
+  assert("Real Stripe charge succeeded", groupPI.status === "succeeded");
+  step(`PaymentIntent: ${groupPI.id} ($${(groupPI.amount / 100).toFixed(2)})`);
+
   // Webhook
-  step("Simulating webhook…");
+  step("Sending checkout.session.completed webhook…");
   const firstRegId = regs[0].id as string;
   await sendWebhook(buildCheckoutCompletedEvent({
     sessionId,
+    paymentIntentId: groupPI.id,
     amountTotal: 25200,
     metadata: { registration_id: firstRegId, group_id: groupId, event_id: EVENT_ID },
   }));
@@ -666,6 +715,7 @@ async function flow4_kotePlusMeals() {
     expectedCents: 2000,
     productSubstring: "kote-daily",
     expectedLineItems: 1,
+    description: "E2E Flow 4: KOTE 2-day ($20) — English Young Adults",
   });
 
   const confirmedReg = await getRegistration(reg.id as string);
@@ -691,13 +741,24 @@ async function flow4_kotePlusMeals() {
     assert("Meal product linked (ff-sc-...)", getProductId(li)?.startsWith("ff-sc-") ?? false);
   }
 
+  // Real Stripe charge for meals
+  step("Creating real Stripe charge for meals (pm_card_visa)…");
+  const mealPI = await createRealStripeCharge({
+    amountCents: 2400,
+    description: "E2E Flow 4: Meal Purchase (2× adult $12)",
+    metadata: { registration_id: reg.id as string, event_id: EVENT_ID, checkout_session_id: mealSessionId, type: "meal_purchase", test: "true" },
+  });
+  assert("Real meal charge succeeded", mealPI.status === "succeeded");
+  step(`Meal PaymentIntent: ${mealPI.id} ($${(mealPI.amount / 100).toFixed(2)})`);
+
   // Meal webhook
   const mealPurchase = await getMealPurchase(reg.id as string);
   assert("Meal purchase record in DB", !!mealPurchase);
   if (mealPurchase) {
-    step("Simulating meal purchase webhook…");
+    step("Sending meal purchase webhook…");
     await sendWebhook(buildCheckoutCompletedEvent({
       sessionId: mealSessionId,
+      paymentIntentId: mealPI.id,
       amountTotal: 2400,
       metadata: { registration_id: reg.id as string, meal_purchase_id: mealPurchase.id, type: "meal_purchase" },
     }));
@@ -772,6 +833,7 @@ async function flow5_partialAdult() {
     expectedCents: 7600,
     productSubstring: "adult-daily",
     expectedLineItems: 1,
+    description: "E2E Flow 5: Partial 2-day ($76) — Dallas, Garland",
   });
 
   const finalReg = await getRegistration(reg.id);
@@ -831,6 +893,7 @@ async function flow6_childChurchDorm() {
     expectedCents: 5000,
     productSubstring: "child-full",
     expectedLineItems: 1,
+    description: "E2E Flow 6: Child Full ($50) — Houston Church",
   });
 
   const finalReg = await getRegistration(reg.id);
