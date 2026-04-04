@@ -63,6 +63,38 @@ const CITY_DORMS: Record<string, string> = {
   "Irving, TX": "Heavenly Sunshine Dorm",
 };
 
+/* ── Stripe Price IDs from product catalog ── */
+const STRIPE_PRICES = {
+  // Registration bands
+  adultFull:  "price_1TIW73RBcPvrbWl9NIOT3KGD",  // $150
+  adultDaily: "price_1TIW74RBcPvrbWl9HpuBzwRd",  // $38
+  youthFull:  "price_1TIW74RBcPvrbWl9RPrZSF8V",  // $100
+  youthDaily: "price_1TIW75RBcPvrbWl9Td9ITOAa",  // $38
+  childFull:  "price_1TIW79RBcPvrbWl9DTr5wYr3",  // $50
+  childDaily: "price_1TIW7ARBcPvrbWl9ZhZnG4Cd",  // $38
+  koteDaily:  "price_1TIW7BRBcPvrbWl9aYLAMaU5",  // $10
+  // Meals — adult ($12)
+  thuDinnerAdult:    "price_1TIW7SRBcPvrbWl9GfBKvVjN",
+  friBreakfastAdult: "price_1TIW7VRBcPvrbWl9T8KmOlPJ",
+  friLunchAdult:     "price_1TIW7bRBcPvrbWl90x2KTaAq",
+  friDinnerAdult:    "price_1TIW7eRBcPvrbWl9vi78uVa6",
+  satBreakfastAdult: "price_1TIW7lRBcPvrbWl9DWyNCjrI",
+  satLunchAdult:     "price_1TIW7nRBcPvrbWl9f6Ug1Nr5",
+  satDinnerAdult:    "price_1TIW7tRBcPvrbWl9MvgUadd6",
+  sunBreakfastAdult: "price_1TIW7vRBcPvrbWl9YsmGg8KQ",
+  sunLunchAdult:     "price_1TIW81RBcPvrbWl9mMtu4WIQ",
+  // Meals — child ($8)
+  thuDinnerChild:    "price_1TIW7RRBcPvrbWl99Ag2sfaI",
+  friBreakfastChild: "price_1TIW7TRBcPvrbWl9eR4u6J9m",
+  friLunchChild:     "price_1TIW7bRBcPvrbWl9gYCkavUl",
+  friDinnerChild:    "price_1TIW7dRBcPvrbWl9iMw94YHx",
+  satBreakfastChild: "price_1TIW7kRBcPvrbWl9379g80eG",
+  satLunchChild:     "price_1TIW7nRBcPvrbWl9chz76HTO",
+  satDinnerChild:    "price_1TIW7tRBcPvrbWl9cz9EsCeD",
+  sunBreakfastChild: "price_1TIW7uRBcPvrbWl9nBMlTWHm",
+  sunLunchChild:     "price_1TIW81RBcPvrbWl9sdYyVJCw",
+};
+
 /* ── Active meal service IDs (Jul 30 – Aug 2) ── */
 const MEAL_IDS = {
   thuDinner:    "495d1247-37ea-4141-92a3-c78fc1fc689d",
@@ -246,23 +278,60 @@ async function cleanup() {
 }
 
 /* ================================================================== */
-/*  Real Stripe charge helper                                          */
+/*  Invoice-based Stripe payment (linked to product catalog)           */
 /* ================================================================== */
 
-async function createRealStripeCharge(opts: {
-  amountCents: number;
+async function createInvoicePayment(opts: {
+  customerName: string;
+  customerEmail: string;
+  lineItems: Array<{ priceId: string; quantity: number }>;
   description: string;
   metadata?: Record<string, string>;
-}): Promise<Stripe.PaymentIntent> {
-  return stripe.paymentIntents.create({
-    amount: opts.amountCents,
-    currency: "usd",
-    payment_method: "pm_card_visa",
-    confirm: true,
-    payment_method_types: ["card"],
+}): Promise<{ paymentIntent: Stripe.PaymentIntent; invoiceId: string; customerId: string }> {
+  // 1. Create customer
+  const customer = await stripe.customers.create({
+    name: opts.customerName,
+    email: opts.customerEmail,
+    metadata: { test: "true", ...(opts.metadata ?? {}) },
+  });
+
+  // 2. Attach test card as default payment method
+  const pm = await stripe.paymentMethods.create({ type: "card", card: { token: "tok_visa" } });
+  await stripe.paymentMethods.attach(pm.id, { customer: customer.id });
+  await stripe.customers.update(customer.id, {
+    invoice_settings: { default_payment_method: pm.id },
+  });
+
+  // 3. Create invoice
+  const invoice = await stripe.invoices.create({
+    customer: customer.id,
     description: opts.description,
     metadata: opts.metadata ?? {},
+    auto_advance: false,
   });
+
+  // 4. Add line items referencing real catalog prices
+  for (const item of opts.lineItems) {
+    await stripe.invoiceItems.create({
+      customer: customer.id,
+      invoice: invoice.id!,
+      pricing: { price: item.priceId },
+      quantity: item.quantity,
+    });
+  }
+
+  // 5. Finalize and pay
+  await stripe.invoices.finalizeInvoice(invoice.id!);
+  await stripe.invoices.pay(invoice.id!);
+
+  // 6. Retrieve the PaymentIntent via the charge on this invoice
+  const charges = await stripe.charges.list({ customer: customer.id, limit: 1 });
+  const charge = charges.data[0];
+  if (!charge?.payment_intent) throw new Error(`No charge/PI found for invoice ${invoice.id}`);
+  const piId = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent.id;
+  const pi = await stripe.paymentIntents.retrieve(piId);
+
+  return { paymentIntent: pi, invoiceId: invoice.id!, customerId: customer.id };
 }
 
 /* ================================================================== */
@@ -290,6 +359,9 @@ async function createPaymentAndVerify(opts: {
   expectedLineItems: number;
   eventId?: string;
   description?: string;
+  customerName: string;
+  customerEmail: string;
+  invoiceItems: Array<{ priceId: string; quantity: number }>;
 }) {
   const body = opts.groupId ? { groupId: opts.groupId } : { registrationId: opts.registrationId };
   const payRes = await apiPost("/api/payment/create-session", body);
@@ -314,10 +386,12 @@ async function createPaymentAndVerify(opts: {
   assert("Payment record in DB", !!payment);
   assert("Payment status = pending", payment?.status === "pending");
 
-  // Create REAL Stripe charge so it shows in the dashboard
-  step("Creating real Stripe charge (pm_card_visa)…");
-  const realPI = await createRealStripeCharge({
-    amountCents: opts.expectedCents,
+  // Create REAL invoice-based charge linked to product catalog
+  step("Creating invoice payment linked to product catalog…");
+  const invoiceResult = await createInvoicePayment({
+    customerName: opts.customerName,
+    customerEmail: opts.customerEmail,
+    lineItems: opts.invoiceItems,
     description: opts.description || "E2E Test Payment",
     metadata: {
       event_id: opts.eventId || EVENT_ID,
@@ -327,8 +401,9 @@ async function createPaymentAndVerify(opts: {
       test: "true",
     },
   });
+  const realPI = invoiceResult.paymentIntent;
   assert("Real Stripe charge succeeded", realPI.status === "succeeded");
-  step(`PaymentIntent: ${realPI.id} ($${(realPI.amount / 100).toFixed(2)})`);
+  step(`PaymentIntent: ${realPI.id} ($${(realPI.amount / 100).toFixed(2)}) → Invoice: ${invoiceResult.invoiceId}`);
 
   // Send webhook with real PI ID so DB links correctly
   step("Sending checkout.session.completed webhook…");
@@ -343,7 +418,7 @@ async function createPaymentAndVerify(opts: {
   const webhookRes = await sendWebhook(buildCheckoutCompletedEvent({ sessionId, paymentIntentId: realPI.id, amountTotal: opts.expectedCents, metadata }));
   assert("Webhook accepted", webhookRes.ok, `status=${webhookRes.status}`);
 
-  await new Promise((r) => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 2500));
 
   const finalPayment = await getPayment(sessionId);
   assert("Payment status = completed", finalPayment?.status === "completed", `got ${finalPayment?.status}`);
@@ -428,6 +503,9 @@ async function flow1_soloAdultFull() {
     productSubstring: "adult-full",
     expectedLineItems: 1,
     description: "E2E Flow 1: Solo Adult Full ($150) — Amharic, Austin",
+    customerName: "Henok TestAdult",
+    customerEmail: "henokrobale@gmail.com",
+    invoiceItems: [{ priceId: STRIPE_PRICES.adultFull, quantity: 1 }],
   });
 
   // Verify final state
@@ -499,6 +577,9 @@ async function flow2_soloYouthEnglish() {
     productSubstring: "youth-full",
     expectedLineItems: 1,
     description: "E2E Flow 2: Solo Youth Full ($100) — English, Allen",
+    customerName: "Harmony TestYouth",
+    customerEmail: "harmonika.hn@gmail.com",
+    invoiceItems: [{ priceId: STRIPE_PRICES.youthFull, quantity: 1 }],
   });
 
   const finalReg = await getRegistration(reg.id);
@@ -621,15 +702,26 @@ async function flow3_groupFamily() {
   const lineItems = stripeSession.line_items?.data ?? [];
   assert("7 line items (2 reg + 5 meals, infant excluded)", lineItems.length === 7, `got ${lineItems.length}`);
 
-  // Create real Stripe charge
-  step("Creating real Stripe charge (pm_card_visa)…");
-  const groupPI = await createRealStripeCharge({
-    amountCents: 25200,
+  // Create real invoice payment linked to product catalog
+  step("Creating invoice payment linked to product catalog…");
+  const groupInvoice = await createInvoicePayment({
+    customerName: "Parent TestGroup",
+    customerEmail: "henzolina.s.j@gmail.com",
+    lineItems: [
+      { priceId: STRIPE_PRICES.adultFull, quantity: 1 },
+      { priceId: STRIPE_PRICES.childFull, quantity: 1 },
+      { priceId: STRIPE_PRICES.thuDinnerAdult, quantity: 1 },
+      { priceId: STRIPE_PRICES.friBreakfastAdult, quantity: 1 },
+      { priceId: STRIPE_PRICES.friLunchAdult, quantity: 1 },
+      { priceId: STRIPE_PRICES.friBreakfastChild, quantity: 1 },
+      { priceId: STRIPE_PRICES.friLunchChild, quantity: 1 },
+    ],
     description: "E2E Flow 3: Group (Adult $150 + Child $50 + 5 Meals $52)",
     metadata: { group_id: groupId, event_id: EVENT_ID, checkout_session_id: sessionId, test: "true" },
   });
+  const groupPI = groupInvoice.paymentIntent;
   assert("Real Stripe charge succeeded", groupPI.status === "succeeded");
-  step(`PaymentIntent: ${groupPI.id} ($${(groupPI.amount / 100).toFixed(2)})`);
+  step(`PaymentIntent: ${groupPI.id} ($${(groupPI.amount / 100).toFixed(2)}) → Invoice: ${groupInvoice.invoiceId}`);
 
   // Webhook
   step("Sending checkout.session.completed webhook…");
@@ -716,6 +808,9 @@ async function flow4_kotePlusMeals() {
     productSubstring: "kote-daily",
     expectedLineItems: 1,
     description: "E2E Flow 4: KOTE 2-day ($20) — English Young Adults",
+    customerName: "Kote TestWalker",
+    customerEmail: "henzolina2@gmail.com",
+    invoiceItems: [{ priceId: STRIPE_PRICES.koteDaily, quantity: 2 }],
   });
 
   const confirmedReg = await getRegistration(reg.id as string);
@@ -741,15 +836,21 @@ async function flow4_kotePlusMeals() {
     assert("Meal product linked (ff-sc-...)", getProductId(li)?.startsWith("ff-sc-") ?? false);
   }
 
-  // Real Stripe charge for meals
-  step("Creating real Stripe charge for meals (pm_card_visa)…");
-  const mealPI = await createRealStripeCharge({
-    amountCents: 2400,
+  // Real invoice payment for meals linked to product catalog
+  step("Creating invoice payment for meals…");
+  const mealInvoice = await createInvoicePayment({
+    customerName: "Kote TestWalker",
+    customerEmail: "henzolina2@gmail.com",
+    lineItems: [
+      { priceId: STRIPE_PRICES.friBreakfastAdult, quantity: 1 },
+      { priceId: STRIPE_PRICES.friLunchAdult, quantity: 1 },
+    ],
     description: "E2E Flow 4: Meal Purchase (2× adult $12)",
     metadata: { registration_id: reg.id as string, event_id: EVENT_ID, checkout_session_id: mealSessionId, type: "meal_purchase", test: "true" },
   });
+  const mealPI = mealInvoice.paymentIntent;
   assert("Real meal charge succeeded", mealPI.status === "succeeded");
-  step(`Meal PaymentIntent: ${mealPI.id} ($${(mealPI.amount / 100).toFixed(2)})`);
+  step(`Meal PaymentIntent: ${mealPI.id} ($${(mealPI.amount / 100).toFixed(2)}) → Invoice: ${mealInvoice.invoiceId}`);
 
   // Meal webhook
   const mealPurchase = await getMealPurchase(reg.id as string);
@@ -834,6 +935,9 @@ async function flow5_partialAdult() {
     productSubstring: "adult-daily",
     expectedLineItems: 1,
     description: "E2E Flow 5: Partial 2-day ($76) — Dallas, Garland",
+    customerName: "Partial TestDorm",
+    customerEmail: "henokrobale@gmail.com",
+    invoiceItems: [{ priceId: STRIPE_PRICES.adultDaily, quantity: 2 }],
   });
 
   const finalReg = await getRegistration(reg.id);
@@ -894,6 +998,9 @@ async function flow6_childChurchDorm() {
     productSubstring: "child-full",
     expectedLineItems: 1,
     description: "E2E Flow 6: Child Full ($50) — Houston Church",
+    customerName: "Kiddo TestChild",
+    customerEmail: "harmonika.hn@gmail.com",
+    invoiceItems: [{ priceId: STRIPE_PRICES.childFull, quantity: 1 }],
   });
 
   const finalReg = await getRegistration(reg.id);
