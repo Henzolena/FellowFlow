@@ -6,7 +6,8 @@ import type Stripe from "stripe";
 type SessionLineItem = {
   price_data: {
     currency: string;
-    product_data: { name: string; description: string };
+    product_data?: { name: string; description: string };
+    product?: string;
     unit_amount: number;
   };
   quantity: number;

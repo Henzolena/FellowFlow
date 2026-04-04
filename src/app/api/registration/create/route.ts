@@ -97,6 +97,19 @@ export async function POST(request: NextRequest) {
     // (bypasses RLS — anonymous users can't pass RLS INSERT policies)
     const adminClient = createAdminClient();
 
+    // Generate public confirmation code
+    const { data: codeResult } = await adminClient.rpc("generate_confirmation_code", {
+      p_first_name: data.firstName,
+      p_last_name: data.lastName,
+      p_event_id: data.eventId,
+    });
+    const initials = (data.firstName.charAt(0) + data.lastName.charAt(0)).toUpperCase();
+    const publicCode = codeResult ?? `MW26-${initials}-${Math.floor(Math.random() * 100000).toString().padStart(5, "0")}`;
+
+    // Derive attendance type and access tier
+    const attendanceType = data.attendanceType ?? (data.isFullDuration ? "full_conference" : "partial");
+    const accessTier = attendanceType === "kote" ? "KOTE_ACCESS" : "FULL_ACCESS";
+
     // Create registration
     const { data: registration, error: regError } = await adminClient
       .from("registrations")
@@ -119,6 +132,9 @@ export async function POST(request: NextRequest) {
         explanation_detail: pricingResult.explanationDetail,
         status: pricingResult.amount === 0 ? "confirmed" : "pending",
         confirmed_at: pricingResult.amount === 0 ? new Date().toISOString() : null,
+        public_confirmation_code: publicCode,
+        attendance_type: attendanceType,
+        access_tier: accessTier,
       })
       .select()
       .single();

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { computeAge, computeMealPrice } from "@/lib/pricing/engine";
 import type { PricingConfig } from "@/types/database";
+import { mealProductId } from "@/lib/stripe/product-map";
 import { z } from "zod";
 
 const purchaseSchema = z.object({
@@ -114,14 +115,11 @@ export async function POST(request: NextRequest) {
 
     await supabase.from("meal_purchase_items").insert(items);
 
-    // Build Stripe line items
+    // Build Stripe line items linked to existing meal products
     const lineItems = newServices.map((s) => ({
       price_data: {
         currency: "usd",
-        product_data: {
-          name: s.service_name,
-          description: `Meal for ${reg.first_name} ${reg.last_name}`,
-        },
+        product: mealProductId(s.id),
         unit_amount: Math.round(unitPrice * 100),
       },
       quantity: 1,

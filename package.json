@@ -12,7 +12,8 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:stripe": "npx tsx scripts/test-stripe-flows.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

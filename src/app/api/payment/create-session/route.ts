@@ -7,6 +7,7 @@ import { recomputeSoloPricing, recomputeGroupPricing } from "@/lib/services/pric
 import { reuseExistingSession, createAndPersistSession } from "@/lib/services/session-manager";
 import { computeMealPrice } from "@/lib/pricing/engine";
 import type { Registration, Event, PricingConfig } from "@/types/database";
+import { registrationProductId, surchargeProductId, mealProductId } from "@/lib/stripe/product-map";
 
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
@@ -101,6 +102,37 @@ async function handleSoloPayment(
   }
 
   const ln = encodeURIComponent(registration.last_name);
+
+  // Build line items linked to Stripe products
+  const lineItems: { price_data: { currency: string; product?: string; product_data?: { name: string; description: string }; unit_amount: number }; quantity: number }[] = [];
+
+  const regProduct = registrationProductId(pricing.id, recomputed.explanationCode);
+  lineItems.push({
+    price_data: {
+      currency: "usd",
+      ...(regProduct
+        ? { product: regProduct }
+        : { product_data: { name: `Registration: ${registration.events.name}`, description: recomputed.explanationDetail } }),
+      unit_amount: Math.round(recomputed.baseAmount * 100),
+    },
+    quantity: 1,
+  });
+
+  // Separate surcharge line item linked to the surcharge product
+  if (recomputed.surcharge > 0) {
+    const surProduct = surchargeProductId(recomputed.surchargeLabel);
+    lineItems.push({
+      price_data: {
+        currency: "usd",
+        ...(surProduct
+          ? { product: surProduct }
+          : { product_data: { name: recomputed.surchargeLabel || "Late Registration Surcharge", description: "Applied to registration" } }),
+        unit_amount: Math.round(recomputed.surcharge * 100),
+      },
+      quantity: 1,
+    });
+  }
+
   const result = await createAndPersistSession({
     supabase,
     log,
@@ -108,19 +140,7 @@ async function handleSoloPayment(
     eventId: registration.event_id,
     customerEmail: registration.email,
     amount: recomputed.amount,
-    lineItems: [
-      {
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: `Registration: ${registration.events.name}`,
-            description: `${registration.first_name} ${registration.last_name} \u2014 ${recomputed.explanationDetail}`,
-          },
-          unit_amount: Math.round(recomputed.amount * 100),
-        },
-        quantity: 1,
-      },
-    ],
+    lineItems,
     successUrl: `${appUrl}/register/success?session_id={CHECKOUT_SESSION_ID}&registration_id=${registrationId}&ln=${ln}`,
     cancelUrl: `${appUrl}/register/review?registration_id=${registrationId}&ln=${ln}&cancelled=true`,
   });
@@ -169,25 +189,26 @@ async function handleGroupPayment(
 
   // Compute meal costs from stored selected_meal_ids (age-based pricing)
   let mealGrandTotal = 0;
-  const mealLineItems: { price_data: { currency: string; product_data: { name: string; description: string }; unit_amount: number }; quantity: number }[] = [];
+  type LineItem = { price_data: { currency: string; product?: string; product_data?: { name: string; description: string }; unit_amount: number }; quantity: number };
+  const mealLineItems: LineItem[] = [];
   for (const r of registrations as Registration[]) {
     const mealIds = r.selected_meal_ids;
     if (mealIds && mealIds.length > 0) {
       const pricePerMeal = computeMealPrice(r.age_at_event, r.attendance_type, pricing);
-      const mealTotal = mealIds.length * pricePerMeal;
-      mealGrandTotal += mealTotal;
-      if (mealTotal > 0) {
-        mealLineItems.push({
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `Meals: ${r.first_name} ${r.last_name}`,
-              description: `${mealIds.length} meal(s) × $${pricePerMeal.toFixed(2)}`,
+      if (pricePerMeal > 0) {
+        // Create one line item per meal service linked to the Stripe meal product
+        for (const serviceId of mealIds) {
+          const mealProd = mealProductId(serviceId);
+          mealLineItems.push({
+            price_data: {
+              currency: "usd",
+              product: mealProd,
+              unit_amount: Math.round(pricePerMeal * 100),
             },
-            unit_amount: Math.round(mealTotal * 100),
-          },
-          quantity: 1,
-        });
+            quantity: 1,
+          });
+          mealGrandTotal += pricePerMeal;
+        }
       }
     }
   }
@@ -204,38 +225,33 @@ async function handleGroupPayment(
     return NextResponse.json(existing);
   }
 
-  // Build line items from recomputed amounts — label by category (Dorm / KOTE / Registration)
-  const lineItems = registrations.map((r: Registration, i: number) => {
+  // Build line items from recomputed amounts — linked to Stripe products
+  const lineItems: LineItem[] = [];
+  for (let i = 0; i < registrations.length; i++) {
+    const r = registrations[i] as Registration;
     const item = groupResult.items[i];
-    let label: string;
-    if (r.attendance_type === "kote") {
-      label = `KOTE: ${r.first_name} ${r.last_name}`;
-    } else if (r.attendance_type === "partial") {
-      label = `Dorm: ${r.first_name} ${r.last_name}`;
-    } else {
-      label = `Registration: ${r.first_name} ${r.last_name}`;
-    }
-    return {
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: label,
-          description: item.explanationDetail || `Registration for ${eventData.name}`,
-        },
-        unit_amount: Math.round(item.amount * 100),
-      },
-      quantity: 1,
-    };
-  });
-
-  if (surcharge > 0) {
+    if (item.amount === 0) continue; // FREE_INFANT — skip
+    const regProduct = registrationProductId(pricing.id, item.explanationCode);
     lineItems.push({
       price_data: {
         currency: "usd",
-        product_data: {
-          name: surchargeLabel || "Late Registration Surcharge",
-          description: "Applied once to the group total",
-        },
+        ...(regProduct
+          ? { product: regProduct }
+          : { product_data: { name: `Registration: ${r.first_name} ${r.last_name}`, description: item.explanationDetail || `Registration for ${eventData.name}` } }),
+        unit_amount: Math.round(item.amount * 100),
+      },
+      quantity: 1,
+    });
+  }
+
+  if (surcharge > 0) {
+    const surProduct = surchargeProductId(surchargeLabel);
+    lineItems.push({
+      price_data: {
+        currency: "usd",
+        ...(surProduct
+          ? { product: surProduct }
+          : { product_data: { name: surchargeLabel || "Late Registration Surcharge", description: "Applied once to the group total" } }),
         unit_amount: Math.round(surcharge * 100),
       },
       quantity: 1,
