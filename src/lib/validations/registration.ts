@@ -34,6 +34,15 @@ export const registrationSchema = personalInfoSchema.merge(
     numDays: z.number().int().min(1).optional(),
     selectedDays: z.array(z.number().int().min(1)).optional(),
     attendanceType: attendanceTypeEnum.optional(),
+    gender: genderEnum.optional(),
+    city: z.string().max(200).optional(),
+    churchId: z.string().uuid().optional().nullable(),
+    churchNameCustom: z.string().max(200).optional().nullable(),
+    mealServiceIds: z.array(z.string().uuid()).optional(),
+    tshirtSize: z.enum(["XS", "S", "M", "L", "XL", "2XL", "3XL"]).optional().nullable(),
+    serviceLanguage: serviceLanguageEnum.optional().nullable(),
+    serviceAgeBand: z.string().max(20).optional().nullable(),
+    gradeLevel: gradeLevelEnum.optional().nullable(),
   })
 );
 

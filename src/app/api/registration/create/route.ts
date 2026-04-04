@@ -5,6 +5,8 @@ import { computePricing } from "@/lib/pricing/engine";
 import { registrationSchema } from "@/lib/validations/registration";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendConfirmationEmail } from "@/lib/email/resend";
+import { autoAssignBed } from "@/lib/services/bed-auto-assign";
+import { createRequestLogger } from "@/lib/logger";
 import type { Event, PricingConfig } from "@/types/database";
 
 // 10 registrations per 60 seconds per IP (stricter than quote)
@@ -12,6 +14,7 @@ const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 
 export async function POST(request: NextRequest) {
+  const log = createRequestLogger(request, "create-solo");
   try {
     const ip = getClientIp(request);
     const rl = rateLimit(`reg-create:${ip}`, RATE_LIMIT, RATE_WINDOW_MS);
@@ -135,6 +138,15 @@ export async function POST(request: NextRequest) {
         public_confirmation_code: publicCode,
         attendance_type: attendanceType,
         access_tier: accessTier,
+        gender: data.gender ?? null,
+        city: data.city ?? null,
+        church_id: data.churchId ?? null,
+        church_name_custom: data.churchNameCustom ?? null,
+        selected_meal_ids: data.mealServiceIds?.length ? data.mealServiceIds : null,
+        tshirt_size: data.tshirtSize ?? null,
+        service_language: data.serviceLanguage ?? null,
+        service_age_band: data.serviceAgeBand ?? null,
+        grade_level: data.gradeLevel ?? null,
       })
       .select()
       .single();
@@ -145,6 +157,55 @@ export async function POST(request: NextRequest) {
         { error: "Failed to create registration" },
         { status: 500 }
       );
+    }
+
+    // ─── Auto-assign bed based on city→dorm mapping ───
+    // KOTE users are off-campus / walk-in — skip auto-assignment
+    let bedAssignment: { dormName: string; bedLabel: string } | null = null;
+    if (registration && attendanceType !== "kote") {
+      let city = data.city ?? null;
+
+      // If no city on registration, resolve from church
+      if (!city && data.churchId) {
+        const { data: church } = await adminClient
+          .from("churches")
+          .select("city")
+          .eq("id", data.churchId)
+          .single();
+        city = church?.city ?? null;
+      }
+
+      if (city) {
+        try {
+          const result = await autoAssignBed(adminClient, {
+            registrationId: registration.id,
+            eventId: data.eventId,
+            city,
+            gender: data.gender ?? null,
+            assignedBy: "system_public_registration",
+          });
+          if (result) {
+            bedAssignment = { dormName: result.motelName, bedLabel: result.bedLabel };
+            log.info("Bed auto-assigned", {
+              registrationId: registration.id,
+              city,
+              motel: result.motelName,
+              bed: result.bedLabel,
+            });
+          } else {
+            log.warn("No available bed for auto-assignment", {
+              registrationId: registration.id,
+              city,
+            });
+          }
+        } catch (e) {
+          log.error("Bed auto-assignment failed", {
+            registrationId: registration.id,
+            city,
+            error: String(e),
+          });
+        }
+      }
     }
 
     // Send confirmation email for free registrations immediately
@@ -162,10 +223,12 @@ export async function POST(request: NextRequest) {
         category: registration.category,
         accessTier: registration.access_tier,
         attendanceType: registration.attendance_type,
+        dormName: bedAssignment?.dormName ?? null,
+        bedLabel: bedAssignment?.bedLabel ?? null,
       }).catch(() => {}); // fire-and-forget
     }
 
-    return NextResponse.json({ registration });
+    return NextResponse.json({ registration, bedAssignment });
   } catch (error) {
     console.error("Registration error:", error);
     console.error("Error details:", {
